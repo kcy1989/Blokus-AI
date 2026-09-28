@@ -1,7 +1,9 @@
-"""入侵者：延伸度、可用交點、跨越、關鍵格、階段限制與效能。
+"""The Intruder: extension, usable corners, crossing, key squares, phase limits
+and performance.
 
-規則來自策略描述，實作全部落在 `ai.py` 的幾何與評分函式上；這裡逐一把它們
-釘住，免得日後有人用「更省」的寫法把它們悄悄改掉。
+The rules come from the strategy description and all of the implementation lives
+in the geometry and scoring functions in `ai.py`; each of them is pinned down
+here one by one, so that nobody later silently rewrites them in a "cheaper" way.
 """
 import random
 import time
@@ -34,19 +36,21 @@ def corner_geometry(board=None, name="V5", oi=None, x=0, y=0, owner=1):
     return ai.move_geometry(board, name, oi, x, y, owner, must_cover=(0, 0))
 
 
-# ---------------------------------------------------------------- 延伸度
+# ---------------------------------------------------------------- extension
 
 def test_extension_matches_the_worked_example():
-    """`#.`/`#.`/`###` 接在 (0,0)：最遠的可用交點 (3,3) 距接觸交點 3+3 = 6。"""
+    """`#.`/`#.`/`###` attached at (0,0): the farthest usable corner (3,3) is
+    3+3 = 6 away from the contact corner."""
     ext, usable, squares = corner_geometry()
     assert ext == 6, ext
-    assert usable == 8, usable          # 兩個可放空格 (3,1)、(3,3) 的 4 個角
+    # the 4 corners of the two placeable squares (3,1) and (3,3)
+    assert usable == 8, usable
     assert squares == 2, squares
 
 
 def test_extension_is_dynamic_not_a_piece_constant():
-    """封掉 (3,3) 之後延伸度必須下降——延伸度是落子後的棋盤狀態，不是棋塊
-    的一個常數。"""
+    """After (3,3) is blocked the extension must drop - extension is the board
+    state after the move, not a constant of the piece."""
     b = Board()
     b.place(3, 3, I1, 2)
     blocked, _usable, squares = corner_geometry(b)
@@ -57,10 +61,13 @@ def test_extension_is_dynamic_not_a_piece_constant():
 
 
 def test_usable_vertices_come_from_the_general_rule():
-    """可用交點＝「所有可放空格的 4 個角」的聯集，不是手寫的清單。
+    """Usable corners = the union of "the 4 corners of every placeable square",
+    not a hand-written list.
 
-    (3,3)、(3,2) 是可放空格 (3,1)、(3,3) 的角；(1,0)、(0,3) 雖然也是棋塊
-    自己的角，但那兩個位置的空格都與自己的棋共邊，所以不在可放集合裡。
+    (3,3) and (3,2) are corners of the placeable squares (3,1) and (3,3);
+    (1,0) and (0,3) are also corners of the piece itself, but the empty squares
+    at those two positions share an edge with the player's own piece, so they are
+    not in the placeable set.
     """
     b = Board()
     placed = ai.ODIRS["V5"][oi_of("V5", V_SHAPE)]["m"]
@@ -71,14 +78,16 @@ def test_usable_vertices_come_from_the_general_rule():
            if (cells_to_vertices(legal) >> i) & 1}
     assert (3, 3) in got and (3, 2) in got
     assert (1, 0) not in got and (0, 3) not in got
-    # (2,3) 是自己那顆 (2,2) 的角，不是任何可放空格的角，依通用規則不可用。
-    # 把它算成可用不會改變最大延伸度（仍是 6），但通用規則才對所有形狀與
-    # 邊界都成立，所以實作走通用規則。
+    # (2,3) is the corner of the piece's own (2,2), not a corner of any
+    # placeable square, so the general rule makes it unusable. Counting it as
+    # usable would not change the maximum extension (still 6), but the general
+    # rule is what holds for every shape and boundary, so the implementation
+    # follows the general rule.
     assert (2, 3) not in got
 
 
 def test_stretchers_reach_further_than_y5():
-    """Y5 被排除的理由就是延伸距離只有 5。"""
+    """The reason Y5 is excluded is that its extension distance is only 5."""
     reach = {}
     for name in ("L5", "N5", "I5", "Y5"):
         reach[name] = max(corner_geometry(Board(), name, oi)[0]
@@ -88,10 +97,11 @@ def test_stretchers_reach_further_than_y5():
     assert "Y5" not in ai.STRETCHERS
 
 
-# -------------------------------------------------------------- 跨越棋
+# -------------------------------------------------------------- crossing pieces
 
 def test_leaper_set_is_derived_geometrically():
-    """6 塊棋有 3x3 外框，但只有 3 塊佔兩個「對角」；T5 的兩個角是相鄰的。"""
+    """The 6-cell pieces have a 3x3 bounding box, but only 3 of them occupy two
+    "diagonally opposite" corners; T5's two corners are adjacent."""
     assert ai.LEAPERS == {"V5", "W5", "Z5"}
     assert not ({"T5", "X5", "F5"} & ai.LEAPERS)
     for name in ("T5", "X5", "F5"):
@@ -102,9 +112,11 @@ def test_leaper_set_is_derived_geometrically():
 
 
 def test_crossing_needs_one_diagonal_mine_and_one_theirs():
-    """使用者給的微觀圖 `1 2 / 3 4`：對手佔 2、3，我佔 4，落 1 即完成跨越。
+    """The user-supplied micro diagram `1 2 / 3 4`: the opponent holds 2 and 3,
+    we hold 4, so placing 1 completes the crossing.
 
-    兩種對角線方向都要成立，而落 2 或落 3（對手那條）不算。
+    It must hold for both diagonal directions, and placing 2 or 3 (the opponent's
+    line) does not count.
     """
     b = Board()
     b.place(6, 5, I1, 2)                 # 2
@@ -113,7 +125,8 @@ def test_crossing_needs_one_diagonal_mine_and_one_theirs():
     assert not ai.has_crossed(b.owner_bits[1], b.owner_bits[2])
     b.place(5, 5, I1, 1)                 # 1
     assert ai.has_crossed(b.owner_bits[1], b.owner_bits[2])
-    # 換個方向：跨越棋佔 {左上, 左下} 的那條也一樣
+    # the other direction: the same holds for the line where the crossing
+    # pieces occupy {top-left, bottom-left}
     c = Board()
     c.place(5, 5, I1, 2)
     c.place(6, 6, I1, 2)
@@ -124,7 +137,8 @@ def test_crossing_needs_one_diagonal_mine_and_one_theirs():
 
 
 def test_has_crossed_needs_no_history():
-    """判定只需要棋盤：同一個盤面用不同的落子順序排出來，答案必須一樣。"""
+    """The decision only needs the board: the same position built with a
+    different move order must give the same answer."""
     b = crossing_board()
     key = ai.key_cells(b.owner_bits[1], b.owner_bits[2], b.empty_bits)
     assert key, "fixture must hold a key square"
@@ -137,16 +151,17 @@ def test_has_crossed_needs_no_history():
     other.place(6, 7, I1, 2)
     for i in range(6):
         other.place(i, i, I1, 1)
-    other.place(4, 6, I1, 1)                    # 與 b 同一盤面，順序不同
+    other.place(4, 6, I1, 1)       # same position as b, different order
     assert other.grid == b.grid
     assert ai.has_crossed(other.owner_bits[1], other.owner_bits[2])
-    # 再算一次不變
+    # computing it a second time changes nothing
     assert ai.has_crossed(b.owner_bits[1], b.owner_bits[2]) == \
         ai.has_crossed(b.owner_bits[1], b.owner_bits[2])
 
 
 def test_key_cell_completes_a_crossing_when_filled():
-    """關鍵格填上去就跨越，而且對自己的棋一定是角對角、不共邊。"""
+    """Filling in a key square completes the crossing, and it always meets the
+    player's own piece corner-to-corner, never sharing an edge."""
     b = crossing_board()
     key = ai.key_cells(b.owner_bits[1], b.owner_bits[2], b.empty_bits)
     assert sorted((i % 20, i // 20) for i in range(400) if (key >> i) & 1) \
@@ -158,7 +173,7 @@ def test_key_cell_completes_a_crossing_when_filled():
             "a key square must be reachable by the corner-contact rule"
 
 
-# ---------------------------------------------------------- 階段限制
+# ---------------------------------------------------------- phase limits
 
 def intruder_game(seed, key="intruder", moves=None):
     """Real moves only, so every position obeys the corner-contact rule."""
@@ -186,7 +201,8 @@ def intruder_game(seed, key="intruder", moves=None):
 
 
 def test_opening_moves_are_leapers_then_stretchers():
-    """規則 1、2：跨越棋先用完，再用能伸 6 格的樹，最後才回到一般局面。"""
+    """Rules 1 and 2: use up the crossing pieces first, then the pieces that can
+    stretch 6 squares, and only afterwards return to a general position."""
     _g, log = intruder_game(1)
     used = [mv[0] for mv in log if mv]
     first_six = used[:6]
@@ -196,18 +212,20 @@ def test_opening_moves_are_leapers_then_stretchers():
 
 
 def test_phase_degrades_instead_of_returning_none():
-    """跨越棋一格都下不了時必須退回其他棋塊。
+    """When not a single crossing piece fits, it must fall back to the other
+    pieces.
 
-    `choose_move` 回傳 None 的唯一意義是「真的無棋可下」，所以這裡的局面
-    明明還有 I1 可下，就一定要回一個合法落子。
+    The only meaning of `choose_move` returning None is "truly no piece can be
+    placed", and this position clearly still has I1 to play, so it must return a
+    legal placement.
     """
     b = Board()
-    b.place(0, 0, I1, 1)                     # owner 1 只剩自己的角
+    b.place(0, 0, I1, 1)              # owner 1 is left with only its corner
     for y in range(4):
         for x in range(4):
             if (x, y) in ((0, 0), (1, 1)):
                 continue
-            b.place(x, y, I1, 2)            # 把 (1,1) 以外整塊封死
+            b.place(x, y, I1, 2)      # wall off everything except (1,1)
     reach = b.reach(1)
     legal = reach.need & ~reach.avoid & b.empty_bits
     assert [i % 20 for i in range(400) if (legal >> i) & 1] == [1]
@@ -222,13 +240,14 @@ def test_phase_degrades_instead_of_returning_none():
     assert b.can_place(1, 1, MASTER["I1"]["orientations"][0], 1, None, reach)
 
 
-# -------------------------------------------------- 規則 3 / 4 / 5
+# -------------------------------------------------- rules 3 / 4 / 5
 
 def crossing_board():
-    """owner 1 走 (0,0)→(5,5) 的斜線；owner 2 的 (5,6)+(6,7) 貼在旁邊。
+    """Owner 1 runs the diagonal (0,0)->(5,5); owner 2's (5,6)+(6,7) hug the
+    side.
 
-    (5,7) 因此是關鍵格：填上去就完成跨越，而 (6,6) 一旦是我的棋就開出
-    這個位置。
+    So (5,7) is a key square: filling it completes the crossing, and (6,6) opens
+    up that position as soon as it is one of my pieces.
     """
     b = Board()
     for i in range(6):
@@ -246,9 +265,11 @@ def sets_up(brain, ctx, board, name, oi, base):
 
 
 def test_rule3_prefers_a_move_that_sets_up_a_crossing():
-    """規則 3：尚未跨越的對手就在旁邊時，會挑一個佔完之後還能跨越的落子。"""
+    """Rule 3: when an uncrossed opponent is right next door, it picks a
+    placement that still allows a crossing once it is filled."""
     b = crossing_board()
-    hand = ["I3", "O4", "I2", "I1"]           # 一般局面，階段不介入
+    # a general position, so the phase rules do not kick in
+    hand = ["I3", "O4", "I2", "I1"]
     brain = ai.make_brain("intruder", random.Random(0))
     mv = ai.choose_move(b, hand, 1, brain, random.Random(0), other_brains=None,
                         reach=b.reach(1))
@@ -261,8 +282,10 @@ def test_rule3_prefers_a_move_that_sets_up_a_crossing():
 
 
 def test_intruder_ignores_the_weighted_lookahead():
-    """對手預判扣的是**權重**分，量級遠大於規則分；讓它參與排序等於把規則
-    整個蓋掉，所以入侵者不走那一段。"""
+    """The opponent-prediction term subtracts a **weighted** score whose
+    magnitude is far larger than the rule score; letting it take part in the
+    ordering would bury the rules completely, so the Intruder skips that
+    section."""
     intruder = ai.make_brain("intruder", random.Random(0))
     assert intruder.uses_lookahead is False
     assert ai.make_brain("wolf", random.Random(0)).uses_lookahead is True
@@ -277,7 +300,8 @@ def test_intruder_ignores_the_weighted_lookahead():
 
 
 def test_rule3_is_silent_when_no_opponent_can_be_reached():
-    """沒有對手貼上來時關鍵格不存在，這條規則不該憑空發動。"""
+    """When no opponent is hugging us there is no key square, so this rule must
+    not fire out of thin air."""
     b = Board()
     for i in range(6):
         b.place(i, i, I1, 1)
@@ -291,15 +315,18 @@ def test_rule3_is_silent_when_no_opponent_can_be_reached():
 
 
 def test_rule4_values_room_over_size():
-    """規則 4：跨越那一步以可放空格數最大化為主，並懲罰可用交點太少。"""
+    """Rule 4: the crossing step is dominated by maximising the number of
+    placeable squares, and it penalises having too few usable corners."""
     assert ai.crossing_bonus(60, 6) > ai.crossing_bonus(10, 6)
     assert ai.crossing_bonus(60, ai.SEAL_MIN) > ai.crossing_bonus(60, 0)
-    # 不跨越時可放空格數同樣有份，但權重只有一半
+    # the placeable-square count also earns its keep without a crossing, but
+    # with only half the weight
     assert ai.crossing_bonus(60, 6) - ai.W_CROSS > 2.0 * (ai.W_SQUARES * 10)
 
 
 def test_rule5_five_cells_unless_the_square_is_strategic():
-    """規則 5：一般局面 5 格優先；關鍵格上 4 格、3 格才贏得過。"""
+    """Rule 5: in a general position 5 cells come first; on a key square the
+    4-cell and 3-cell pieces win out."""
     assert ai.size_bonus(5, False) > ai.size_bonus(4, False)
     assert ai.size_bonus(4, False) > ai.size_bonus(3, False)
     assert ai.size_bonus(3, True) > ai.size_bonus(5, False)
@@ -307,13 +334,14 @@ def test_rule5_five_cells_unless_the_square_is_strategic():
     assert ai.size_bonus(5, True) > ai.size_bonus(4, True)
 
 
-# -------------------------------------------------------- 合法性 / 效能
+# -------------------------------------------------------- legality / performance
 
 def test_intruder_moves_are_legal_in_a_real_game():
     g, log = intruder_game(3)
     assert len(log) > 5
-    # 重跑一次並在每一手當下檢查角對角規則：最終盤面無法重驗，因為多格棋
-    # 跟自己共邊是正常的。
+    # replay and check the corner-contact rule at the moment of each move: the
+    # final board cannot be re-verified, because a multi-cell piece sharing an
+    # edge with itself is normal.
     rng = random.Random(3)
     g = Game(rng)
     g.set_player_color("blue")
@@ -350,7 +378,7 @@ def test_intruder_move_speed():
     assert dt < 1.5, dt
 
 
-# -------------------------------------------------------------- 抽樣
+# -------------------------------------------------------------- sampling
 
 def test_draw_personalities_picks_three_from_the_pool():
     rng = random.Random(4)
@@ -364,7 +392,8 @@ def test_draw_personalities_picks_three_from_the_pool():
 
 
 def test_intruder_reaches_the_leaderboard(tmp_path):
-    """4 種人格都是 personality 為 key 的排行榜條目；缺席的局不影響其他人。"""
+    """All 4 personalities are leaderboard entries keyed by personality; games
+    where one is absent do not affect the others."""
     from records import Records
     rec = Records(str(tmp_path / "records.json"))
     for keys in (("player", "wolf", "chess", "intruder"),

@@ -1,8 +1,10 @@
-"""棋手：平衡的佈局者。
+"""Chess: a balanced layout player.
 
-六個權重全部給 1.0，所以它沒有偏好，每個面向都照自己的判斷權重加總。`w_open`
-只有 1.0（狼 0.5、狐狸 2.0），`w_corner` 也只有 1.0，所以它既不搶角也不貪空
-地。這是預設人格，也是規則式人格被預判時借用的權重檔。
+All six weights are set to 1.0, so it has no preference and simply sums the
+weighted terms by its own judgement. `w_open` is only 1.0 (wolf 0.5, fox 2.0)
+and `w_corner` is also only 1.0, so it neither grabs corners nor hoards open
+space. This is the default personality, and also the profile spec that the
+rule-based personalities borrow when they are predicted.
 
     python3 -c "import ai; print(ai.PROFILE_SPECS['chess'])"
 """
@@ -15,6 +17,7 @@ PROFILE_SPEC = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.05)
 
 
 class ChessBrain(WeightedBrain):
-    """穩健佈局、權重均衡。評分路徑與其他權重式人格完全相同。"""
+    """Steady layout, balanced weights. The scoring path is exactly the same
+    as the other weighted personalities."""
 
     key = KEY

@@ -1,8 +1,12 @@
-"""優化者：先放最大棋塊、再留住可放空間，緊急時先救只剩一個落點的棋。
+"""The Optimizer: place the biggest piece first, then preserve placeable space,
+and in an emergency rescue the piece that is down to a single placement.
 
-這個人格的目標函式只有一個量——落子後自己還有幾個可放空格——因為積分就是
-「餘格愈少愈好」。這裡把三件事釘住：棋塊大小的優先、可放空間的最大化、
-以及緊急規則會蓋過前兩者（且不蓋過開局的角位規則）。
+This personality's objective function has only one quantity - how many
+placeable squares it will still have after the move - because scoring is
+exactly "fewer remaining squares is better". Three things are pinned down here:
+the priority of piece size, the maximisation of placeable space, and the fact
+that the emergency rule overrides the first two (without overriding the opening
+corner rule).
 """
 import random
 import time
@@ -18,12 +22,14 @@ I1 = MASTER["I1"]["orientations"][0]
 
 
 def playout(seed, moves, brains=None):
-    """一個只由**權重式人格**走出來的局面。
+    """A position reached using only **weighted-style personalities**.
 
-    三個 AI 席位是明確釘死的，沒有走 `set_player_color` 的抽籤：抽到誰會隨著
-    人格池變動而漂移，那樣一改池子，這裡的局面就跟著變，底下每個斷言測的就不是
-    本來要測的那個局面了。停在這裡的局面與優化者無關，所以它也不會隨優化者的
-    行為改變而漂移。
+    The three AI seats are explicitly pinned, without going through
+    `set_player_color`'s lottery: who gets drawn drifts as the personality pool
+    changes, so touching the pool would change the position here too, and then
+    every assertion below would no longer test the position it was meant to
+    test. The position stopped here has nothing to do with the Optimizer, so it
+    will not drift as the Optimizer's behaviour changes either.
     """
     rng = random.Random(seed)
     g = Game(rng)
@@ -62,12 +68,14 @@ def legal_count(board, name, oi, base, ctx):
     return ai.place_state(board, name, oi, base, ctx)[4].bit_count()
 
 
-# ------------------------------------------------------------ 可放空間
+# ------------------------------------------------------------ placeable space
 
 def test_optimizer_maximises_placeable_squares():
-    """同一種棋塊之間，挑「放完之後自己還能下最多位置」的那一格。
+    """Among the same piece, pick the cell that leaves us the most positions
+    to play afterwards.
 
-    獨立枚舉全部合法候選重算一次，不靠 `rescore` 自己的結果。
+    Every legal candidate is independently enumerated and recomputed, without
+    relying on `rescore`'s own result.
     """
     g = playout(0, 12)
     owner = 1
@@ -99,7 +107,7 @@ def _bases(od, empt, reach):
 
 
 def test_optimizer_prefers_the_largest_piece():
-    """沒有緊急棋塊時，先放能放下的最大棋塊。"""
+    """With no urgent piece, place the biggest piece that fits first."""
     g = playout(0, 12)
     owner = 1
     board, reach = g.board, g.reach(owner)
@@ -108,26 +116,31 @@ def test_optimizer_prefers_the_largest_piece():
     assert not [n for n, k in counts.items() if 0 < k <= ai.URGENT_PLACES], counts
     mv = pick(board, ["F5", "I5", "I1"], owner, reach=reach)
     assert MASTER[mv[0]]["size"] == 5, mv
-    # 手上只剩小棋時就改放小棋（階段是軟的，永遠不會卡住）
+    # when only small pieces are left in hand it plays a small piece instead
+    # (the phase is soft and will never jam up)
     mv = pick(board, ["I3", "I2", "I1"], owner, reach=reach)
     assert MASTER[mv[0]]["size"] == 3, mv
 
 
-# ------------------------------------------------------------ 緊急規則
+# ------------------------------------------------------------ emergency rule
 
 def test_optimizer_places_the_urgent_piece_first():
-    """棋塊只剩唯一一個落點時先放它，即使 5 格棋還有好幾個落點。
+    """A piece down to its only placement goes first, even when a 5-cell piece
+    still has several placements.
 
-    局面用固定的 `playout(5, 46)`：這個位置自然長成 I4／O4／X5 三塊棋各只剩
-    一個落點，而同時還有 5 格棋有 5 個落點。稀有狀況不能用「隨便找一局」當
-    fixture——那會隨人格池與抽籤漂移。
+    The position uses a fixed `playout(5, 46)`: this spot naturally grows into
+    I4 / O4 / X5 each having exactly one placement left, while at the same time
+    a 5-cell piece still has 5 placements. A rare situation must not use "just
+    find some game" as a fixture - that would drift with the personality pool
+    and the lottery.
     """
     g = playout(5, 46)
     owner = 1
     board, reach = g.board, g.reach(owner)
     hand = list(g.hands[owner].names)
     counts = ai.placement_counts(board, hand, owner, g.must_cover(owner))
-    # 局勢前提：三塊棋各只剩一個落點，而別的 5 格棋還有幾個落點
+    # situational premise: three pieces each have one placement left, while
+    # another 5-cell piece still has several
     assert g.must_cover(owner) is None
     urgent = [n for n, k in counts.items() if 0 < k <= ai.URGENT_PLACES]
     assert all(counts[n] == 1 for n in urgent) and len(urgent) == 3, counts
@@ -143,7 +156,8 @@ def test_optimizer_places_the_urgent_piece_first():
 
 
 def test_urgent_rescue_prefers_the_bigger_piece():
-    """同樣只剩一個落點時先救大的：一樣救不回來，少留 5 格比較不痛。"""
+    """With several pieces down to one placement each, rescue the bigger one
+    first: they are equally unsavable, and leaving 5 cells hurts less."""
     g = playout(5, 46)
     owner = 1
     board, reach = g.board, g.reach(owner)
@@ -158,10 +172,12 @@ def test_urgent_rescue_prefers_the_bigger_piece():
 
 
 def test_opening_ignores_the_urgent_rule():
-    """開局第一手時落點數是角位規則壓出來的，不是棋盤變擠的訊號。
+    """On the opening move the placement count is forced by the corner rule, it
+    is not a signal that the board is getting crowded.
 
-    那時 O4 這種棋只有一種放法，若把它當成「急需」就會把第一手花在 4 格棋
-    上，直接違背「優先放 5 格」。
+    At that point a piece like O4 has only one way to be placed, and treating
+    that as "urgent" would spend the first move on a 4-cell piece, directly
+    violating "prefer 5 cells".
     """
     b = Board()
     brain = optimizer_brain()
@@ -175,7 +191,8 @@ def test_opening_ignores_the_urgent_rule():
 
 
 def test_a_dead_piece_is_not_urgent():
-    """落點數 0 的棋塊救不回來，不算急需（而且它根本沒有候選落點）。"""
+    """A piece with 0 placements cannot be rescued and is not urgent (and it has
+    no candidate placements in the first place)."""
     b = Board()
     b.place(0, 0, I1, 1)
     for y in range(4):
@@ -194,10 +211,11 @@ def test_a_dead_piece_is_not_urgent():
     assert b.can_place(1, 1, I1, 1, None, reach)
 
 
-# -------------------------------------------------------- 合法性 / 效能
+# -------------------------------------------------------- legality / performance
 
 def test_optimizer_moves_are_legal_in_a_real_game():
-    """每一手都要滿足角對角、不共邊。最終盤面無法重驗，所以逐手檢查。"""
+    """Every move must satisfy corner contact and share no edge. The final
+    board cannot be re-verified, so it is checked move by move."""
     rng = random.Random(5)
     g = Game(rng)
     g.set_player_color("blue")
@@ -235,7 +253,8 @@ def test_optimizer_move_speed():
 
 
 def test_optimizer_beats_the_weighted_personalities():
-    """這個人格就是照分數定義的，所以它應該在餘格上真的贏。"""
+    """This personality is defined by the score, so it should really win on
+    remaining cells."""
     keys = ["optimizer", "wolf", "fox"]
     left = dict.fromkeys(keys + ["player"], 0)
     games = 12

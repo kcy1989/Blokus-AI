@@ -16,7 +16,10 @@ DEFAULT_SCALE = 1.0
 # Hand zoom is deliberately independent of board scale: a taller, more readable
 # hand band costs vertical space the board would otherwise use, and only the
 # user knows which side of that trade they want.
-HAND_ZOOMS = (1.5, 2.0, 2.5, 3.0)
+# Thumbnails fill the rack at the top of this range, so the default is the
+# biggest size the rack can hold; the lower steps trade size for a calmer,
+# easier-to-scan rack. See `Layout._max_fitting_hand_cell`.
+HAND_ZOOMS = (1.0, 1.4, 1.7, 2.0)
 DEFAULT_HAND_ZOOM = 2.0
 DESKTOP_MARGIN = 48
 # SDL reports the X11/Wayland *root* size, which on a scaled 4K desktop is twice
@@ -137,79 +140,210 @@ def shade(color, factor):
 class Layout:
     """Every piece of window geometry, derived from scale and hand zoom.
 
-    The hand band spans the full window width and is built by
-    `layout_hand`: thumbnails sorted into one row per piece size, each row as
-    tall as its tallest member, wrapping inside the window when a group (the
-    5-cell group is 41 cells wide) no longer fits. Geometry always comes from
-    the *full* 21-piece hand so the window does not resize as pieces are played,
-    while the drawn slots re-pack from whatever is actually left.
+    The window is a fixed 16:9 frame at every scale: `scale` picks the height
+    and the width follows from the aspect ratio. Inside it there are three
+    columns - the player panel, the board, and the hand rack - and `MARGIN` is
+    the single gutter between all of them, so the window reads as a grid rather
+    than as regions that happen to touch.
+
+    The hand rack is a right-hand column built by `layout_hand`: one captioned
+    card per piece size, 1..5 ascending, each wrapping into as many rows as the
+    column is narrow. Geometry always comes from the *full* 21-piece hand so the
+    rack does not reflow as pieces are played, while the drawn slots re-pack
+    from whatever is actually left.
     """
 
     def __init__(self, scale=DEFAULT_SCALE, hand_zoom=DEFAULT_HAND_ZOOM):
         s = float(scale)
         self.scale = s
         self.hand_zoom = float(hand_zoom)
-        self.CELL = max(10, int(round(30 * s)))
+
+        # One margin for the whole window: screen edge to panel content, panel
+        # to board, board to buttons, and board to hand rack. Every gap you can
+        # see is this number, which is what makes the window read as a grid
+        # instead of a board crammed into a corner.
+        self.MARGIN = max(8, int(round(18 * s)))
+        self.DIVIDER_W = max(1, int(round(2 * s)))
+        self.GUTTER = max(2, int(round(4 * s)))
+
+        self.PANEL_W = int(round(330 * s))
+        self.BTN_H = max(30, int(round(46 * s)))
+        # Deliberately roomy: the three buttons sit close together, and a
+        # fat-fingered confirm should not be one slip from cancel.
+        self.BTN_GAP = int(round(20 * s))
+        self.BTN_PAD = self.MARGIN
+
+        # Hand thumbnails scale with the board, so the two knobs stay
+        # independent: hand_zoom still picks the cell size, scale still picks
+        # the board size.
+        self.HAND_GAP = max(4, int(round(6 * s)))
+        self.GROUP_GAP = max(6, int(round(9 * s)))
+        # Each hand group is a captioned card: a label strip on top, then the
+        # thumbnails, inside one rounded frame. Five cards stacked down a
+        # narrow column is a lot of chrome, so the strip and padding stay tight
+        # and their floors are low enough to fit the smallest scale.
+        self.HAND_LABEL_H = max(10, int(round(15 * s)))
+        self.HAND_PAD = max(3, int(round(8 * s)))
+
+        # The window is a fixed 16:9 frame. `scale` picks its height and the
+        # width follows from the aspect ratio, so the layout can never drift
+        # out of proportion - not on a resize, not at any scale. The floor
+        # keeps the smallest scale inside a 1000px-wide desktop once the
+        # window margin is added.
+        self.H = max(480, int(round(720 * s)))
+        self.W = int(round(self.H * 16.0 / 9.0))
+
+        # Three columns: the player panel, the board, and the hand rack.
+        # Height is MARGIN + board + MARGIN + buttons + MARGIN, so the board is
+        # as large as 16:9 allows and the columns all share one vertical rhythm.
+        self.BO = (self.PANEL_W + self.MARGIN, self.MARGIN)
+        self.board_px = self.H - 3 * self.MARGIN - self.BTN_H
+        self.CELL = max(6, self.board_px // 20)
         self.board_px = 20 * self.CELL
-        self.PANEL_W = int(round(336 * s))
-        self.BO = (self.PANEL_W + 4, int(round(52 * s)))
-        self.W = max(720, int(round(960 * s)))
-        self.BTN_H = int(round(44 * s))
-        self.HAND_CELL = max(8, int(round(8 * self.hand_zoom * s)))
-        self.HAND_GAP = max(3, int(round(6 * s)))
-        self.GROUP_GAP = max(4, int(round(12 * s)))
-        self.LABEL_W = max(24, int(round(46 * s)))
-        self.HAND_X0 = int(round(16 * s))
-        self.HAND_Y0 = self.BO[1] + self.board_px + 8
+
+        self.BTN_Y = self.BO[1] + self.board_px + self.MARGIN
+        # The hand rack is a right-hand column spanning the full window height,
+        # so picking a piece and reading the board are the same eye movement.
+        self.HAND_X0 = self.BO[0] + self.board_px + self.MARGIN
+        self.HAND_W = self.W - self.MARGIN - self.HAND_X0
+        self.HAND_Y0 = self.MARGIN
+
+        # The thumbnails are sized to *fill* the rack rather than to a fixed
+        # multiple of the scale, otherwise the column ends in a large void
+        # while the board runs the full window height and the window reads as
+        # lopsided. `max_cell` is the largest cell the full hand fits at; the
+        # zoom knob then scales that, so the top of the range fills the rack
+        # and the lower steps give progressively smaller, easier-to-scan
+        # thumbnails. Nothing is ever clipped: the result is capped at
+        # `max_cell` by construction.
+        self.hand_zoom = float(hand_zoom)
+        self.HAND_CELL = 6  # provisional; the search below replaces it
+        max_cell = self._max_fitting_hand_cell()
+        cell = min(max_cell,
+                   max(6, int(round(max_cell * self.hand_zoom
+                                    / HAND_ZOOMS[-1]))))
+        self.HAND_CELL = cell
         self.hand_h = self.layout_hand(sorted(MASTER))[2]
-        self.BTN_Y = self.HAND_Y0 + self.hand_h + int(round(6 * s))
-        self.H = max(520, self.BTN_Y + self.BTN_H + int(round(16 * s)))
+
+    def _max_fitting_hand_cell(self):
+        """Largest thumbnail cell the full 21-piece hand fits in the rack."""
+        lo, hi, best = 6, max(6, self.HAND_W // 5), 6
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            if self._rack_fits(mid):
+                best = mid
+                lo = mid + 1
+            else:
+                hi = mid - 1
+        return best
+
+    def _rack_fits(self, cell=None):
+        """Does the full hand fit the rack at this thumbnail cell size?"""
+        cell = self.HAND_CELL if cell is None else cell
+        if cell * 5 > self.HAND_W - 2 * self.HAND_PAD:
+            return False  # even the widest single piece is too wide
+        keep = self.HAND_CELL
+        self.HAND_CELL = cell
+        try:
+            return self.layout_hand(sorted(MASTER))[2] <= self.H - 2 * self.MARGIN
+        finally:
+            self.HAND_CELL = keep
 
     def layout_hand(self, names, width=None):
-        """Pack `names` into the hand band.
+        """Pack `names` into the right-hand rack.
 
-        Returns (slots, labels, height): screen rects per piece name, the
-        "N cells" gutter plates, and the band height in pixels.
+        One card per piece size, 1..5 cells ascending, so every size has its own
+        caption and its own frame. The small groups hold only a handful of
+        pieces, so the cards *flow*: each one is placed to the right of the
+        previous and only wraps onto a new line when the column runs out. That
+        keeps 1/2/3 sitting shoulder to shoulder instead of spending a whole
+        screen height on three tiny stacks.
+
+        Returns (slots, cards, height): screen rects per piece name, the
+        per-group frame plus its caption, and the rack height in pixels.
         """
-        width = self.W if width is None else width
-        limit = width - self.HAND_X0
-        text_x = self.HAND_X0 + self.LABEL_W
+        width = self.HAND_W if width is None else width
+        x0 = self.HAND_X0
         c = self.HAND_CELL
+        label_h, pad = self.HAND_LABEL_H, self.HAND_PAD
+        gap = self.HAND_GAP
         by_size = {}
         for n in names:
             by_size.setdefault(MASTER[n]["size"], []).append(n)
-        slots = {}
-        labels = []
-        y = 0
+
+        # Phase 1: lay each card's own contents out and measure it. A card is
+        # as wide as its widest row plus padding, and as tall as its caption
+        # plus every row it wrapped into.
+        drafts = []
         for size in sorted(by_size):
             items = []
             row_h = 0
             for n in sorted(by_size[size]):
                 cells = MASTER[n]["orientations"][HAND_ITEMS[n]]
                 w = (max(x for x, _ in cells) + 1) * c
-                h = (max(y for _, y in cells) + 1) * c
+                h = (max(yy for _, yy in cells) + 1) * c
                 items.append((n, w, h))
                 row_h = max(row_h, h)
-            lines = [[]]
-            xs = text_x
+            rows = [[]]
+            row_w = 0
             for n, w, _h in items:
-                if lines[-1] and xs + w > limit:
-                    lines.append([])
-                    xs = text_x
-                lines[-1].append((n, xs, w))
-                xs += w + self.HAND_GAP
-            group_h = row_h * len(lines)
-            labels.append((pygame.Rect(self.HAND_X0, self.HAND_Y0 + y + (group_h - row_h) // 2,
-                                       self.LABEL_W, row_h), size))
-            for line in lines:
-                for n, x, w in line:
-                    cells = MASTER[n]["orientations"][HAND_ITEMS[n]]
-                    h = (max(yy for _, yy in cells) + 1) * c
-                    slots[n] = pygame.Rect(x, self.HAND_Y0 + y + row_h - h, w, h)
-                y += row_h
-            y += self.GROUP_GAP
-        height = y - self.GROUP_GAP if slots else 0
-        return slots, labels, height
+                if rows[-1] and row_w + w > width - 2 * pad:
+                    rows.append([])
+                    row_w = 0
+                rows[-1].append((n, w))
+                row_w += w + gap
+            body_w = max(sum(w for _n, w in line) + gap * (len(line) - 1)
+                         for line in rows)
+            drafts.append((size, I["group_fmt"].format(size), rows, row_h,
+                           body_w + 2 * pad,
+                           label_h + 2 * pad + row_h * len(rows)))
+
+        # Phase 2: flow the cards left to right, wrapping when the next one no
+        # longer fits, then centre each resulting line in the column. Cards in
+        # a line share a top edge so the captions line up.
+        lines = []
+        line = []
+        line_w = 0
+        for draft in drafts:
+            card_w = draft[4]
+            if line and line_w + card_w > width:
+                # `line_w` carries a trailing gap for every card added, so take
+                # one back off to get the real span of the line.
+                lines.append((line, line_w - self.GROUP_GAP))
+                line, line_w = [], 0
+            line.append(draft)
+            line_w += card_w + self.GROUP_GAP
+        if line:
+            lines.append((line, line_w - self.GROUP_GAP))
+
+        slots = {}
+        cards = []
+        y = 0
+        for line, line_w in lines:
+            x = x0 + max(0, (width - line_w) // 2)
+            line_h = 0
+            for size, key, rows, row_h, card_w, card_h in line:
+                rect = pygame.Rect(x, self.HAND_Y0 + y, card_w, card_h)
+                cards.append((rect, key))
+                body_top = rect.y + label_h + pad
+                for r_line in rows:
+                    total = sum(w for _n, w in r_line) + gap * (len(r_line) - 1)
+                    # Centre the row inside the card, then centre each thumbnail
+                    # in its row: bottom-aligning left a 1-row bar (I3) hanging
+                    # off the floor of a 2-row group, which made the rack untidy.
+                    xs = rect.x + pad + (card_w - 2 * pad - total) // 2
+                    for n, w in r_line:
+                        cells = MASTER[n]["orientations"][HAND_ITEMS[n]]
+                        h = (max(yy for _, yy in cells) + 1) * c
+                        slots[n] = pygame.Rect(xs, body_top + (row_h - h) // 2,
+                                               w, h)
+                        xs += w + gap
+                    body_top += row_h
+                x += card_w + self.GROUP_GAP
+                line_h = max(line_h, card_h)
+            y += line_h + self.GROUP_GAP
+        height = (y - self.GROUP_GAP) if cards else 0
+        return slots, cards, height
 
     def board_rect(self):
         return pygame.Rect(self.BO[0], self.BO[1], self.board_px, self.board_px)
@@ -338,7 +472,7 @@ class UI:
         self._sync_window()
         self._save()
         if announce and chosen != zoom:
-            self.toast(I["hand_zoom_hint"].format(int(self.hand_zoom * 100)))
+            self.toast(I["hand_zoom_hint"].format(int(self.L.hand_zoom * 100)))
         return chosen
 
     def bump_hand_zoom(self, direction):
@@ -428,6 +562,9 @@ class UI:
                 self.running = False
                 return
             if e.type == pygame.VIDEORESIZE:
+                # The window is locked to 16:9, so a manual drag is snapped
+                # back to the framed size rather than allowed to skew the
+                # layout. `scale` and the `+`/`-` keys are the real controls.
                 self.L = Layout(self.scale, self.hand_zoom)
                 self._sync_window()
                 return
@@ -496,8 +633,9 @@ class UI:
                         self.game.start()
                         self.state = "PLAYING"
                     return
-            # Enter／空白鍵是「開始」鍵的鍵盤版本；點畫面其他任何地方都不開始，
-            # 否則「重抽 AI」旁邊一誤觸就開跑了。
+            # Enter and space are the keyboard version of the start button;
+            # clicking anywhere else deliberately does not start, or a stray
+            # click next to "redraw AI" would launch the game.
             elif e.type == pygame.KEYDOWN and e.key in (
                     pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
                 self.game.start()
@@ -574,10 +712,9 @@ class UI:
 
     def new_game_rect(self):
         L = self.L
-        w = L.PANEL_W - int(round(36 * L.scale))
-        h = int(round(44 * L.scale))
-        return pygame.Rect(int(round(18 * L.scale)),
-                           L.HAND_Y0 - int(round(70 * L.scale)), w, h)
+        w = L.PANEL_W - 2 * L.MARGIN
+        h = int(round(48 * L.scale))
+        return pygame.Rect(L.MARGIN, L.BTN_Y - L.MARGIN - h, w, h)
 
     # ---------- player turn ----------
 
@@ -694,14 +831,22 @@ class UI:
             self.ai_thread.start()
 
     def button_rects(self):
+        """Confirm / rotate / cancel, in the strip directly under the board.
+
+        The strip is centred under the board rather than pushed to the window
+        edge, and it sits MARGIN below the board and MARGIN above the hand
+        band, so the vertical rhythm matches the margin everywhere else.
+        """
         L = self.L
-        bw = int(round(112 * L.scale))
-        rw = int(round(148 * L.scale))
-        pad = int(round(16 * L.scale))
+        bw = int(round(120 * L.scale))
+        rw = int(round(168 * L.scale))
+        gap = L.BTN_GAP
+        total = 2 * bw + rw + 2 * gap
+        left = L.BO[0] + (L.board_px - total) // 2
         return {
-            "cancel": pygame.Rect(L.W - pad - bw, L.BTN_Y, bw, L.BTN_H),
-            "rotate": pygame.Rect(L.W - pad - bw - rw, L.BTN_Y, rw, L.BTN_H),
-            "confirm": pygame.Rect(L.W - pad - bw - rw - bw, L.BTN_Y, bw, L.BTN_H),
+            "cancel": pygame.Rect(left + total - bw, L.BTN_Y, bw, L.BTN_H),
+            "rotate": pygame.Rect(left + bw + gap, L.BTN_Y, rw, L.BTN_H),
+            "confirm": pygame.Rect(left, L.BTN_Y, bw, L.BTN_H),
         }
 
     def setup_panel_rect(self):
@@ -712,7 +857,7 @@ class UI:
         return pygame.Rect((self.L.W - w) // 2, 0, w, self.L.H)
 
     def setup_button_rects(self):
-        """重抽 AI（左）與開始（右），橫排在設定面板下方。"""
+        """Redraw AI (left) and Start (right), side by side under the panel."""
         L = self.L
         panel = self.setup_panel_rect()
         y = self.setup_content_bottom()
@@ -739,10 +884,16 @@ class UI:
                       key=lambda n: (MASTER[n]["size"], n))
 
     def hand_layout(self):
-        names = tuple(self.hand_order())
-        if self._hand_cache_key != names:
-            self._hand_cache = self.L.layout_hand(names)[:2]
-            self._hand_cache_key = names
+        """Rack geometry, always measured from the *full* 21-piece hand.
+
+        Playing a piece must not reflow the rack: re-packing from whatever is
+        left makes every other thumbnail jump, which is both hard to follow and
+        a trap to click. So the geometry is fixed and a used piece simply leaves
+        an empty slot behind.
+        """
+        if self._hand_cache_key != "full":
+            self._hand_cache = self.L.layout_hand(sorted(MASTER))[:2]
+            self._hand_cache_key = "full"
         return self._hand_cache
 
     def hand_index(self, name):
@@ -750,7 +901,10 @@ class UI:
         return names.index(name) if name in names else -1
 
     def hand_slot(self, name):
-        slots, _labels = self.hand_layout()
+        """Fixed slot for `name`, or None once the piece has been played."""
+        slots, _cards = self.hand_layout()
+        if name not in self.game.hands[0].names:
+            return None
         return slots.get(name)
 
     def start_drag(self, name, pos):
@@ -833,13 +987,30 @@ class UI:
     # ---------- geometry helpers ----------
 
     def draw_button(self, bid, r, size=18):
+        """Action buttons in the strip under the board.
+
+        `confirm` is the action the player reaches for after picking a cell, so
+        it carries the only accent fill; rotate and cancel stay neutral. That
+        keeps the strip calm while making the intended click obvious, and the
+        disabled confirm greys out rather than inviting a click it will reject.
+        """
         surf = self.screen
+        s = self.L.scale
         enabled = True
         if bid == "confirm":
             enabled = bool(self.drag and self.drag["x"] is not None and self.drag["valid"])
-        pygame.draw.rect(surf, (70, 110, 140) if enabled else (90, 94, 104), r)
-        pygame.draw.rect(surf, (120, 170, 210) if enabled else (110, 114, 124), r, 2)
-        img = self.font_of(size).render(I[bid], True, (245, 247, 250) if enabled else (170, 174, 182))
+        accent = bid == "confirm"
+        if not enabled:
+            fill, edge, ink = (48, 53, 63), (64, 70, 82), (128, 133, 143)
+        elif accent:
+            fill, edge, ink = (46, 104, 78), (86, 178, 132), (240, 250, 244)
+        else:
+            fill, edge, ink = (44, 56, 76), (86, 112, 150), (226, 233, 244)
+        radius = max(4, int(round(8 * s)))
+        pygame.draw.rect(surf, fill, r, border_radius=radius)
+        pygame.draw.rect(surf, edge, r, max(1, int(round(2 * s))),
+                         border_radius=radius)
+        img = self.font_of(size).render(I[bid], True, ink)
         self.screen.blit(img, img.get_rect(center=r.center))
 
     # ---------- drawing ----------
@@ -855,90 +1026,104 @@ class UI:
         L = self.L
         surf = self.screen
         s = L.scale
-        self.label(I["title"], int(round(26 * s)), int(round(8 * s)), 24, (235, 235, 235))
+        # Everything in the sidebar hangs off the same content edge as the
+        # board's margin, so the panel reads as a column rather than a stack
+        # of independently placed labels.
+        x0 = L.MARGIN
+        inner = L.PANEL_W - 2 * L.MARGIN
+        right = x0 + inner
+        sw = int(round(26 * s))
+        name_x = x0 + sw + int(round(12 * s))
+
+        self.label(I["title"], x0, L.MARGIN, 28, (235, 235, 235))
         owner = self.game.current_owner()
-        base_y = int(round(76 * s))
-        row_h = int(round(58 * s))
-        self.label(I["left"], int(round(54 * s)), base_y - int(round(20 * s)), 13,
-                   (120, 126, 136))
-        self.label(I["less_is_better"], int(round(150 * s)),
-                   base_y - int(round(20 * s)), 11, (100, 106, 116))
-        bar_w = int(round(150 * s))
-        for i in range(4):
-            y = base_y + i * row_h
+        base_y = L.MARGIN + int(round(52 * s))
+        row_h = int(round(76 * s))
+        # Rows follow the turn order, not the seat index: whoever moves first
+        # this game is row one. Seat order is an internal detail the player
+        # never sees, and it looked arbitrary next to the turn indicator.
+        for row, i in enumerate(self.game.turn_order):
+            y = base_y + row * row_h
             color = COLORS[self.game.colors[i]]
             active = (i == owner)
             if active:
-                hl = pygame.Surface((L.PANEL_W - int(round(16 * s)),
-                                     int(round(50 * s))), pygame.SRCALPHA)
+                hl = pygame.Surface((L.PANEL_W, row_h - int(round(6 * s))),
+                                    pygame.SRCALPHA)
                 hl.fill((255, 255, 255, 22))
-                surf.blit(hl, (int(round(8 * s)), y - int(round(4 * s))))
+                surf.blit(hl, (0, y - int(round(5 * s))))
             name = I["player"] if i == 0 else PERSONA_ZH[self.game.owner_key[i]]
-            sw = int(round(20 * s))
             pygame.draw.rect(self.screen, color,
-                             pygame.Rect(int(round(26 * s)), y + int(round(6 * s)), sw, sw))
-            self.label(name, int(round(54 * s)), y, 18,
+                             pygame.Rect(x0, y + int(round(8 * s)), sw, sw))
+            self.label(name, name_x, y, 22,
                        (235, 235, 240) if active else (185, 190, 200))
-            self.label(corner_zh(i), int(round(150 * s)), y + int(round(2 * s)), 14,
-                       (150, 155, 165))
+            self.label(corner_zh(i), right, y + int(round(4 * s)), 16,
+                       (150, 155, 165), right=True)
             left_pieces = len(self.game.hands[i].names)
             left_cells = self.remaining_cells(i)
             self.label(I["left_fmt"].format(left_pieces, left_cells),
-                       int(round(54 * s)), y + int(round(24 * s)), 13, (140, 145, 155))
+                       name_x, y + int(round(32 * s)), 15, (140, 145, 155))
             # live bar: how many of the 89 cells this player still holds.
             # Remaining cells are the score, and fewer is better, so the bar
             # drains as the player does well.
             frac = left_cells / float(HAND_CELLS_TOTAL)
-            bar = pygame.Rect(int(round(54 * s)), y + int(round(42 * s)),
-                              bar_w, max(3, int(round(5 * s))))
+            bar = pygame.Rect(name_x, y + int(round(56 * s)),
+                              right - name_x, max(3, int(round(6 * s))))
             pygame.draw.rect(surf, (40, 45, 54), bar)
             fill = pygame.Rect(bar.x, bar.y, int(bar.w * frac), bar.h)
             pygame.draw.rect(surf, color, fill)
             pygame.draw.rect(surf, (70, 76, 88), bar, 1)
 
-        ty = base_y + 4 * row_h + int(round(14 * s))
+        ty = base_y + 4 * row_h + int(round(10 * s))
         self.label("%s：%s" % (I["turn"], I["player"] if owner == 0
                                else PERSONA_ZH[self.game.owner_key[owner]]),
-                   int(round(26 * s)), ty, 17, (225, 225, 232))
+                   x0, ty, 20, (225, 225, 232))
         if owner != 0 and self.ai_pending and not self.ai_ready:
             oc = self.game.colors[owner]
             self.label("%s %s %s…" % (PERSONA_ZH[self.game.owner_key[owner]],
                                       COLOR_LABELS[oc], I["thinking"]),
-                       int(round(26 * s)), ty + int(round(30 * s)), 16, COLORS[oc])
+                       x0, ty + int(round(34 * s)), 17, COLORS[oc])
         # The sidebar is only as tall as the board, so secondary rows are
         # dropped from the bottom when there is not enough room for them.
-        side_bottom = L.HAND_Y0 - int(round(8 * s))
-        y = ty + int(round(62 * s))
-        step = int(round(20 * s))
+        side_bottom = L.BO[1] + L.board_px + L.MARGIN
+        y = ty + int(round(48 * s))
+        step = int(round(24 * s))
+        # A rule between the turn block and the hint block, so the lower half
+        # reads as one footnote rather than drifting text.
+        pygame.draw.rect(surf, (46, 53, 66),
+                         pygame.Rect(x0, y - int(round(16 * s)), inner,
+                                     max(1, int(round(1 * s)))))
 
-        def hint(text, size=13, color=(130, 136, 146), dy=0):
+        def hint(text, size=15, color=(130, 136, 146), dy=0):
             nonlocal y
             top = y + dy
             if top + int(round(size * s)) <= side_bottom:
-                self.label(text, int(round(26 * s)), top, size, color)
+                self.label(text, x0, top, size, color)
             y += step
 
         hint(I["scale_hint"].format(int(self.scale * 100)))
-        hint(I["hand_zoom_hint"].format(int(self.hand_zoom * 100)))
+        # Show the zoom the rack actually got, which can be less than asked
+        # for when the column is too narrow or short to hold it.
+        hint(I["hand_zoom_hint"].format(int(L.hand_zoom * 100)))
         for line in I["keys_hint"]:
-            hint(line, 12, (120, 126, 136))
+            hint(line, 14, (120, 126, 136))
         if self.drag and self.drag["locked"]:
-            hint(I["locked"], 14, (120, 220, 150))
+            hint(I["locked"], 16, (120, 220, 150))
         if self.game.must_cover(0) is not None:
-            hint(I["open_rule_hint"].format(corner_zh(0)), 13, (235, 200, 120))
+            hint(I["open_rule_hint"].format(corner_zh(0)), 15, (235, 200, 120))
         elif self.game.placed[0] > 0:
-            hint(I["touch_rule_hint"], 13, (235, 200, 120))
-        hy = y + int(round(4 * s))
-        hstep = int(round(15 * s))
+            hint(I["touch_rule_hint"], 15, (235, 200, 120))
+        hy = y + int(round(6 * s))
+        hstep = int(round(18 * s))
         for line in I["hand_hint"]:
             if hy + hstep <= side_bottom:
-                self.label(line, int(round(26 * s)), hy, 12, (110, 116, 126))
+                self.label(line, x0, hy, 14, (110, 116, 126))
             hy += hstep
-        # separator between sidebar and board area (stops above the hand band,
-        # which deliberately spans the full window width)
+        # Separator between the panel and the board column. It runs the full
+        # window height: the board is a square that stops short of the bottom,
+        # and a rule that stopped with it left the panel looking unterminated
+        # above the button strip.
         pygame.draw.rect(surf, DIVIDER,
-                         pygame.Rect(L.PANEL_W - 1, 0,
-                                     max(1, int(round(2 * s))), side_bottom))
+                         pygame.Rect(L.PANEL_W - L.GUTTER, 0, L.GUTTER, L.H))
 
     def corner_marks(self):
         """Own corner per player; greyed out once that player has played."""
@@ -1006,22 +1191,39 @@ class UI:
         L = self.L
         surf = self.screen
         s = L.scale
-        top = L.HAND_Y0 - int(round(8 * s))
-        pygame.draw.rect(surf, BAND_BG, pygame.Rect(0, top, L.W, L.BTN_Y - top))
+        # The rack is a right-hand column for the full window height, so the
+        # hand and the board are read in one glance instead of after a long
+        # downward move.
+        rack = pygame.Rect(L.HAND_X0 - L.MARGIN, 0,
+                           L.W - L.HAND_X0 + L.MARGIN, L.H)
+        pygame.draw.rect(surf, BAND_BG, rack)
         pygame.draw.rect(surf, DIVIDER,
-                         pygame.Rect(0, top, L.W, max(1, int(round(2 * s)))))
-        slots, labels = self.hand_layout()
-        for rect, size in labels:
-            plate = pygame.Rect(rect.x, rect.y + max(0, (rect.h - 14 * s) // 2),
-                                rect.w, max(10, int(round(14 * s))))
-            pygame.draw.rect(surf, GROUP_BG, plate,
-                             border_radius=max(2, int(round(3 * s))))
-            self.label(I["group_fmt"].format(size), plate.centerx, plate.centery,
-                       max(9, int(round(11 * s))), (150, 158, 172), center=True)
+                         pygame.Rect(rack.x, 0, max(1, int(round(2 * s))), L.H))
+        slots, cards = self.hand_layout()
+        # One captioned card per group: light fill, dark frame, caption strip
+        # on top naming the group. The card owns the spacing, so the pieces
+        # themselves can sit on a plain background.
+        for rect, key in cards:
+            radius = max(4, int(round(8 * s)))
+            pygame.draw.rect(surf, (31, 37, 48), rect, border_radius=radius)
+            pygame.draw.rect(surf, (18, 22, 30), rect,
+                             max(1, int(round(2 * s))), border_radius=radius)
+            strip = pygame.Rect(rect.x + max(1, int(round(2 * s))), rect.y,
+                                rect.w - 2 * max(1, int(round(2 * s))),
+                                L.HAND_LABEL_H)
+            self.label(key, strip.centerx, strip.centery,
+                       max(10, int(round(12 * s))), (168, 176, 190), center=True)
         pcolor = COLORS[self.game.colors[0]]
         c = L.HAND_CELL
+        held = self.drag["name"] if self.drag else None
+        # Geometry is fixed for the whole rack; only the pieces still in hand
+        # are drawn, so a played piece leaves an empty slot instead of pulling
+        # the rest of the rack up behind it.
+        in_hand = set(self.game.hands[0].names)
         for name, r in slots.items():
-            dragging = bool(self.drag and self.drag["name"] == name)
+            if name not in in_hand:
+                continue
+            dragging = name == held
             # Thumbnails always use the flattest orientation: a rotated piece
             # can be taller than its group's row (I5 upright is 1x5 in a 3-row),
             # and the board preview is the authoritative shape view anyway.
@@ -1034,16 +1236,16 @@ class UI:
                 pygame.draw.rect(surf, (235, 235, 235),
                                  r.inflate(grow, grow), 2)
                 if self.drag["rot"]:
-                    self.draw_rotate_badge(r, self.drag["rot"], top)
+                    self.draw_rotate_badge(r, self.drag["rot"], rack.y)
 
-    def draw_rotate_badge(self, r, rot, band_top):
-        """Rotation counter for the held piece, pinned inside the hand band."""
+    def draw_rotate_badge(self, r, rot, rack_top):
+        """Rotation counter for the held piece, pinned inside the hand rack."""
         text = I["rotate_badge"].format(rot)
         img = self.font_of(11).render(text, True, (245, 247, 250))
         w = max(img.get_width() + 6, 14)
         h = max(img.get_height() + 2, 12)
         x = r.right - w
-        y = max(band_top + 1, r.top - h + 2)
+        y = max(rack_top + 1, r.top - h + 2)
         plate = pygame.Surface((w, h), pygame.SRCALPHA)
         plate.fill((20, 24, 32, 230))
         surf = self.screen
@@ -1095,8 +1297,9 @@ class UI:
             self.label(I[key + "_desc"], cx + sw + int(round(12 * s)),
                        y + int(round(30 * s)), 16, (165, 170, 180))
             y += int(round(74 * s))
-        # 順時針輪轉、起點隨機，所以誰先手每局都不同——寫出來免得玩家以為
-        # 自己一定是先手。
+        # The rotation is clockwise with a random starting point, so who moves
+        # first differs every game; spelled out so the player does not assume
+        # they always go first.
         order = " → ".join(
             (I["player"] if o == 0 else PERSONA_ZH[self.game.owner_key[o]])
             + (I["turn_first"] if i == 0 else "")
@@ -1119,12 +1322,12 @@ class UI:
         s = L.scale
         surf = self.screen
         top = int(round(10 * s))
-        bottom = L.HAND_Y0 - int(round(8 * s))
+        bottom = L.BO[1] + L.board_px + L.MARGIN
         panel = pygame.Rect(0, top, L.PANEL_W, bottom - top)
         surf.fill((12, 15, 20), panel)
         pygame.draw.rect(surf, DIVIDER, panel, max(1, int(round(2 * s))))
 
-        x = int(round(20 * s))
+        x = L.MARGIN
         inner = L.PANEL_W - 2 * x
         y = top + int(round(14 * s))
         y = self._row(I["game_over"], x, y, 24, (240, 240, 245), inner)

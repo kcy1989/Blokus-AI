@@ -1,41 +1,53 @@
-"""入侵者：靠「跨越」鑽進對手領地。
+"""Intruder: uses "crossing" to burrow into the opponent's territory.
 
-跨越是 Blokus 的勝負關鍵——一旦 2x2 方塊裡一條對角全是自己的、另一條有對
-手，這局就贏了。入侵者用三個階段把這個目標拆開：
+Crossing is the win condition of Blokus -- once one diagonal of a 2x2 square
+is all yours and the other one has an opponent on it, you have won the game.
+The Intruder breaks that goal down into three stages:
 
-  規則 1  手上還有跨越棋，就只用跨越棋
-  規則 2  否則用長手臂棋（L5／N5／I5）
-  規則 3  都沒有了，用能佔到「關鍵格」的棋
-  規則 4  這一手本身完成跨越 → 大幅加分，並要求跨過去之後還有地方可放
-  規則 5  一般局面：5 格優先，戰略點放寬到 4 格、3 格
+  Rule 1  if a crossing piece is still in hand, use only crossing pieces
+  Rule 2  otherwise use long-arm pieces (L5 / N5 / I5)
+  Rule 3  with none of those left, use a piece that can take a "key cell"
+  Rule 4  this move itself completes a crossing -> a large bonus, plus a
+          requirement that there is still somewhere to play after crossing
+  Rule 5  normal positions: 5 cells first, relaxed to 4 and 3 cells at the
+          strategically interesting spots
 
-階段全部是**軟**限制：指定棋塊一格都下不了就退回下一階段。做成硬過濾的話
-候選清單會被清空，`choose_move` 回傳 None，玩家就會被誤判成無棋可下而自動
-過。
+Every stage is a **soft** limit: if the designated piece class cannot be
+placed at all, fall back to the next stage. Made into a hard filter instead,
+the candidate list would be emptied, `choose_move` would return None, and the
+player would be wrongly judged as having no move and would auto-pass.
 
-這個人格不抽籤（`mistake_rate = 0`）：戰略獎勵一被隨機性蓋掉就沒有意義，
-「前 3 手只用跨越棋」這種性質也才檢查得起來。它也不做對手預判，因為預判
-用的是權重評分，量級跟這裡的目標函式完全不同。
+This personality does not roll for mistakes (`mistake_rate = 0`): a strategic
+bonus stops meaning anything the moment randomness buries it, and only then
+are properties like "use only crossing pieces for the first 3 moves" even
+checkable. It also does no opponent prediction, because prediction runs on
+the weighted score, whose magnitude is completely different from the
+objective function used here.
 """
 from . import formulas as F
 from .base import INTRUDER_KEY, Brain
 
-# 第二階段（昂貴評估）的安全上限。階段限制加上角對角規則之後，候選通常只剩
-# 幾百個（實測多不超過 400），所以這個上限幾乎不會擋到東西；它的作用只是
-# 讓「每個候選都要模擬落子」這件事有個確定的花費上限。
+# Safety cap for stage 2 (the expensive evaluation). Once the stage limits
+# and the corner-diagonal rule are in play, the candidate list is usually
+# down to a few hundred (measured at no more than 400), so this cap almost
+# never blocks anything; its only job is to give "simulate a placement for
+# every candidate" a definite ceiling on cost.
 INTRUDER_SCAN = 1200
 
 
 class IntruderBrain(Brain):
-    """規則式人格：依延伸度與可放空間挑棋，不做權重加總。"""
+    """Rule-based personality: picks pieces by extension and placeable space,
+    no weighted sum."""
 
     key = INTRUDER_KEY
     uses_lookahead = False
 
     def __init__(self, key, profile):
         Brain.__init__(self, key, profile)
-        # 規則式人格不抽籤：戰略獎勵一被隨機性蓋掉就沒有意義，「前 3 手只用
-        # 跨越棋」這種性質也才檢查得起來。
+        # Rule-based personalities do not roll for mistakes: a strategic bonus
+        # stops meaning anything the moment randomness buries it, and only
+        # then are properties like "use only crossing pieces for the first
+        # 3 moves" even checkable.
         self.mistake_rate = 0.0
 
     def context(self, board, hand_names, owner, must_cover, reach):
@@ -44,11 +56,13 @@ class IntruderBrain(Brain):
         return ctx
 
     def restrict(self, cands, ctx):
-        """規則 1／2／5 的階段：跨越棋 → 長手臂 → 一般局面。
+        """Stages for rules 1/2/5: crossing pieces -> long arms -> general.
 
-        每一階段都是軟的：該類棋一格都下不了就往下退，退到最後就是全部候選。
-        做成硬過濾的話候選清單會被清空，`choose_move` 回傳 None，玩家就會被
-        誤判成無棋可下而自動過。
+        Every stage is soft: if not a single cell of that piece class can be
+        played, fall through to the next one, and the last fallback is the
+        full candidate list. Made into a hard filter, the candidate list
+        would be emptied, `choose_move` would return None, and the player
+        would be wrongly judged as having no move and would auto-pass.
         """
         for cls in (F.LEAPERS, F.STRETCHERS):
             sub = [c for c in cands if c[1] in cls]
@@ -72,8 +86,10 @@ class IntruderBrain(Brain):
         usable = F.cells_to_vertices(fresh).bit_count()
         squares = legal.bit_count()
 
-        # 規則 4：這一手本身完成跨越。`pre` 是落子前的跨越方塊，用來扣掉
-        # 「本來就跨越過、只是被這一手碰到」的那一格。
+        # Rule 4: this move itself completes the crossing. `pre` holds the
+        # crossing squares as they were before the placement, used to discount
+        # the square that "was already crossed and merely got touched by this
+        # move".
         crossed = False
         for o, m in ctx["opps"]:
             if F.cross_anchors(own_after, m) & (od["touch"] << base) \
@@ -81,7 +97,7 @@ class IntruderBrain(Brain):
                 crossed = True
                 break
 
-        # 規則 3：尚未跨越時搶關鍵格
+        # Rule 3: grab key cells while no crossing has happened yet
         strategic = crossed
         if not crossed and ctx["uncrossed"]:
             strategic = self._sets_up(ctx, od, own_after, empt_after,
@@ -95,10 +111,12 @@ class IntruderBrain(Brain):
         return (s, name, oi, base)
 
     def _sets_up(self, ctx, od, own_after, empt_after, need, avoid):
-        """佔下這一手之後，是否存在一個合法落子能完成跨越（規則 3 的關鍵格）。
+        """After this placement, is there a legal move that completes a
+        crossing (the "key cell" of rule 3).
 
-        只檢查手上這塊棋與跨越棋，且只在尚未跨越的對手身上算——這是這條規則
-        最貴的部分，其餘對手直接跳過。
+        Only checks this piece in hand plus the crossing pieces, and only for
+        opponents that have not been crossed yet -- that is the most expensive
+        part of this rule, so the remaining opponents are skipped outright.
         """
         reach = F.Reach(need, avoid)
         for o, m in ctx["uncrossed"]:

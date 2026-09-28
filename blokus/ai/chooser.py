@@ -1,12 +1,14 @@
-"""候選枚舉、對手預判、短名單與抽籤。
+"""Candidate enumeration, opponent lookahead, shortlist and weighted pick.
 
-這一層**不認識任何人格**：它只認 `Brain` 的三個 method。所有 AI（權重式與
-規則式）共用同一條流水線，所以拆檔不會改變任何一手的結果。
+This layer **knows no personality**: it only knows three methods of `Brain`.
+Every AI (weighted and rule-based) shares the same pipeline, so splitting the
+file does not change the result of any single move.
 
-流水線：
+Pipeline:
 
-    枚舉合法候選 → 用權重粗評分排序 → brain.context / restrict / rescore
-    → （可選）對手預判扣分 → 短名單 → 抽籤 → 落子
+    enumerate legal candidates -> sort by a rough weighted score
+    -> brain.context / restrict / rescore
+    -> (optional) opponent-lookahead penalty -> shortlist -> pick -> place
 """
 import math
 import time
@@ -108,7 +110,8 @@ def _build_shortlist(scored):
 
 
 def _weighted_pick(sl, rng):
-    """依分數做 softmax 抽籤。分數差一格就差 `PICK_TEMP` 倍的權重。"""
+    """Softmax draw over the scores. A one-point score gap becomes a factor of
+    `PICK_TEMP` in the weights."""
     best = sl[0][0]
     weights = [math.exp((c[0] - best) / F.PICK_TEMP) for c in sl]
     target = rng.random() * sum(weights)
@@ -123,10 +126,13 @@ def _weighted_pick(sl, rng):
 def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
                 must_cover=None, reach=None, other_must_cover=None,
                 other_reach=None):
-    """回傳 (棋名, 方向, x, y)，無棋可下時回傳 None。
+    """Returns (piece name, orientation, x, y), or None when no move is
+    possible.
 
-    `other_brains` 給了才會做對手預判（只有權重式人格會用）。預算（時間上限
-    與模擬次數）超了就跳過那一段，退回純粹的候選排序。
+    `other_brains` is what enables the opponent lookahead (only weighted
+    personalities pass it). If the budget (wall-clock cap and simulation
+    count) is exceeded, that stage is skipped and it falls back to plain
+    candidate ordering.
     """
     t0 = time.perf_counter()
     empt = board.empty_bits
@@ -176,8 +182,9 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
     if not cands:
         return None
     cands.sort(key=lambda t: t[0], reverse=True)
-    # 人格接手：restrict 是階段（軟）過濾，rescore 才是貴的那一次評估。
-    # 權重式人格兩者都是恆等，所以以下這段對它們完全不影響既有行為。
+    # Personality takes over: restrict is the stage (soft) filter, rescore is
+    # the expensive evaluation. For weighted personalities both are the
+    # identity, so everything below leaves their existing behaviour untouched.
     ctx = brain.context(board, names, owner, must_cover, reach)
     cands = brain.restrict(cands, ctx)
     cands = brain.rescore(cands, ctx)

@@ -1,44 +1,62 @@
-"""築城者：估計剩下的手牌有多少格再也放不下去。
+"""Builder: estimates how many cells of the remaining hand can never be
+played again.
 
-目標函式的主項是 `formulas.pack_lost`——把剩餘手牌用 FFD 裝進落子後的活區
-塊，裝不進去的格數以負權重計。因為記分是「餘格愈少愈好」，而餘下的格子只
-有一種來源（手上還有棋，但盤面沒有它的合法落點），所以這個量跟分數是同一
-個尺度。
+The main term of the objective function is `formulas.pack_lost` -- FFD-pack
+the remaining hand into the live-region bins of the post-move board, and
+count the cells that will not fit with a negative weight. Since scoring
+rewards "fewer leftovers", and leftover cells have exactly one source (you
+still hold a piece, but the board has no legal placement for it), this
+quantity is on the same scale as the score.
 
-大小偏好（`BUILDER_W_SIZE`）與可放空間總數（`BUILDER_W_TOTAL`）只是次要項：
-前者讓它在一般局面看起來一樣偏愛 5 格，後者讓它在同樣「都不會送掉」的落點
-之間挑寬鬆的那個。它們都刻意小到讓不過主項——所以不設階段、不設緊急規則：
-那些都是主項的自然結果，加了反而變成兩套規則打架。
+The size preference (`BUILDER_W_SIZE`) and the total placeable space
+(`BUILDER_W_TOTAL`) are only secondary terms: the former makes it look like
+it also favours 5 cells in ordinary positions, the latter makes it pick the
+roomier of two placements that are equally "nothing gets dropped". Both are
+deliberately too small to ever outweigh the main term -- hence no stages and
+no urgent rule: those are natural consequences of the main term, and adding
+them only turns the thing into two sets of rules fighting each other.
 
-同樣不抽籤、不做對手預判，理由與 `intruder` 相同。
+Likewise no mistake rolls and no opponent prediction, for the same reasons as
+`intruder`.
 """
 from . import formulas as F
 from .base import BUILDER_KEY, Brain
 from pieces import MASTER
 
-# 築城者第二階段的人數上限。它沒有階段過濾，要評的是**完整**候選清單（實測
-# 數千個），所以那個上限是真的會擋到東西的：先用便宜的「可放空格數」篩，再對
-# 前 BUILDER_SCAN 個算閉包與裝箱。
+# The builder's cap for stage 2. It has no stage filter, and what it scores is
+# the **full** candidate list (thousands in practice), so this cap really does
+# block things: first screen with the cheap "placeable cell count", then run
+# the closure and packing on the top BUILDER_SCAN.
 BUILDER_SCAN = 800
-# 築城者的權重。`BUILDER_W_LOST` 的單位是格（0～89），而後兩項最多只有 ±2 與
-# 4，所以「送掉 5 格」一定蓋得過任何大小或總數的差別——這符合記分：餘格就是
-# 分數。大小偏好只是讓它在一般局面看起來一樣偏愛 5 格。
+# The builder's weights. `BUILDER_W_LOST` is measured in cells (0-89), while
+# the other two top out at only +/-2 and 4, so "dropping 5 cells" always
+# outweighs any difference in size or total space -- which matches the
+# scoring: leftovers are the score. The size preference only makes it look
+# like it also favours 5 cells in ordinary positions.
 BUILDER_W_LOST = 1.0
 BUILDER_W_SIZE = 0.35
 BUILDER_W_TOTAL = 0.05
 
 
 class BuilderBrain(Brain):
-    """築城者：估計剩下的手牌有多少格再也放不下去。
+    """Builder: estimates how many cells of the remaining hand can never be
+    played again.
 
-    目標函式的主項是 `pack_lost`——把剩餘手牌用 FFD 裝進落子後的活區塊，裝不
-    進去的格數以負權重計。因為記分是「餘格愈少愈好」，而餘下的格子只有一種來
-    源（手上還有棋，但盤面沒有它的合法落點），所以這個量跟分數是同一個尺度。
+    The main term of the objective function is `pack_lost` -- FFD-pack the
+    remaining hand into the live-region bins of the post-move board, and
+    count the cells that will not fit with a negative weight. Since scoring
+    rewards "fewer leftovers", and leftover cells have exactly one source (you
+    still hold a piece, but the board has no legal placement for it), this
+    quantity is on the same scale as the score.
 
-    大小偏好（`BUILDER_W_SIZE`）與可放空間總數（`BUILDER_W_TOTAL`）只是次要
-    項：前者讓它在一般局面看起來一樣偏愛 5 格，後者讓它在同樣「都不會送掉」
-    的落點之間挑寬鬆的那個。它們都刻意小到讓不過主項——所以不設階段、不設緊急
-    規則：那些都是主項的自然結果，加了反而變成兩套規則打架。
+    The size preference (`BUILDER_W_SIZE`) and the total placeable space
+    (`BUILDER_W_TOTAL`) are only secondary terms: the former makes it look
+    like it also favours 5 cells in ordinary positions, the latter makes it
+    pick the roomier of two placements that are equally "nothing gets
+    dropped". Both are deliberately too small to ever outweigh the main term
+    -- hence no stages and no urgent rule: those are natural consequences of
+    the main term, and adding them only turns the thing into two sets of
+    rules fighting each other.
     """
 
     key = BUILDER_KEY
@@ -50,24 +68,28 @@ class BuilderBrain(Brain):
 
     def context(self, board, hand_names, owner, must_cover, reach):
         ctx = F.board_context(board, hand_names, owner, must_cover)
-        # 每種棋塊放掉之後，剩下的手牌大小由大到小。整手棋只算一次（21 筆），
-        # 免得每個候選都做一次 list.remove。手牌的棋塊名不重複，所以用名字當
-        # key 是安全的。
+        # The remaining hand sizes after each piece class is played out,
+        # largest first. Computed once for the whole hand (21 entries) so that
+        # every candidate does not run a list.remove. Piece names in the hand
+        # never repeat, so using the name as the key is safe.
         sizes = sorted((MASTER[n]["size"] for n in hand_names), reverse=True)
         ctx["sizes_after"] = {name: tuple(sizes[:i] + sizes[i + 1:])
                               for i, name in enumerate(hand_names)}
         return ctx
 
     def restrict(self, cands, ctx):
-        """不設階段：見類別說明，`lost` 已經吸收了那些規則。"""
+        """No stages: see the class docstring, `lost` already absorbs them."""
         return cands
 
     def rescore(self, cands, ctx):
-        """兩段式。候選沒有經過階段過濾，所以第一段是必要的一層，不只是加速。
+        """Two-stage. The candidates get no stage filtering, so the first
+        stage is a necessary layer, not just a speedup.
 
-        第一段（全體，便宜）只算 `place_state` 的可放空格數——那是優化者那條
-        已經被驗證過、方向正確的指標，用來粗篩。第二段才對前 `BUILDER_SCAN` 個
-        算閉包、活區塊與裝箱，完整評分。
+        The first stage (all of them, cheap) only computes the placeable
+        cell count from `place_state` -- that is the optimizer's already
+        validated, correctly directed metric, used as a coarse screen. Only
+        the second stage runs the closure, the live-region bins and the
+        packing on the top `BUILDER_SCAN`, for the full score.
         """
         board = ctx["board"]
         wide = [(F.place_state(board, n, oi, b, ctx)[4].bit_count(), n, oi, b)

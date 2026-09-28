@@ -1,12 +1,16 @@
-"""築城者：估計還有多少格塞不進活區塊。
+"""The Builder: estimates how many squares will fail to fit into live regions.
 
-這個人格補的是優化者的洞：優化者只量「還有幾個可放空格」的**數量**，兩個 4 格
-活區塊與一個 8 格活區塊在它眼裡一樣好，但前者任何 5 格棋都塞不進去。所以主項
-是 `pack_lost`——用 FFD 把剩餘手牌裝進活區塊，裝不進去的格數就是估計送掉的格
-數，而記分正是「餘格愈少愈好」。
+This personality fills a hole in the Optimizer: the Optimizer only measures the
+*quantity* of "how many placeable squares are left", so two live regions of 4
+squares and one live region of 8 squares look equally good to it, yet no
+5-cell piece fits into the former. Hence the main term is `pack_lost` - FFD-packs
+the remaining hand into the live regions, and the squares that will not fit are
+the estimated number of squares given away, while scoring is exactly "fewer
+remaining squares is better".
 
-這個設計最可能死的地方是 `pack_lost` 沒有分化（早期閉包飽和、`lost` 恆為 0，
-於是退化��「更差的優化者」），所以最後一個測試專門盯這件事。
+The most likely place for this design to die is `pack_lost` not discriminating
+(early on the closure saturates and `lost` is constantly 0, so it degenerates
+into "a worse Optimizer"), so the last test watches that specifically.
 """
 import random
 import time
@@ -20,11 +24,13 @@ from test_ai import assert_corner_contact
 
 
 def playout(seed, moves):
-    """一個只由**權重式人格**走出來的局面。
+    """A position reached using only **weighted-style personalities**.
 
-    三個 AI 席位明確釘死，不走 `set_player_color` 的抽籤——人格池一變，局面就跟
-    著漂移，底下每個斷言測的就不是本來要測的局面了。停在這裡的局面與築城者無
-    關，所以它也不會隨築城者的行為改變而漂移。
+    The three AI seats are explicitly pinned, without going through
+    `set_player_color`'s lottery - once the personality pool changes the position
+    drifts with it, and then every assertion below no longer tests the position
+    it was meant to test. The position stopped here has nothing to do with the
+    Builder, so it will not drift as the Builder's behaviour changes either.
     """
     rng = random.Random(seed)
     g = Game(rng)
@@ -56,7 +62,8 @@ def builder_ctx(board, hand, owner, must_cover=None):
 
 
 def legal_cands(board, hand, owner, must_cover=None, reach=None):
-    """獨立枚舉全部合法候選 [(name, oi, base)]，不靠 `choose_move` 的中間結果。"""
+    """Independently enumerate every legal candidate [(name, oi, base)], without
+    relying on `choose_move`'s intermediate results."""
     cbit = 0
     if must_cover is not None:
         cbit = 1 << (must_cover[0] + must_cover[1] * 20)
@@ -72,7 +79,8 @@ def legal_cands(board, hand, owner, must_cover=None, reach=None):
 
 
 def pack_stats(board, hand, owner, must_cover=None, reach=None):
-    """每一個合法候選的 (lost, 可放空格數, 棋塊大小, name, oi, base)。"""
+    """(lost, number of placeable squares, piece size, name, oi, base) for every
+    legal candidate."""
     ctx = builder_ctx(board, hand, owner, must_cover)
     rows = []
     for name, oi, base in legal_cands(board, hand, owner, must_cover, reach):
@@ -84,10 +92,11 @@ def pack_stats(board, hand, owner, must_cover=None, reach=None):
     return rows
 
 
-# ------------------------------------------------------------ 純函式
+# ------------------------------------------------------------ pure functions
 
 def test_fillable_closure_respects_the_rules():
-    """閉包必須含住每一個合法落點，且只落在空格、不碰 `avoid`。"""
+    """The closure must contain every legal landing square, and land only on
+    empty squares without touching `avoid`."""
     g = playout(0, 12)
     owner = 1
     hand = ["F5", "N5", "I3", "I2", "I1"]
@@ -95,22 +104,24 @@ def test_fillable_closure_respects_the_rules():
     name, oi, base = legal_cands(g.board, hand, owner, None, g.reach(owner))[0]
     _own, empt_after, _need, avoid, legal = ai.place_state(g.board, name, oi, base, ctx)
     fill = ai.fillable_closure(empt_after, avoid, legal)
-    assert fill & legal == legal, "legal 必須整個落在閉包裡"
-    assert fill & ~empt_after == 0, "閉包不能越出空格"
-    assert fill & avoid == 0, "閉包不能壓到自己的棋"
-    # 每一格都沿 4 鄰接走得到某個 legal 格（closure 的定義）
+    assert fill & legal == legal, "legal must lie entirely inside the closure"
+    assert fill & ~empt_after == 0, "closure must not spill onto occupied squares"
+    assert fill & avoid == 0, "closure must not cover the owner's own stones"
+    # every square reaches some legal square through 4-adjacency (the definition
+    # of a closure)
     reached = legal
     while True:
         grown = reached | (dilate(reached) & fill)
         if grown == reached:
             break
         reached = grown
-    assert reached & fill == fill, "有格子走不回 legal"
-    assert fill.bit_count() > legal.bit_count(), "閉包應該比 legal 大（泛洪有做事）"
+    assert reached & fill == fill, "some reached square is not reachable back from legal"
+    assert fill.bit_count() > legal.bit_count(), "closure should be larger than legal (the flood did work)"
 
 
 def test_fill_components_partition_fill():
-    """活區塊兩兩不交、聯集等於 `fill`、每塊 4-連通、面積加總等於位元數。"""
+    """Live regions are pairwise disjoint, their union equals `fill`, each is
+    4-connected, and the areas sum to the bit count."""
     g = playout(0, 12)
     owner = 1
     hand = ["L5", "N5", "I3", "I2", "I1"]
@@ -120,11 +131,12 @@ def test_fill_components_partition_fill():
         _own, empt_after, _need, avoid, legal = ai.place_state(board, name, oi,
                                                               base, ctx)
         fill = ai.fillable_closure(empt_after, avoid, legal)
-        assert fill, "候選至少要留下一個合法落點"
+        assert fill, "the candidate must leave at least one legal base"
         bins = ai.fill_components(fill)
         assert sum(bins) == fill.bit_count(), (name, oi, base)
         assert bins == sorted(bins, reverse=True), bins
-        # 逐塊驗證不交性與連通性（自己重建一次，不靠 `fill_components` 的結果）
+        # verify disjointness and connectivity region by region (rebuilt here
+        # from scratch, not relying on `fill_components`'s result)
         rest = seen = 0
         rest = fill
         while rest:
@@ -135,25 +147,29 @@ def test_fill_components_partition_fill():
                 if grown == comp:
                     break
                 comp = grown
-            assert not comp & seen, "區塊重疊"
-            assert comp & ~fill == 0, "區塊跑到 `fill` 外面"
+            assert not comp & seen, "components overlap"
+            assert comp & ~fill == 0, "component escaped `fill`"
             seen |= comp
             rest &= ~comp
         assert seen == fill
 
 
 def test_pack_lost_prefers_one_big_region():
-    """**整個設計的單點測試**：同樣的總量，整塊遠比兩塊碎片能裝。
+    """**The single pivot test of the whole design**: with the same total, one
+    whole region holds far more than two fragments.
 
-    手牌 [5,3,2,1]：
-      A  兩個 4 格活區塊 → F5 塞不進（送 5）、I3 進第一塊（剩 1）、I2 進第二塊
-         （剩 2）、I1 進 → 送掉 5 格
-      B  一個 8 格活區塊 → F5 進（剩 3）、I3 進（剩 0）、I2 送 2、I1 送 1
-         → 送掉 3 格
+    Hand [5,3,2,1]:
+      A  two 4-cell live regions -> F5 does not fit (given away: 5), I3 goes in
+         the first region (1 left), I2 goes in the second region (2 left), I1
+         goes in -> 5 cells given away
+      B  one 8-cell live region -> F5 goes in (3 left), I3 goes in (0 left),
+         I2 given away 2, I1 given away 1 -> 3 cells given away
 
-    優化者的「可放空格總數」在 A 與 B 幾乎一樣，會選 A 然後永遠送掉那 5 格。
-    這是 FFD 演算法的實際算結果——計畫裡那張圖原本寫 A 送 7 格，是手算沒把
-    「I2 也塞得進第二個 4 格活區塊」算進去。
+    The Optimizer's "total placeable squares" is almost identical for A and B,
+    so it would pick A and forever give away those 5 cells. These are the actual
+    computed results of the FFD algorithm - the diagram in the plan originally
+    said A gives away 7, which is a hand calculation that forgot to account for
+    "I2 also fits into the second 4-cell live region".
     """
     sizes = [5, 3, 2, 1]
     assert ai.pack_lost(sizes, [4, 4]) == 5
@@ -162,38 +178,43 @@ def test_pack_lost_prefers_one_big_region():
 
 
 def test_pack_lost_is_zero_when_everything_fits():
-    """總容量夠、而且形狀對得起來時，送掉的格數是 0。"""
+    """When the total capacity is sufficient and the shapes work out, the
+    number of cells given away is 0."""
     hand = sorted((MASTER[n]["size"] for n in MASTER), reverse=True)
     assert len(hand) == 21
     assert sum(hand) == 89
     assert ai.pack_lost(hand, [89]) == 0
     assert ai.pack_lost(hand, [40, 49]) == 0
     assert ai.pack_lost(hand, [30, 59]) == 0
-    # 容量不夠就一定有剩餘（兩個 1 格活區塊只接得住最小的那塊棋）
+    # insufficient capacity means there must be leftovers (two 1-cell live
+    # regions can only take the smallest piece)
     assert ai.pack_lost([5, 5], [4]) == 10
     assert ai.pack_lost(hand, [1, 1]) == 89 - 1
 
 
 def test_pack_lost_is_first_fit_decreasing():
-    """FFD 要求大小由大到小：順序不對，結果會整個變掉。"""
+    """FFD requires sizes from large to small: with the wrong order, the result
+    changes completely."""
     assert ai.pack_lost([5, 3, 3], [5, 6]) == 0
     assert ai.pack_lost([3, 3, 5], [5, 6]) == 5
 
 
-# ------------------------------------------------------------ 目標函式
+# ------------------------------------------------------------ objective function
 
 def test_builder_maximises_packability():
-    """真實中盤局面：獨立枚舉全部候選重算一次，斷言被選中的那一手就是最高分。
+    """A real mid-game position: independently enumerate all candidates and
+    recompute, then assert that the chosen move is the top-scoring one.
 
-    這裡刻意連次要項一起比（不只比 `lost`），因為被選中的就是完整評分最高的
-    那一手；只比 `lost` 反而會放寬到容許回歸。
+    The tie-breaker terms are deliberately compared as well (not just `lost`),
+    because what gets chosen is the move with the highest total score; comparing
+    only `lost` would loosen the test enough to allow a regression.
     """
     g = playout(0, 12)
     owner = 1
     hand = ["F5", "N5", "I3", "I2", "I1"]
     board, reach = g.board, g.reach(owner)
     cands = legal_cands(board, hand, owner, None, reach)
-    assert len(cands) <= ai.BUILDER_SCAN, "這一局候選少於掃描上限，才談得上窮舉"
+    assert len(cands) <= ai.BUILDER_SCAN, "fewer candidates than the scan cap, so the exhaustive pass is honest"
     mv = ai.choose_move(board, hand, owner, builder_brain(), random.Random(0),
                         other_brains=None, reach=reach)
     assert mv is not None
@@ -206,7 +227,8 @@ def test_builder_maximises_packability():
 
 
 def test_builder_prefers_bigger_pieces_when_packability_ties():
-    """`lost` 與可放空格數都一樣時，選 5 格那一手——證明 `BUILDER_W_SIZE` 有做事。"""
+    """When both `lost` and the placeable-square count are the same, the 5-cell
+    move wins - proving that `BUILDER_W_SIZE` actually does something."""
     g = playout(0, 12)
     owner = 1
     hand = ["F5", "I1"]
@@ -222,7 +244,8 @@ def test_builder_prefers_bigger_pieces_when_packability_ties():
 
 
 def test_builder_never_returns_none_and_stays_legal():
-    """整局走到結束，逐手驗角對角規則。"""
+    """Play a whole game to the end, verifying the corner-contact rule move by
+    move."""
     rng = random.Random(5)
     g = Game(rng)
     g.set_player_color("blue")
@@ -257,7 +280,7 @@ def test_builder_move_speed():
                             random.Random(i), other_brains=None, reach=reach)
         assert mv is not None
     dt = (time.perf_counter() - t0) / 20
-    print("\n築城者單步 %.4f 秒" % dt)
+    print("\nbuilder single move %.4f s" % dt)
     assert dt < 1.5, dt
 
 
@@ -275,12 +298,13 @@ def test_builder_is_in_the_pool_and_renders():
     assert brain.mistake_rate == 0.0
 
 
-# ------------------------------------------------------------ 防退化
+# ------------------------------------------------------------ anti-regression
 
 def test_packing_term_actually_discriminates():
-    """**這個設計最可能死的地方**：若 `lost` 在候選之間從不分化，築城者就退化
-    成「更差的優化者」。所以跑 20 局真實對局，統計每一手裡 `pack_lost` 有分化的
-    比例，門檻 20%。
+    """**The most likely place for this design to die**: if `lost` never
+    discriminates between candidates, the Builder degenerates into "a worse
+    Optimizer". So play 20 real games and measure the fraction of moves in
+    which `pack_lost` discriminates, with a 20% threshold.
     """
     moves = discriminated = 0
     for seed in range(20):
@@ -309,5 +333,5 @@ def test_packing_term_actually_discriminates():
             else:
                 g.act_pass()
     ratio = discriminated / float(moves)
-    print("\npack_lost 分化比例 %.1f%%（%d/%d 手）" % (ratio * 100, discriminated, moves))
+    print("\npack_lost spread %.1f%% (%d/%d moves)" % (ratio * 100, discriminated, moves))
     assert ratio >= 0.20, ratio

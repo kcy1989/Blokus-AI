@@ -6,7 +6,7 @@ from pieces import Hand, MASTER
 
 HAND_NAMES = [p["name"] for p in PIECES]
 COLOR_NAMES = ["blue", "green", "red", "yellow"]
-# 一局有四個席位，所以一場全 AI 比賽剛好抽四個人格出來互比。
+# A game has four seats, so one all-AI match draws exactly four personalities.
 MATCH_SEATS = 4
 
 
@@ -28,10 +28,12 @@ class Game:
         self.placed = [0, 0, 0, 0]
 
     def setup_match(self, keys=None):
-        """一局全 AI 的比賽：四個席位都給人格，含 1 號那個「玩家」席位。
+        """A game played entirely by AIs: all four seats get a personality,
+        including seat 1, which is normally the human.
 
-        每局抽 4 個人格，所以每局會有幾個人格輪空——這就是「所有人格互比」要的
-        輪廓。顏色只是為了讓 `Game` 的欄位保持一致，headless 比賽不看。
+        Four personalities are drawn per game, so several sit out any given game
+        - that is the shape "everyone competes" needs. Colours are only there to
+        keep the `Game` fields consistent; a headless match ignores them.
         """
         if keys is None:
             keys = draw_personalities(self.rng, MATCH_SEATS)
@@ -63,22 +65,25 @@ class Game:
         self.state = "SETUP_INFO"
 
     def _draw_turn_order(self):
-        """順時針的輪轉，**起點**隨機：玩家這一局可能第一，也可能第四。
+        """Clockwise rotation with a random **starting point**: the player may go
+        first this game, or fourth.
 
-        順時針的循環只有 CLOCKWISE_OWNERS 一個；隨機的只有從哪一個角開始，
-        也就是「誰搶到下棋權」。這裡不能用 shuffle——那會讓相鄰兩手有時是對角
-        的兩個角，違反順時針。
+        There is only one clockwise cycle (CLOCKWISE_OWNERS); only the corner it
+        begins from is random, which is to say who wins the right to move first.
+        This cannot be a shuffle - that would sometimes make two neighbouring
+        turns be opposite corners, which breaks the clockwise rule.
         """
         start = (CLOCKWISE_OWNERS.index(PLAYER_OWNER)
                  + self.rng.randrange(4)) % 4
         return [CLOCKWISE_OWNERS[(start + i) % 4] for i in range(4)]
 
     def redraw_personalities(self):
-        """重抽三位 AI 的人格；顏色與下棋順序不動。
+        """Redraw the three AI personalities; colours and turn order stay.
 
-        顏色是玩家剛選完的，重抽掉會讓那個選擇看起來白按。下棋順序也保留，
-        這樣玩家可以在同一個順序下重抽想要的對手組合。玩家的 seat 也不換——
-        它本來就固定是 chess。
+        The player has just picked a colour, so re-rolling it would make that
+        choice look wasted. The turn order is kept too, so the player can reroll
+        opponents under the same order. The player's seat does not change either
+        - it is fixed to chess anyway.
         """
         keys = draw_personalities(self.rng, 3)
         self.owner_key[1], self.owner_key[2], self.owner_key[3] = keys[0], keys[1], keys[2]

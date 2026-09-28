@@ -33,10 +33,12 @@ def run_game(rng, on_move=None):
 
 
 def test_turn_order_is_clockwise_with_a_random_start():
-    """輪轉必須順時針繞四角：左上 → 右上 → 右下 → 左下。
+    """Rotation must go clockwise around the four corners: top-left ->
+    top-right -> bottom-right -> bottom-left.
 
-    隨機的只有起點（誰搶到下棋權），不是整個排列；用 shuffle 的話相鄰兩手
-    有時會落在對角的兩個角上。
+    Only the starting point is random (whoever wins the right to move first),
+    not the whole arrangement; with a shuffle, two adjacent moves sometimes
+    land on diagonally opposite corners.
     """
     assert CLOCKWISE_OWNERS == (1, 2, 0, 3), CLOCKWISE_OWNERS
     corners = [OWNER_CORNER[o] for o in CLOCKWISE_OWNERS]
@@ -52,14 +54,16 @@ def test_turn_order_is_clockwise_with_a_random_start():
         for i in range(3):
             assert idx[i + 1] == (idx[i] + 1) % 4, order
         first_seen.add(order.index(PLAYER_OWNER))
-        # 輪轉必須真的照著走，並在最後一位繞回第一位
+        # the rotation must really follow that order, wrapping from the last
+        # slot back to the first
         g.start()
         walked = [g.current_owner()]
         for _ in range(3):
             g.act_pass()
             walked.append(g.current_owner())
         assert walked == order, (walked, order)
-    # 玩家四個位置都抽得到，也就是有時先手、有時後手
+    # all four player positions are reachable, i.e. sometimes first, sometimes
+    # second
     assert first_seen == {0, 1, 2, 3}, first_seen
 
 
@@ -78,12 +82,12 @@ def test_100_games():
         if g.owner_key[owner] == "intruder":
             n = intruder_moves[owner]
             intruder_moves[owner] += 1
-            # 規則 1：跨越棋先用完才換別的
+            # rule 1: use up the crossing pieces before switching to others
             if n < 3:
                 assert move[0] in ai.LEAPERS, \
                     "intruder move %d was %s, expected a leaper" % (n, move)
         if g.owner_key[owner] == "optimizer" and g.must_cover(owner) is None:
-            # 沒有緊急棋塊時一定放能放下的最大棋塊
+            # with no urgent piece it always plays the biggest piece that fits
             counts = ai.placement_counts(g.board, g.hands[owner].names, owner, None)
             if not [n for n, k in counts.items() if 0 < k <= ai.URGENT_PLACES]:
                 biggest = max(MASTER[n]["size"] for n, k in counts.items() if k > 0)
@@ -146,8 +150,9 @@ def test_100_games():
             assert rem[int(winner)] == best and 0 not in top
         winners.append(winner)
     assert checked[0] == 400, "expected 400 opening moves, saw %d" % checked[0]
-    # 3-of-4 抽樣跑了 100 局，四種人格都該出現過；狼／棋手／狐狸各局的
-    # games 欄位自然不一致，排行榜照樣能加總。
+    # 100 games of 3-of-4 sampling means all four personalities should have
+    # appeared; the games counts for wolf / chess / fox naturally differ from
+    # game to game, and the leaderboard still totals up fine.
     assert keys_seen == set(ai.personality_keys()), keys_seen
     assert any(intruder_moves), "no game drew the intruder"
     counts = {}

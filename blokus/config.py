@@ -14,8 +14,8 @@ OWNER_CORNER = {0: (B - 1, B - 1), 1: (0, 0), 2: (B - 1, 0), 3: (0, B - 1)}
 CORNERS_BY_OWNER = {ci: (x, y) for (ci, (x, y)) in enumerate(CORNERS)}
 OWNER_BY_CORNER = {pos: owner for owner, pos in OWNER_CORNER.items()}
 
-# 輪轉必須順時針繞棋盤一圈：左上 → 右上 → 右下 → 左下。CORNERS 的順序是
-# TL, TR, BL, BR，BR 排在 BL 後面才是順時針，所以這裡換一下。
+# The rotation must go clockwise around the board: TL -> TR -> BR -> BL. CORNERS
+# is ordered TL, TR, BL, BR, so BR has to be moved after BL to make it clockwise.
 CLOCKWISE_OWNERS = tuple(OWNER_BY_CORNER[c] for c in
                           (CORNERS[0], CORNERS[1], CORNERS[3], CORNERS[2]))
 assert sorted(CLOCKWISE_OWNERS) == [0, 1, 2, 3]

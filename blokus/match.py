@@ -1,10 +1,12 @@
-"""全 AI 比賽：每局從人格池抽四個互比，結果餵進排行榜。
+"""All-AI league: each game draws four personalities to compete, and the
+results feed the leaderboard.
 
-這是給「人格到底誰比較強」用的工具，不影響玩家對局的流程。
+This is a tool for answering "which personality is actually strongest"; it does
+not affect the flow of a normal player game.
 
-    python3 match.py --games 100            # 記進 records.json
-    python3 match.py --games 20 --dry       # 只跑，不寫檔
-    python3 match.py --games 100 --reset    # 先清空排行榜再跑
+    python3 match.py --games 100            # record into records.json
+    python3 match.py --games 20 --dry       # run only, write nothing
+    python3 match.py --games 100 --reset    # clear the leaderboard first
 """
 import argparse
 import random
@@ -17,10 +19,11 @@ from records import Records
 
 
 def play_match(game, rng, on_move=None):
-    """把一局跑到結束，回傳 [(人格, 剩餘格數) × 4]。
+    """Play one game to the end, returning [(personality, remaining) x 4].
 
-    `on_move(game, owner, move)` 可以在每手之後插一個檢查（例如逐手驗證
-    角對角規則），跟 `tests/test_simulation.py` 的做法一樣。
+    `on_move(game, owner, move)` can be hooked in to check something after each
+    turn (verifying the corner-contact rule move by move, say), the same way
+    `tests/test_simulation.py` does it.
     """
     game.start()
     while game.state == "PLAYING":
@@ -42,9 +45,11 @@ def play_match(game, rng, on_move=None):
 
 
 def run_league(games=100, seed=0, records=None, on_game=None, on_move=None):
-    """跑 `games` 局全 AI 比賽，逐局記進排行榜，回傳那個 Records。
+    """Run `games` all-AI matches, recording each into the leaderboard, and
+    return that Records.
 
-    `records=None` 時不碰任何檔案（測試就是這樣用的）。
+    With `records=None` no file is touched at all (which is how the tests use
+    it).
     """
     rng = random.Random(seed)
     rows = []

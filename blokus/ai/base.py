@@ -1,16 +1,18 @@
-"""人格共用的基底型別與權重檔。
+"""Shared base types and weight profiles for the personalities.
 
-`Profile` 是權重式人格的六個權重加一個出錯率；`Brain` 是「怎麼看一盤棋」的
-介面。候選枚舉、對手預判、抽籤都在 `chooser.choose_move`，人格本身只負責三
-件事：
+`Profile` is the six weights of a weighted personality plus a mistake rate;
+`Brain` is the "how to read a position" interface. Candidate enumeration,
+opponent lookahead and the draw all live in `chooser.choose_move`; a
+personality itself does only three things:
 
-    context   一盤棋裡與候選無關的量，先算一次
-    restrict  階段（軟）過濾
-    rescore   重新排分
+    context   quantities in a position that are independent of the candidate,
+              computed once up front
+    restrict  stage (soft) filter
+    rescore   re-rank the scores
 """
 from dataclasses import dataclass
 
-# 人格總表：權重式的三種，加上三種規則式的。
+# The full personality table: three weighted ones plus three rule-based ones.
 INTRUDER_KEY = "intruder"
 OPTIMIZER_KEY = "optimizer"
 BUILDER_KEY = "builder"
@@ -19,12 +21,14 @@ RULE_KEYS = (INTRUDER_KEY, OPTIMIZER_KEY, BUILDER_KEY)
 
 @dataclass(frozen=True)
 class Profile:
-    """權重式人格的權重檔。
+    """The weight profile of a weighted personality.
 
-    六個 `w_*` 是候選評分的線性項：`w_corner` 角位連通區塊、`w_center` 靠近
-    盤心、`w_block` 貼著對手的棋、`w_defend` 貼著自己棋的對手、`w_open` 鄰接
-    的空格數、`w_large` 棋塊大小。`mistake_rate` 是每一步從短名單裡故意選次
-    佳解的機率。
+    The six `w_*` are the linear terms of candidate scoring: `w_corner`
+    corner-connected region, `w_center` closeness to the centre, `w_block`
+    stones against an opponent, `w_defend` opponent stones against ours,
+    `w_open` number of adjacent empty squares, `w_large` piece size.
+    `mistake_rate` is the chance of deliberately picking a suboptimal move
+    from the shortlist on each turn.
     """
     w_corner: float
     w_center: float
@@ -36,9 +40,11 @@ class Profile:
 
 
 def make_profile(spec, rng):
-    """把一組基準權重乘上 0.7～1.3 的隨機擾動。
+    """Multiplying a set of base weights by a random 0.7-1.3 perturbation.
 
-    擾動讓同一個人格每局略有不同，否則排行榜會變成一組固定對局的重播。
+    The perturbation makes the same personality differ slightly from game to
+    game, otherwise the leaderboard would be a replay of one fixed set of
+    matchups.
     """
     wc, wc2, wb, wd, wo, wl, mr = spec
     u = rng.uniform
@@ -49,16 +55,19 @@ def make_profile(spec, rng):
 
 
 class Brain:
-    """評估層。
+    """The evaluation layer.
 
-    候選枚舉、對手預判、抽籤都留在 `choose_move`；人格只負責「怎麼看一盤棋」：
-    `context` 收一盤的共享前置量，`restrict` 做階段（軟）過濾，
-    `rescore` 重新排分。
+    Candidate enumeration, opponent lookahead and the draw all stay in
+    `choose_move`; a personality only handles "how to read a position":
+    `context` collects the shared up-front quantities for a position,
+    `restrict` does the stage (soft) filter, and `rescore` re-ranks.
     """
 
     key = "chess"
-    # 對手預判用的是**權重**評分，量級跟規則式的目標函式完全不同。規則式人格
-    # 不用它：那一項會直接蓋掉規則排序，等於白算。
+    # The opponent lookahead uses **weighted** scoring, whose magnitude is
+    # completely different from the rule-based objective function. Rule-based
+    # personalities do not use it: that term would simply override the rule
+    # ordering, i.e. wasted work.
     uses_lookahead = True
 
     def __init__(self, key, profile):
@@ -77,7 +86,9 @@ class Brain:
 
 
 class WeightedBrain(Brain):
-    """狼／棋手／狐狸共用的基底：權重加總，`restrict` 與 `rescore` 都是恆等。
+    """Shared base for wolf/chess/fox: a weighted sum, with `restrict` and
+    `rescore` both the identity.
 
-    真正的差別全在 `Profile` 的六個權重上，所以三者的評分路徑完全相同。
+    The real differences all live in the six `Profile` weights, so all three
+    have exactly the same scoring path.
     """

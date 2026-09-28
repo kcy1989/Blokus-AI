@@ -1,4 +1,5 @@
-"""全 AI 比賽：抽四個人格互比，結果餵進排行榜。"""
+"""All-AI matches: draw four personalities to compete, and feed the results
+into the leaderboard."""
 import random
 
 from config import PERSONALITY_ORDER
@@ -8,7 +9,7 @@ from records import Records
 
 
 def test_setup_match_seats_four_distinct_personalities():
-    """6 個人格抽 4 個，所以每局剛好輪空兩個人格。"""
+    """4 are drawn from the 6 personalities, so exactly two sit out each game."""
     pool = set(PERSONALITY_ORDER)
     assert len(pool) == 6
     benched = set()
@@ -18,9 +19,9 @@ def test_setup_match_seats_four_distinct_personalities():
         keys = [g.owner_key[o] for o in range(4)]
         assert len(set(keys)) == 4, keys
         assert set(keys) <= pool, keys
-        assert len(pool - set(keys)) == 2, "剛好輪空兩個人格"
+        assert len(pool - set(keys)) == 2, "exactly two personalities sat out"
         benched |= pool - set(keys)
-        # 每個 seat 的 brain 都是對應的人格
+        # each seat's brain is the matching personality
         for o in range(4):
             assert g.brains[o].key == g.owner_key[o]
         assert sorted(g.colors.values()) == ["blue", "green", "red", "yellow"]
@@ -47,7 +48,7 @@ def test_play_match_ends_and_scores_by_personality():
     assert len(standings) == 4
     assert sorted(k for k, _ in standings) == sorted(g.owner_key[o] for o in range(4))
     assert all(isinstance(r, int) and 0 <= r <= 89 for _, r in standings)
-    # 每一手都合法：逐手檢查角對角規則
+    # every move is legal: check the corner-contact rule move by move
     rng = random.Random(9)
     g = Game(rng)
     g.setup_match()
@@ -79,7 +80,8 @@ def test_play_match_ends_and_scores_by_personality():
 
 
 def test_league_records_only_personality_keys(tmp_path):
-    """排行榜只會多出人格的條目——全 AI 比賽裡沒有玩家。"""
+    """The leaderboard only gains personality entries - there is no player in an
+    all-AI match."""
     rec = Records(str(tmp_path / "records.json"))
     rows = run_league(6, seed=3, records=rec)
     assert len(rows) == 6
@@ -89,7 +91,8 @@ def test_league_records_only_personality_keys(tmp_path):
     assert set(rec.entries) == keys
     total = sum(r["games"] for r in rec.entries.values())
     assert total == 4 * 6, total
-    # 每局最多 4 分、最少 1 分（並列名次會讓總分低於平均 2.5，所以下界用 1）
+    # each game is worth at most 4 points and at least 1 (ties push the total
+    # below the 2.5 average, so the lower bound is 1)
     assert all(r["games"] <= r["total_points"] <= 4 * r["games"]
                for r in rec.entries.values()), rec.entries
     for _key, games, pts, rem in rec.rows():

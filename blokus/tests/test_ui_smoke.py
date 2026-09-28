@@ -15,8 +15,8 @@ from config import HAND_CELLS_TOTAL
 from game import Game
 from pieces import MASTER
 from config import I
-from ui import (HAND_ITEMS, HAND_ZOOMS, PERSONA_ZH, SCALES, Layout, UI,
-                best_scale, load_cjk_font_path)
+from ui import (DEFAULT_HAND_ZOOM, HAND_ITEMS, HAND_ZOOMS, PERSONA_ZH, SCALES,
+                 Layout, UI, best_scale, load_cjk_font_path)
 
 
 def make_ui(seed=7, scale=1.0, hand_zoom=2.0):
@@ -57,7 +57,7 @@ def wait_for_player_turn(u, limit=400):
 
 def start_game(u):
     key(u)
-    click(u, (225, 330))
+    at_setup_info(u)
     key(u)
     assert u.state == "PLAYING"
     return u
@@ -102,56 +102,203 @@ def test_layout_grows_with_scale():
     assert big.W > small.W and big.H > small.H
 
 
+def test_window_is_locked_to_16_9_at_every_scale_and_zoom():
+    """The frame ratio is a promise: nothing may make it drift."""
+    for s in SCALES:
+        for z in HAND_ZOOMS:
+            L = Layout(s, z)
+            assert abs(L.W / L.H - 16.0 / 9.0) < 0.002, (s, z, L.W, L.H)
+
+
 def test_layout_keeps_everything_inside_window():
     for s in SCALES:
         for z in HAND_ZOOMS:
             L = Layout(s, z)
-            assert L.BO[0] + L.board_px <= L.W, (s, z, "board too wide")
+            assert L.BO[0] + L.board_px <= L.HAND_X0, (s, z, "board overlaps rack")
             assert L.BTN_Y + L.BTN_H <= L.H, (s, z, "buttons below window")
-            slots, labels, h = L.layout_hand(sorted(MASTER))
+            slots, _cards, h = L.layout_hand(sorted(MASTER))
             assert h == L.hand_h
             for name, r in slots.items():
                 assert r.left >= L.HAND_X0 - 1, (s, z, name, r)
-                assert r.right <= L.W, (s, z, name, r)
+                assert r.right <= L.W - L.MARGIN + 1, (s, z, name, r)
                 assert r.top >= L.HAND_Y0, (s, z, name, r)
-                assert r.bottom <= L.BTN_Y, (s, z, name, r)
-            for r, _size in labels:
-                assert r.left >= 0 and r.right <= L.W, (s, z, r)
-                assert r.top >= L.HAND_Y0 and r.bottom <= L.BTN_Y, (s, z, r)
+                assert r.bottom <= L.H, (s, z, name, r)
+            # The rack is a right-hand column beside the board, so the whole
+            # hand has to fit the window height.
+            assert L.hand_h <= L.H, (s, z, L.hand_h, L.H)
 
 
-def test_hand_groups_are_ordered_by_size():
-    """1..5 cells ascending, and every group's pieces on their own rows."""
+def test_three_columns_share_one_margin():
+    """Panel | board | hand rack, with the same gutter between all of them."""
+    for s in SCALES:
+        L = Layout(s, 2.0)
+        assert L.BO[0] - L.PANEL_W == L.MARGIN, (s, L.BO[0], L.PANEL_W)
+        assert L.HAND_X0 - (L.BO[0] + L.board_px) == L.MARGIN, s
+        assert L.W - L.MARGIN - (L.HAND_X0 + L.HAND_W) == 0, s
+        # Vertically: MARGIN above the board, MARGIN to the buttons. The board
+        # is an exact multiple of its cell size, so on small scales integer
+        # truncation leaves the bottom margin a little larger, never smaller.
+        assert L.BO[1] == L.MARGIN, (s, L.BO[1])
+        assert L.BTN_Y - (L.BO[1] + L.board_px) == L.MARGIN, s
+        assert L.H - (L.BTN_Y + L.BTN_H) >= L.MARGIN, s
+
+
+def test_buttons_sit_under_the_board_with_room_between_them():
+    """Confirm has to be reachable right under the cell you just picked."""
     L = Layout(1.0, 2.0)
-    _slots, labels, _h = L.layout_hand(sorted(MASTER))
-    sizes = [size for _r, size in labels]
-    assert sizes == sorted(sizes)
-    assert set(sizes) == {1, 2, 3, 4, 5}
-    # one label per group, so a wrapped group keeps a single gutter plate
-    assert len(labels) == len(set(sizes))
+    u = make_ui(scale=1.0, hand_zoom=2.0)
+    rects = u.button_rects()
+    left, right = L.BO[0], L.BO[0] + L.board_px
+    for r in rects.values():
+        assert r.top == L.BTN_Y, r
+        assert r.left >= left and r.right <= right, (r, left, right)
+        assert r.bottom <= L.H, r
+    # The strip is centred under the board.
+    ordered = sorted(rects.values(), key=lambda r: r.left)
+    board_mid = (left + right) // 2
+    strip_mid = (ordered[0].left + ordered[-1].right) // 2
+    assert abs(board_mid - strip_mid) <= 2, (board_mid, strip_mid)
+    for a, b in zip(ordered, ordered[1:]):
+        gap = b.left - a.right
+        assert gap >= L.BTN_GAP, (a, b, gap)
 
 
-def test_hand_is_bigger_than_the_old_compact_default():
-    """The whole point of the change: thumbnails roughly doubled."""
-    assert Layout(1.0, 2.0).HAND_CELL == 16
-    assert Layout(1.0, 3.0).HAND_CELL == 24
-    assert Layout(1.0, 1.5).HAND_CELL == 12
-    # 9 cell-rows plus four group gaps is the documented band height
-    assert Layout(1.0, 2.0).hand_h == 9 * 16 + 4 * 12
+def test_hand_has_one_captioned_card_per_piece_size():
+    """Every size gets its own frame and its own "N cells" caption, 1..5."""
+    L = Layout(1.0, 2.0)
+    slots, cards, _h = L.layout_hand(sorted(MASTER))
+    assert [k for _r, k in cards] == [I["group_fmt"].format(n) for n in (1, 2, 3, 4, 5)]
+    # Cards are stacked 1..5 from the top, and each frame encloses its own
+    # pieces plus the caption strip.
+    tops = [r.top for r, _k in cards]
+    assert tops == sorted(tops)
+    # Every frame encloses at least one piece, and encloses only its own size.
+    for i, (rect, _k) in enumerate(cards):
+        inside = [n for n, r in slots.items() if rect.contains(r)]
+        assert inside, rect
+        assert {MASTER[n]["size"] for n in inside} == {i + 1}, (i, inside)
+    # Within a group the thumbnails read top to bottom, left to right, and the
+    # group stays inside its own frame. The exact row count follows from how
+    # the group wraps in the narrow rack, so it is not pinned here.
+    for size in (1, 2, 3, 4, 5):
+        rs = [r for n, r in slots.items() if MASTER[n]["size"] == size]
+        order = sorted(rs, key=lambda r: (r.top, r.left))
+        assert order == sorted(rs, key=lambda r: (round(r.top, 3), r.left)), size
+        card = cards[size - 1][0]
+        for r in rs:
+            assert card.contains(r), (size, r, tuple(card))
+
+
+def test_hand_rows_are_centred_in_the_rack():
+    """A short group must not hug one side of the rack while the other empties."""
+    for s in (0.8, 1.0, 1.4):
+        L = Layout(s, 2.0)
+        slots, cards, _h = L.layout_hand(sorted(MASTER))
+        mid = L.HAND_X0 + L.HAND_W // 2
+        lines = {}
+        for rect, _k in cards:
+            assert any(rect.contains(r) for r in slots.values()), rect
+            lines.setdefault(rect.top, []).append(rect)
+        assert lines, "no cards laid out"
+        # Cards flow left to right and wrap, so at least one line carries more
+        # than one card - that is what stops three tiny groups from spending
+        # three screen-heights between them.
+        assert max(len(rs) for rs in lines.values()) > 1, \
+            "cards did not sit side by side"
+        for top, rs in lines.items():
+            rs.sort(key=lambda r: r.left)
+            # The frame hugs its rows, so its two side gutters are equal...
+            left_gutter = rs[0].left - L.HAND_X0
+            right_gutter = (L.HAND_X0 + L.HAND_W) - rs[-1].right
+            assert abs(left_gutter - right_gutter) <= 2, (s, top, rs)
+            # ...and the line as a whole is centred on the column.
+            span = (rs[0].left + rs[-1].right) // 2
+            assert abs(span - mid) <= 2, (s, top, span, mid)
+            # Cards in a line share a top edge, and never touch each other.
+            for a, b in zip(rs, rs[1:]):
+                assert b.left - a.right >= 1, (s, a, b)
+
+
+def test_hand_fills_the_rack_at_the_default_zoom():
+    """The rack is sized to its column, not left with a void under the cards."""
+    for s in SCALES:
+        L = Layout(s, DEFAULT_HAND_ZOOM)
+        avail = L.H - 2 * L.MARGIN
+        # The top of the zoom range fills the column; the board next to it runs
+        # the full window height, so a half-empty rack read as lopsided.
+        assert L.hand_h >= avail * 0.85, (s, L.hand_h, avail)
+        # Smaller steps trade size for a calmer rack, and still fill a decent
+        # share rather than collapsing to thumbnails.
+        small = Layout(s, HAND_ZOOMS[0])
+        assert small.HAND_CELL < L.HAND_CELL, (s, small.HAND_CELL, L.HAND_CELL)
+        assert small.hand_h >= avail * 0.3, (s, small.hand_h, avail)
+    # The rack is a narrow column, so a group wraps into as many rows as it
+    # needs; its exact height follows from that wrapping, not a fixed formula.
+    for s in SCALES:
+        for z in HAND_ZOOMS:
+            L = Layout(s, z)
+            assert L.hand_h <= L.H, (s, z, L.hand_h, L.H)
+            assert L.HAND_CELL * 5 <= L.HAND_W - 2 * L.HAND_PAD, (s, z)
+
+
+def test_no_two_hand_pieces_ever_overlap():
+    """Pieces sit in their own slots; the rack must never stack them."""
+    for s in SCALES:
+        for z in HAND_ZOOMS:
+            L = Layout(s, z)
+            slots, cards, _h = L.layout_hand(sorted(MASTER))
+            names = sorted(slots)
+            for i, a in enumerate(names):
+                for b in names[i + 1:]:
+                    assert not slots[a].colliderect(slots[b]), (s, z, a, b)
+            # ...and every piece is inside one of the cards, never straddling
+            # a border or floating loose.
+            for n, r in slots.items():
+                assert any(c.contains(r) for c, _k in cards), (s, z, n, r)
+            for i, (a, _ka) in enumerate(cards):
+                for b, _kb in cards[i + 1:]:
+                    assert not a.colliderect(b), (s, z, tuple(a), tuple(b))
+
+
+def test_playing_a_piece_never_moves_the_others():
+    """Rack geometry is fixed; a used piece leaves an empty slot behind."""
+    u = start_game(make_ui())
+    before = {n: u.hand_slot(n) for n in u.hand_order()}
+    assert len(before) == 21
+    # play a few pieces of the hand directly
+    for name in ("T5", "V5", "L5", "I5", "O4"):
+        if name in u.game.hands[0].names:
+            u.game.hands[0].names.remove(name)
+    for n in u.hand_order():
+        assert u.hand_slot(n) == before[n], (n, u.hand_slot(n), before[n])
+    # a played piece has no live slot at all
+    for name in ("T5", "V5", "L5", "I5", "O4"):
+        assert u.hand_slot(name) is None, name
+
+
+def test_hand_is_never_clipped_at_any_zoom():
+    """Whatever zoom is asked for, the whole hand stays on screen."""
+    for s in SCALES:
+        for z in HAND_ZOOMS:
+            L = Layout(s, z)
+            slots, _cards, h = L.layout_hand(sorted(MASTER))
+            assert h <= L.H, (s, z, h, L.H)
+            for n, r in slots.items():
+                assert r.bottom <= L.H, (s, z, n, r)
+                assert r.right <= L.W, (s, z, n, r)
 
 
 def test_five_cell_group_wraps_instead_of_being_clipped():
-    """The 5-cell group is 41 cells wide, so at high zoom it must wrap."""
-    wide = Layout(1.0, 3.0)
-    _slots, labels, _h = wide.layout_hand(sorted(MASTER))
-    five = [r for r, size in labels if size == 5]
-    assert len(five) == 1
-    rows = [r for n, r in wide.layout_hand(sorted(MASTER))[0].items()
-            if MASTER[n]["size"] == 5]
-    tops = {r.top for r in rows}
-    assert len(tops) > 1, "5-cell group did not wrap at zoom 3.0"
-    for r in rows:
-        assert r.right <= wide.W
+    """The 5-cell group is 41 cells wide, so it must wrap in the narrow rack."""
+    for z in HAND_ZOOMS:
+        wide = Layout(1.0, z)
+        slots, _cards, _h = wide.layout_hand(sorted(MASTER))
+        rows = [r for n, r in slots.items() if MASTER[n]["size"] == 5]
+        assert len({r.top for r in rows}) > 1, \
+            "5-cell group did not wrap at zoom %s" % z
+        for r in rows:
+            assert r.right <= wide.W - wide.MARGIN + 1
+            assert r.left >= wide.HAND_X0 - 1
 
 
 def test_best_scale_respects_desktop():
@@ -166,8 +313,8 @@ def test_best_scale_respects_desktop():
 def test_bigger_hand_never_yields_a_bigger_board():
     """The documented trade-off, pinned so the two knobs stay independent."""
     desktop = (1920, 1080)
-    small = Layout(best_scale(desktop, 1.5), 1.5)
-    big = Layout(best_scale(desktop, 3.0), 3.0)
+    small = Layout(best_scale(desktop, HAND_ZOOMS[0]), HAND_ZOOMS[0])
+    big = Layout(best_scale(desktop, HAND_ZOOMS[-1]), HAND_ZOOMS[-1])
     assert big.board_px <= small.board_px
     assert big.hand_h > small.hand_h
 
@@ -192,31 +339,32 @@ def test_scale_change_resizes_and_stays_valid(monkeypatch):
 def test_hand_zoom_is_independent_of_board_scale(monkeypatch):
     import ui as ui_mod
     monkeypatch.setattr(ui_mod, "desktop_size", lambda: (1920, 1400))
-    u = make_ui(scale=1.0, hand_zoom=2.0)
+    u = make_ui(scale=1.4, hand_zoom=1.4)
     cell_before = u.L.CELL
+    small_before = u.L.HAND_CELL
     u.bump_hand_zoom(1)
-    assert u.hand_zoom == 2.5
-    assert u.L.HAND_CELL == 20
+    assert u.L.HAND_CELL > small_before, "raising the zoom must enlarge pieces"
     assert u.L.CELL == cell_before, "hand zoom must not resize the board"
     u.bump_hand_zoom(-1)
-    assert u.hand_zoom == 2.0
-    # clamped at both ends
+    assert u.L.HAND_CELL == small_before
+    # clamped at both ends, and never above the top of the allowed range
     for _ in range(6):
         u.bump_hand_zoom(-1)
-    assert u.hand_zoom == HAND_ZOOMS[0]
+    assert u.L.hand_zoom == HAND_ZOOMS[0]
     for _ in range(6):
         u.bump_hand_zoom(1)
-    assert u.hand_zoom == HAND_ZOOMS[-1]
+    assert HAND_ZOOMS[0] <= u.L.hand_zoom <= HAND_ZOOMS[-1]
+    assert u.L.layout_hand(sorted(MASTER))[2] <= u.L.H
 
 
 def test_bracket_keys_change_hand_zoom(monkeypatch):
     import ui as ui_mod
     monkeypatch.setattr(ui_mod, "desktop_size", lambda: (1920, 1400))
-    u = make_ui(scale=1.0, hand_zoom=2.0)
+    u = make_ui(scale=1.0, hand_zoom=1.4)
     key(u, pygame.K_RIGHTBRACKET)
-    assert u.hand_zoom == 2.5
+    assert u.hand_zoom == HAND_ZOOMS[2], u.hand_zoom
     key(u, pygame.K_LEFTBRACKET)
-    assert u.hand_zoom == 2.0
+    assert u.hand_zoom == 1.4
 
 
 def test_fit_scale_shrinks_hand_only_when_board_cannot_fit(monkeypatch):
@@ -252,12 +400,47 @@ def test_hand_slots_are_inside_the_band_at_every_combination():
                 assert r is not None, (s, z, name)
                 assert r.left >= 0 and r.top >= 0, (s, z, name, r)
                 assert r.right <= u.L.W, (s, z, name, r)
-                assert r.bottom <= u.L.BTN_Y, (s, z, name, r)
+                # the hand band is now the bottom strip, below the buttons
+                assert r.bottom <= u.L.H, (s, z, name, r)
                 seen.append(r)
-            for r, _size in u.hand_layout()[1]:
-                assert r.right <= u.L.W and r.bottom <= u.L.BTN_Y, (s, z, r)
             for _bid, b in u.button_rects().items():
                 assert b.bottom <= u.L.H, (s, z, b)
+
+
+def test_column_dividers_run_the_full_window_height(monkeypatch):
+    """Both column rules reach the bottom edge, not just the board's height."""
+    import ui as ui_mod
+    monkeypatch.setattr(ui_mod, "desktop_size", lambda: (1920, 1400))
+    u = start_game(make_ui())
+    for s in SCALES:
+        u.set_scale(s)
+        L = u.L
+        drawn = []
+        real = pygame.draw.rect
+
+        def spy(surf, color, rect, *a, _d=drawn, _r=real, **kw):
+            _d.append((color, pygame.Rect(rect)))
+            return _r(surf, color, rect, *a, **kw)
+
+        pygame.draw.rect = spy
+        try:
+            u.draw_left()
+        finally:
+            pygame.draw.rect = real
+        for color, r in drawn:
+            if r.width <= L.GUTTER and r.height >= L.H - 1:
+                assert r.bottom == L.H, (s, r, L.H)
+        # the rack rule is drawn by draw_hand, and must match
+        drawn.clear()
+        pygame.draw.rect = spy
+        try:
+            u.draw_hand()
+        finally:
+            pygame.draw.rect = real
+        for _color, r in drawn:
+            if r.height >= L.H - 1:
+                assert r.bottom == L.H, (s, r, L.H)
+                assert r.x == L.HAND_X0 - L.MARGIN, (s, r)
 
 
 def test_sidebar_text_stays_inside_the_panel(monkeypatch):
@@ -271,8 +454,9 @@ def test_sidebar_text_stays_inside_the_panel(monkeypatch):
         rects = []
         real = u.label
 
-        def spy(text, x, y, size, color, bg=None, center=False, _r=rects):
-            _r.append((text, real(text, x, y, size, color, bg, center)))
+        def spy(text, x, y, size, color, bg=None, center=False, right=False,
+                _r=rects):
+            _r.append((text, real(text, x, y, size, color, bg, center, right)))
             return _r[-1][1]
 
         u.label = spy
@@ -293,16 +477,20 @@ def test_sidebar_drops_secondary_rows_when_short(monkeypatch):
         rects = []
         real = u.label
 
-        def spy(text, x, y, size, color, bg=None, center=False, _r=rects):
-            _r.append((text, real(text, x, y, size, color, bg, center)))
+        def spy(text, x, y, size, color, bg=None, center=False, right=False,
+                _r=rects):
+            _r.append((text, real(text, x, y, size, color, bg, center, right)))
             return _r[-1][1]
 
         u.label = spy
         u.draw_left()
         u.label = real
-        # nothing may be drawn over the hand band
+        # The sidebar stops at the foot of the board column, so nothing may be
+        # drawn over the button strip or past the panel into the rack.
+        side_bottom = u.L.BO[1] + u.L.board_px + u.L.MARGIN
         for text, r in rects:
-            assert r.bottom <= u.L.HAND_Y0 - int(round(8 * u.L.scale)), (s, text, r)
+            assert r.bottom <= side_bottom, (s, text, r)
+            assert r.right <= u.L.HAND_X0, (s, text, r)
 
 
 def test_hand_order_is_by_size_then_name():
@@ -323,7 +511,7 @@ def test_hand_reflows_without_leaving_holes():
     # the remaining pieces are still packed left to right inside the window
     for r in after:
         assert r.right <= u.L.W
-        assert r.bottom <= u.L.BTN_Y
+        assert r.bottom <= u.L.H
 
 
 # ---------------------------------------------------------------- setup flow
@@ -358,7 +546,8 @@ def test_every_personality_renders_on_the_setup_panel():
 
 
 def test_setup_panel_shows_the_clockwise_turn_order():
-    """順時針輪轉、起點隨機，所以面板要寫出誰先手。"""
+    """Rotation is clockwise and the start is random, so the panel has to state
+    who moves first."""
     u = at_setup_info(make_ui())
     real = u.label
     texts = []
@@ -384,7 +573,8 @@ def test_setup_panel_shows_the_clockwise_turn_order():
 
 
 def test_setup_starts_only_from_the_start_button():
-    """點畫面任何地方都不開始，只有「開始」鍵（或 Enter）才會。"""
+    """Clicking anywhere on the screen does not start; only the "start" button
+    (or Enter) does."""
     u = at_setup_info(make_ui())
     buttons = u.setup_button_rects()
     for pos in ((5, 5), (u.L.W - 5, 5), (u.L.W // 2, u.L.H - 5),
@@ -395,14 +585,15 @@ def test_setup_starts_only_from_the_start_button():
     click(u, buttons["start_game"].center)
     assert u.state == "PLAYING"
     assert u.game.state == "PLAYING"
-    # 鍵盤上的「開始鍵」仍然有效
+    # the keyboard equivalent of the "start" button still works
     u2 = at_setup_info(make_ui())
     key(u2, pygame.K_RETURN)
     assert u2.state == "PLAYING"
 
 
 def test_redraw_button_changes_only_the_personalities():
-    """「重抽 AI」換人格，但不動玩家剛選的顏色與下棋順序。"""
+    """"Redraw AI" swaps the personalities but does not touch the colour the
+    player just chose or the turn order."""
     u = at_setup_info(make_ui())
     colors = list(u.game.colors)
     order = list(u.game.turn_order)
@@ -416,10 +607,10 @@ def test_redraw_button_changes_only_the_personalities():
         seen.add(tuple(keys))
         assert len(set(keys)) == 3, keys
         assert all(k in ai.personality_keys() for k in keys), keys
-        # 每個 seat 的 brain 都跟著換成對應的人格
+        # each seat's brain is swapped to the matching personality
         for o in (1, 2, 3):
             assert u.game.brains[o].key == u.game.owner_key[o]
-    assert len(seen) > 1, "8 次重抽都抽到同一組，這是 rng 的問題"
+    assert len(seen) > 1, "8 redraws all produced the same set, which is an rng bug"
     assert list(u.game.colors) == colors
     assert list(u.game.turn_order) == order
     assert u.game.brains[0] is not None
@@ -867,7 +1058,8 @@ def test_result_is_recorded_exactly_once():
     assert len(rec.calls) == 1, "the result was banked %d times" % len(rec.calls)
     keys = [k for k, _ in rec.calls[0]]
     assert keys[0] == "player"
-    # 3-of-4 抽樣：另外三個席位是三種**互異**的人格，不一定是固定哪三種
+    # 3-of-4 sampling: the other three seats are three **distinct**
+    # personalities, not necessarily any fixed three
     drawn = keys[1:]
     assert len(drawn) == 3 and len(set(drawn)) == 3, drawn
     assert set(drawn) <= set(ai.personality_keys())
@@ -881,13 +1073,13 @@ def test_result_is_recorded_exactly_once():
 def test_sidebar_shows_no_score_column():
     """The old 3x corner score was confusing and is gone. 'Remaining' is now
     the score, and fewer remaining is better."""
-    assert "score" not in I, "the 分數 label should be gone"
+    assert "score" not in I, "the 分數 (score) label should be gone"
     u = start_game(make_ui())
     rects = []
     real = u.label
 
-    def spy(text, x, y, size, color, bg=None, center=False):
-        r = real(text, x, y, size, color, bg, center)
+    def spy(text, x, y, size, color, bg=None, center=False, right=False):
+        r = real(text, x, y, size, color, bg, center, right)
         rects.append((text, r))
         return r
 
@@ -895,12 +1087,39 @@ def test_sidebar_shows_no_score_column():
     u.draw_left()
     u.label = real
     shown = [t for t, _ in rects]
-    assert I["left"] in shown
-    assert I["less_is_better"] in shown
+    # The standalone "remaining" / "fewer is better" header is gone too: it
+    # overlapped the title and restated what the per-player rows already say.
+    assert I["left"] not in shown
+    assert I["less_is_better"] not in shown
     # every player row is labelled with what they still hold, nothing else
     for o in range(4):
         rem = u.remaining_cells(o)
         assert I["left_fmt"].format(len(u.game.hands[o].names), rem) in shown
+
+
+def test_sidebar_rows_follow_the_turn_order():
+    """Row one is whoever moves first this game, not seat 0."""
+    u = start_game(make_ui())
+    order = list(u.game.turn_order)
+    rects = []
+    real = u.label
+
+    def spy(text, x, y, size, color, bg=None, center=False, right=False):
+        r = real(text, x, y, size, color, bg, center, right)
+        rects.append((text, r))
+        return r
+
+    u.label = spy
+    u.draw_left()
+    u.label = real
+    # The name column of each row carries either the player name or a
+    # personality name.
+    names = {I["player"]} | set(PERSONA_ZH.values())
+    named = sorted(((r.top, t) for t, r in rects if t in names))
+    assert len(named) == 4, named
+    expected = [I["player"] if o == 0 else PERSONA_ZH[u.game.owner_key[o]]
+                for o in order]
+    assert [n for _top, n in named] == expected, (expected, named)
 
 
 # ---------------------------------------------------------------- piece switching

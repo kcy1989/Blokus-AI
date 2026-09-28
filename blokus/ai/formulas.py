@@ -1,18 +1,23 @@
-"""AI 共用的計算公式：棋盤幾何、落子推演、量化指標。
+"""Formulas shared by the AI: board geometry, placement extrapolation, and
+quantitative metrics.
 
-這裡只放「任何人格都用得到」的部分——把一個落子換算成數字的那一層。個人
-格怎麼組權重、怎麼分階段，住在各自的模組裡。
+Only the parts "every personality can use" live here -- the layer that turns
+one placement into numbers. How a personality assembles weights and how it
+stages its work lives in its own module.
 
-分三段：
+Three parts:
 
-1. 位元幾何：`ODIRS`、`_legal_bases`、`place_geometry`。
-   20x20 的棋盤用一顆 400-bit 的整數表示，所以「這一手合法嗎」「落子後長
-   什麼樣」都是幾個大整數的位移與求交，不用枚舉格子。
-2. 量化指標：延伸度、可放空格數、可用交點數、活區塊、裝箱。
-   這些是把位元攤成數字的地方，記分只看「餘格」，所以每一個指標的單位都
-   刻意跟格數對齊。
-3. 權重表：所有公式共用的常數。數值之間的大小關係是有意義的，改之前先看
-   各常數旁邊的註解。
+1. Bit geometry: `ODIRS`, `_legal_bases`, `place_geometry`.
+   The 20x20 board is one 400-bit integer, so "is this move legal" and "what
+   does the board look like after it" are just a few shifts and ANDs of big
+   integers -- no cell enumeration needed.
+2. Quantitative metrics: extension, playable squares, usable vertices, live
+   components, bin packing.
+   This is where bits get flattened into numbers. Scoring only looks at
+   "squares left", so every metric is deliberately measured in cells.
+3. The weight table: constants shared by all formulas. The relative sizes of
+   these values are meaningful -- read the note next to each constant before
+   changing it.
 """
 from board import (BLOCK_ANCHORS, COL0, COL_LAST, Reach, V, cells_to_vertices,
                    dilate, neighbors_of)
@@ -20,72 +25,82 @@ from config import B, CORNERS_IDX, N
 from pieces import MASTER
 
 # --------------------------------------------------------------------------
-# 常數
+# Constants
 # --------------------------------------------------------------------------
 
-# 權重式人格評分時，少一格就扣的分。刻意是平的 0.25／格：一塊 1 格的棋相對
-# 5 格棋先天少賺 1.0 分，任何「大小」相關的權重都蓋不過它。
+# Points deducted per missing cell when scoring for a weighted personality.
+# Deliberately flat at 0.25/cell: a 1-cell piece earns 1.0 less than a 5-cell
+# piece inherently, and no "size"-related weight can outbid that.
 SMALL_PENALTY = 0.25
-# 角位連通區塊大於此值就不再算角位加成，避免一開局就為了一小塊地做昂貴的 BFS。
+# Corner-connected regions bigger than this stop counting toward the corner
+# bonus, so the opening never pays for an expensive BFS over a tiny patch.
 REGION_CAP = 120
-# 每一手的推演預算，讓「每個候選都模擬落子」這件事有個確定的花費上限。
+# Per-move extrapolation budget, so "simulate a placement for every candidate"
+# has a definite cost ceiling.
 SIM_EVAL_BUDGET = 3000
-# 單手思考的時間上限（秒），超過就不再做對手預判。
+# Wall-clock cap for thinking about one move (seconds); past it, no more
+# opponent lookahead.
 WALL_BUDGET = 0.9
-# 4 鄰接表，只建一次。
+# 4-neighbour table, built once.
 NEIGH = neighbors_of()
 
-# 短名單的組裝：前 N 個是核心，之後最多再補這麼多個搶角候選。
+# Shortlist assembly: the first N are the core, after that at most this many
+# extra corner-claiming candidates may be added.
 SHORTLIST_CORE = 34
 SHORTLIST_SCAN = 400
 CORNER_RESERVE = 6
-# 補進短名單的搶角手，容許比最佳分低這麼多。
+# A corner move added to the shortlist may score this much below the best.
 CORNER_BAND = 12.0
-# 抽籤時的 softmax 溫度：分數差一格就變成 e 倍的權重差距。
+# Softmax temperature when picking: a one-point score gap becomes a factor of
+# e in the weights.
 PICK_TEMP = 5.0
 
-# 對手預判要評多少個應手。候選池先從「中性」落點建；當角對角規則把那個池
-# 清空時改用窮舉（見 `chooser._opponent_pool`），所以固定 K 不論走哪條路都
-# 讓花費有上限。
+# How many replies the opponent lookahead evaluates. The candidate pool is
+# first built from "neutral" bases; when the corner-contact rule empties that
+# pool, an exhaustive scan is used instead (see `chooser._opponent_pool`), so
+# a fixed K caps the cost on either path.
 OPP_POOL_K = 40
 OPP_POOL_PER_ORIENT = 6
 
 ROW0 = (1 << B) - 1
 ROWN = ROW0 << (B * (B - 1))
 
-# 每一格距棋盤中心的親近度，0（邊）到 1（正中）。權重式人格的 w_center
-# 就是乘在這個上面的。
+# How close each cell is to the board centre, 0 (edge) to 1 (dead centre).
+# A weighted personality's w_center multiplies this.
 CENTER = []
 for y in range(B):
     for x in range(B):
         d = min(abs(x - 9.5), abs(y - 9.5))
         CENTER.append(1.0 - d / 9.0)
 
-# 入侵者的延伸度上限：20x20 的盤上「伸多遠」只有十幾格有意義，再長只是數字
-# 變大。
+# Extension cap for the intruder: on a 20x20 board "how far it reaches" only
+# means something up to about a dozen cells; beyond that the number just grows.
 EXT_CAP = 14
 W_EXT = 1.0
 W_SQUARES = 0.05
 W_VERTICES = 0.04
 SQ_CAP = 80
-# 一般局面 5 格優先，每少 1 格扣 W_SIZE。戰略點再加 W_STRATEGIC，剛好大到
-# 讓 4 格／3 格的關鍵格贏過 5 格的填色。
+# In ordinary positions 5 cells win, and every missing cell costs W_SIZE. On
+# strategic squares W_STRATEGIC is added, just large enough to let a 4- or
+# 3-cell key square beat a 5-cell filler.
 W_SIZE = 1.0
 W_STRATEGIC = 2.2
-# 跨越那一步額外加的分，並且可放空格數的權重加倍。
+# Extra points for the crossing step, and the weight on playable squares is
+# doubled there.
 W_CROSS = 2.5
 W_SEAL = 0.4
 SEAL_MIN = 6
 
 
 # --------------------------------------------------------------------------
-# 位元幾何
+# Bit geometry
 # --------------------------------------------------------------------------
 
 def _block_touch(cells):
-    """2x2 方塊的左上角位元，這一手會碰到的那些方塊。
+    """Top-left bits of the 2x2 blocks this move would touch.
 
-    判斷「這一手有沒有完成跨越」時用它與跨越方塊位元求交，不必枚舉全盤。
+    Used to intersect with the crossing-block bits when deciding "did this move
+    complete a crossing", without enumerating the whole board.
     """
     touch = 0
     for dx, dy in cells:
@@ -96,11 +111,13 @@ def _block_touch(cells):
 
 
 def _pair_shifts(offs, cells):
-    """棋塊內部「角對角相鄰」的兩格，其 2x2 另兩格的位移量。
+    """The offsets of the other two cells of the 2x2, for two cells inside a
+    piece that are diagonally adjacent.
 
-    這是跨越的另一種來源：跨越那條對角線的兩格都屬於同一手（而不是一格
-    既有棋加一格新棋）。位移量若等於棋塊自己的 offset，代表「另一格」永遠
-    被自己蓋住，該位元必須棄掉。
+    This is the other source of a crossing: both cells along the crossing
+    diagonal belong to the same move (rather than one old stone plus one new
+    one). If the offset equals one of the piece's own offsets, the "other cell"
+    is always covered by the piece itself, and that bit must be dropped.
     """
     off_set = set(offs)
     out = set()
@@ -115,11 +132,12 @@ def _pair_shifts(offs, cells):
 
 
 def _build_od(name, oi, cells):
-    """一種棋塊 × 一種方向 的所有預計算結果。
+    """Everything precomputed for one piece type x one orientation.
 
-    落點(`bases`)、每個落點的中心分(`csum`)、占掉哪些角(`corner`)、跨越
-    用到的兩組位元(`touch`、`pair_shifts`)都在這裡算一次，之後幾千個候選都
-    只是查表。
+    Bases (`bases`), the centre score of each base (`csum`), which corners are
+    covered (`corner`), and the two bit sets used for crossings (`touch`,
+    `pair_shifts`) are all computed once here, so the thousands of candidates
+    that follow are just table lookups.
     """
     mx = max(x for x, _ in cells)
     my = max(y for _, y in cells)
@@ -173,10 +191,11 @@ def _adjoining_bases(od, reach, cbit):
 
 
 def _free_bases(od, empt):
-    """位元 b = 這一手下在 b 時，每一格都是空的。
+    """Bit b is set when playing this move at b leaves every cell empty.
 
-    每個 offset 各貢獻「該格為空」的 base 位元，取交集即全部為空。跨行的
-    誤算會被 `od["valid"]` 濾掉。
+    Each offset contributes the base bits for which "that cell is empty"; the
+    intersection is exactly "all of them are empty". Row-wrap mistakes are
+    filtered out by `od["valid"]`.
     """
     out = od["valid"]
     for o in od["offs"]:
@@ -185,9 +204,11 @@ def _free_bases(od, empt):
 
 
 def _legal_bases(od, empt, reach=None, cbit=0):
-    """這一手下在哪些 base 合法：角對角規則，且每一格都是空格。
+    """The bases where this move is legal: corner-contact rule, and every cell
+    is an empty square.
 
-    `cbit`（開局的角位）與 `reach` 二擇一，兩者都不給就是完全沒有約束。
+    `cbit` (the opening corner) and `reach` are mutually exclusive; given
+    neither, there is no constraint at all.
     """
     if cbit or reach is not None:
         mask = _adjoining_bases(od, reach, cbit)
@@ -197,7 +218,8 @@ def _legal_bases(od, empt, reach=None, cbit=0):
 
 
 def own_reach(board, owner):
-    """自己目前的角對角規則（`Reach` 對）。還沒放過棋時回傳 None。"""
+    """Our current corner-contact rule (a `Reach` pair). Returns None before we
+    have placed any stone."""
     own = board.owner_bits[owner]
     if not own:
         return None
@@ -214,14 +236,16 @@ for _name, _p in MASTER.items():
 
 
 # --------------------------------------------------------------------------
-# 跨越：2x2 裡一條對角全是自己、另一條有對手
+# Crossing: one diagonal of a 2x2 is all ours, the other one holds an opponent
 # --------------------------------------------------------------------------
 
 def is_leaper(cells):
-    """跨越棋：3x3 外框裡佔據「兩個對角」的形狀。
+    """A crossing piece: a shape occupying "two opposite corners" of the 3x3
+    frame.
 
-    依幾何判定而非棋名，所以 T5（(0,0)+(2,0) 相鄰）、X5（不佔角）、
-    F5（只佔 (2,0)）都不會被算進來。
+    Decided geometrically rather than by piece name, so T5 ((0,0) and (2,0)
+    adjacent), X5 (covers no corner) and F5 (covers only (2,0)) are all left
+    out.
     """
     if max(x for x, _ in cells) != 2 or max(y for _, y in cells) != 2:
         return False
@@ -232,17 +256,21 @@ def is_leaper(cells):
 LEAPERS = frozenset(name for name, p in MASTER.items()
                     if any(is_leaper(cells) for cells in p["orientations"]))
 
-# 「垂直走 2 格、橫向走 4 格」與「1 格直 + 5 格」這類長手臂形狀。Y5 刻意
-# 不列入：同樣條件下它的延伸距離只有 5，比 L5 短。
+# Long-armed shapes like "2 cells vertically, 4 horizontally" or "1 straight
+# plus 5 sideways". Y5 is deliberately excluded: under the same condition its
+# reach is only 5, shorter than L5.
 STRETCHERS = frozenset(n for n in ("L5", "N5", "I5") if n in MASTER)
 
 
 def cross_anchors(me, them):
-    """2x2 方塊（左上角位元）裡，一條對角全是 me、另一條對角含 them。
+    """2x2 blocks (as top-left bits) where one diagonal is all me and the other
+    diagonal holds them.
 
-    2x2 的兩條對角線是 {左上, 右下} 與 {右上, 左下}；後者的兩格都比錨點
-    右移／下移一步，所以那一式不與 `me` 求交。錨點必須落在 BLOCK_ANCHORS
-    內，否則右移／下移會跨行接到別的列。
+    The two diagonals of a 2x2 are {top-left, bottom-right} and {top-right,
+    bottom-left}; both cells of the latter sit one step right/down of the
+    anchor, so that form is not intersected with `me`. The anchor must fall
+    inside BLOCK_ANCHORS, otherwise shifting right/down would wrap into
+    another row.
     """
     main = me & (me >> (B + 1)) & ((them >> 1) | (them >> B))
     anti = (me >> 1) & (me >> B) & (them | (them >> (B + 1)))
@@ -250,18 +278,23 @@ def cross_anchors(me, them):
 
 
 def key_cells(me, them, empt):
-    """關鍵格：填上去就完成一次跨越的空格。
+    """Key squares: empty squares that, if filled, complete a crossing.
 
-    跨越成立前，構成跨越那條對角線的是「一個空格 p + 一顆自己的棋 q（角對角
-    貼著 p）」，而 2x2 的另一條對角要已經有對手。所以 p 與 q 之間那兩個共邊
-    的格子必須有一個是對手——也正因如此 p 對 q 是角對角、對自己的棋不共邊，
-    p 一定是合法的落子（仍可能被自己其他棋擋掉，那是 `_adjoining_bases` 的事）。
+    Before a crossing holds, the diagonal that makes it up is "an empty square
+    p plus one of our own stones q (diagonally touching p)", and the other
+    diagonal of the 2x2 must already hold an opponent. So one of the two
+    edge-adjacent cells between p and q has to be an opponent -- and precisely
+    because p touches q diagonally and shares no edge with our own stones, p is
+    always a legal placement (it may still be blocked by our other stones, and
+    that is `_adjoining_bases`' job).
 
-    連續兩次的「正前方」存在對手就叫「把對手夾在兩格之間」，正好是跨越成立
-    的樣子。
+    An opponent sitting directly ahead twice in a row is what "trapping the
+    opponent between two cells" means, which is exactly the shape of a
+    completed crossing.
     """
     out = 0
-    # 四個對角方向各一式；括號內是 2x2 的另兩格，任一格是對手就算數。
+    # One form per diagonal direction; in parentheses are the other two cells
+    # of the 2x2 -- either one being an opponent counts.
     out |= (me << (B + 1)) & ~COL0 & ~ROW0 & ((them << 1) | (them << B))
     out |= (me << (B - 1)) & ~COL_LAST & ~ROW0 & ((them >> 1) | (them << B))
     out |= (me >> (B - 1)) & ~COL0 & ~ROWN & ((them << 1) | (them >> B))
@@ -270,16 +303,18 @@ def key_cells(me, them, empt):
 
 
 def has_crossed(me, them):
-    """只看棋盤就能判定，不需要歷史：2x2 裡一條對角全是我的、另一條有對手。"""
+    """Decided from the board alone, no history needed: one diagonal of a 2x2 is
+    all mine and the other one holds an opponent."""
     return bool(cross_anchors(me, them))
 
 
 # --------------------------------------------------------------------------
-# 量化指標
+# Quantitative metrics
 # --------------------------------------------------------------------------
 
 def _vertex_list(mask):
-    """交點位元 → [(X, Y)]。接觸交點最多幾個，逐一攤開即可。"""
+    """Vertex bits -> [(X, Y)]. There are at most a few contact vertices, so
+    just spread them out one by one."""
     out = []
     while mask:
         low = mask & -mask
@@ -290,11 +325,13 @@ def _vertex_list(mask):
 
 
 def contact_vertices(placed, anchor, anchor_v=None):
-    """接觸交點：新棋與自己既有棋共享的交點（開局首手則是它覆蓋的角交點）。
+    """Contact vertices: vertices shared by the new stone and our existing
+    stones (for the opening move, the corner vertices it covers).
 
-    合法性保證了任何共享都只是角對角——共邊本來就不合法。`anchor_v` 可以帶
-    進來預先投影好的 `anchor` 交點集（見 `board_context`），省掉每個候選一次
-    20 列的換算。
+    Legality guarantees that any sharing is purely diagonal -- sharing an edge
+    is illegal in the first place. `anchor_v` can carry in a pre-projected
+    vertex set for `anchor` (see `board_context`), saving a 20-row conversion
+    per candidate.
     """
     if anchor_v is None:
         anchor_v = cells_to_vertices(anchor)
@@ -302,10 +339,12 @@ def contact_vertices(placed, anchor, anchor_v=None):
 
 
 def extension(legal_new, anchors, limit=EXT_CAP):
-    """延伸度：從接觸交點算起，這一手新打開的區域最遠伸多遠（曼哈頓距離）。
+    """Extension: measured from the contact vertices, how far the region newly
+    opened by this move reaches (Manhattan distance).
 
-    只看「這一手新產生的可放空格」：它們全都角對角貼著新下的棋，所以這個
-    距離量的是這塊棋自己伸出去多遠，而不是既有領土有多大。
+    Only "playable squares newly created by this move" are considered: they all
+    sit diagonally against the stone just played, so this distance measures how
+    far this piece itself reaches out, not how big the existing territory is.
     """
     best = 0
     m = legal_new
@@ -326,10 +365,12 @@ def extension(legal_new, anchors, limit=EXT_CAP):
 
 
 def board_context(board, hand_names, owner, must_cover):
-    """一盤棋裡與候選無關的量，全部先算一次。
+    """Everything in a position that is independent of the candidate, computed
+    once up front.
 
-    落子前就可放的空格、接觸用的錨點（開局是角位格）。跨越那套只在
-    `IntruderBrain` 需要，所以由 `crossing_context` 另外補上。
+    Squares playable before we move, and the anchors used for contact (the
+    corner cell at the opening). The crossing machinery is only needed by
+    `IntruderBrain`, so `crossing_context` supplies it separately.
     """
     own = board.owner_bits[owner]
     empt = board.empty_bits
@@ -349,10 +390,12 @@ def board_context(board, hand_names, owner, must_cover):
 
 
 def crossing_context(board, hand_names, owner):
-    """規則 3／4 用的對手資訊：跨越狀態、尚未跨越的對手、跨越棋。
+    """Opponent information for rules 3/4: crossing state, opponents not yet
+    crossed, and crossing pieces.
 
-    跨越棋集合只跟手上的棋有關，所以 `selfpair` 那些 base 位元整局都不會變，
-    整手棋只算一次。
+    The set of crossing pieces depends only on the pieces in hand, so those
+    `selfpair` base bits never change during a game and are computed once per
+    move.
     """
     own = board.owner_bits[owner]
     opps = [(o, board.owner_bits[o]) for o in range(4)
@@ -375,10 +418,11 @@ def crossing_context(board, hand_names, owner):
 
 
 def placement_counts(board, hand_names, owner, must_cover):
-    """每個棋塊現在還有幾個合法落點（跨全部 orientation 加總）。
+    """How many legal placements each piece still has (summed over all
+    orientations).
 
-    「只餘一個地方可放」就是這裡等於 1。等於 0 的棋塊已經救不回來了——根本
-    沒有落點可選，不算急需。
+    "Only one place left to play" means 1 here. A piece at 0 is already beyond
+    saving -- it has no placement at all, so it is not urgent.
     """
     reach = own_reach(board, owner)
     cbit = 0
@@ -395,9 +439,10 @@ def placement_counts(board, hand_names, owner, must_cover):
 
 
 def place_state(board, name, oi, base, ctx):
-    """落子後的 (自己, 落子後空格, need, avoid, 可放空格)。
+    """After the placement: (ours, empty-after, need, avoid, playable squares).
 
-    `可放空格`就是「自己下一手還能下的位置」，兩個規則式人格都要它。
+    `playable squares` means "where we could still play next"; both
+    rule-based personalities need it.
     """
     placed = ODIRS[name][oi]["m"] << base
     empt_after = ctx["empt"] & ~placed
@@ -407,10 +452,11 @@ def place_state(board, name, oi, base, ctx):
 
 
 def place_geometry(board, name, oi, base, ctx):
-    """落子後的幾何量：(自己, 落子後空格, need, avoid, 可放空格, 新打開的,
-    接觸交點)。
+    """Geometry after the placement: (ours, empty-after, need, avoid, playable
+    squares, newly opened, contact vertices).
 
-    這是全部規則的唯一來源——AI 評分與測試都走這裡，兩邊不會各算各的。
+    This is the single source for all the rules -- AI scoring and tests both go
+    through here, so the two can never drift apart.
     """
     own, empt_after, need, avoid, legal = place_state(board, name, oi, base, ctx)
     placed = ODIRS[name][oi]["m"] << base
@@ -419,7 +465,8 @@ def place_geometry(board, name, oi, base, ctx):
 
 
 def move_geometry(board, name, oi, x, y, owner, must_cover=None):
-    """一次假想落子的 (延伸度, 可用交點數, 可放空格數)，給測試與除錯用。"""
+    """(extension, usable vertex count, playable square count) for one
+    hypothetical placement, for tests and debugging."""
     ctx = board_context(board, [name], owner, must_cover)
     _own, _empt, _need, _avoid, legal, fresh, anchors = \
         place_geometry(board, name, oi, x + y * B, ctx)
@@ -428,25 +475,33 @@ def move_geometry(board, name, oi, x, y, owner, must_cover=None):
 
 
 # --------------------------------------------------------------------------
-# 可填充閉包、活區塊、裝箱
+# Fillable closure, live components, bin packing
 # --------------------------------------------------------------------------
 #
-# 前面只量「還有幾個可放空格」的**數量**。可放空間是分散的時候總量再大也沒
-# 用，因為一個棋塊必須是連續的空地：兩個 4 格活區塊塞不進任何 5 格棋，一
-# 個 8 格活區塊可以。下面這三個純函式補的就是「形狀」。
+# So far we only measure the **quantity** of "how many playable squares are
+# left". A large total is useless when the playable space is scattered, because
+# a piece must land on contiguous empty ground: two 4-cell live components
+# cannot hold any 5-cell piece, one 8-cell component can. These three pure
+# functions supply the missing "shape".
 
 def fillable_closure(empt, avoid, legal):
-    """可填充閉包：「我還填得進去的格子」。
+    """Fillable closure: "the cells I can still fill".
 
-    從 `legal`（落子後自己下一手能下的位置）出發，沿 4 鄰接泛洪，只走空格
-    `empt` 且避開 `avoid`（與自己棋共邊，棋塊不能壓上去）。一個棋塊的落子必須
-    從某個 `legal` 格出發、每一格都是空的、且棋塊形狀連通，所以這就是可填的
-    格子。`fill` 每輪只增不減，所以一定收斂（實測 2～4 輪）。
+    Starting from `legal` (where we could play next after the placement), flood
+    along 4-adjacency, walking only empty cells `empt` and avoiding `avoid`
+    (edge-sharing our own stones -- a piece may not press on top of them). A
+    piece's placement must start from some `legal` cell, cover only empty
+    cells, and be connected as a shape, so this is exactly the set of
+    fillable cells. `fill` only grows, never shrinks, so it always converges
+    (2-4 rounds in practice).
 
-    已知近似，寫下來是因為它**只是上界**，當排序 proxy 夠了，不拿來預測分數：
-      (a) 沒有要求每走一步都重新滿足角對角接觸，中途可能已經離開了自己的棋；
-      (b) 沒算對手接下來會佔掉多少；
-      (c) 含斜對角步的棋塊（Z5 等）能跨過 4 鄰接不連通的地方，閉包會少算一點。
+    Known approximation, written down because it is **only an upper bound** --
+    good enough as a ranking proxy, not used to predict scores:
+      (a) it does not require re-satisfying corner contact on every step, so it
+          may drift away from our own stones mid-flood;
+      (b) it does not account for how much the opponents will take next;
+      (c) pieces with diagonal steps (Z5 and friends) can cross gaps that are
+          not 4-connected, so the closure undercounts a little.
     """
     fill = legal & empt & ~avoid
     while True:
@@ -457,11 +512,12 @@ def fillable_closure(empt, avoid, legal):
 
 
 def fill_components(mask):
-    """`mask` 的 4 鄰接連通區塊面積，由大到小。
+    """Areas of the 4-connected components of `mask`, largest first.
 
-    連通區塊就是「活區塊」：一個棋塊只能整塊落在同一個活區塊裡，所以這裡的
-    每個數字是一塊地最多能再吃掉的格數。用 `dilate` 迭代出來，回傳面積而不要
-    回傳位元——後面只拿來當容量用。
+    A connected component is a "live component": a piece can only land entirely
+    inside one live component, so each number here is the most cells that patch
+    of land can still swallow. Iterated out with `dilate`; areas are returned,
+    not bits -- they are only used as capacities afterwards.
     """
     out = []
     rest = mask
@@ -480,11 +536,15 @@ def fill_components(mask):
 
 
 def pack_lost(sizes_desc, bins):
-    """first-fit-decreasing：把手牌裝進活區塊，裝不進去的格數。
+    """first-fit-decreasing: pack the hand into the live components, and count
+    the cells that do not fit.
 
-    `sizes_desc` 是剩餘手牌大小由大到小，`bins` 是活區塊容量。每一塊找第一個塞
-    得下的活區塊塞進去，塞不下就記成一筆送掉的格數。回傳的是「估計送不掉的格
-    數」，單位就是格，所以跟記分（餘格愈少愈好）同一個尺度。
+    `sizes_desc` is the remaining hand sizes, largest first; `bins` holds the
+    live component capacities. Each piece goes into the first component that
+    can take it; if none can, it is booked as cells thrown away. What comes
+    back is the "estimated number of cells that cannot be placed", measured in
+    cells, so it shares a scale with the scoring (fewer leftover cells is
+    better).
     """
     room = list(bins)
     lost = 0
@@ -499,24 +559,29 @@ def pack_lost(sizes_desc, bins):
 
 
 # --------------------------------------------------------------------------
-# 規則式人格用的分項公式
+# Per-term formulas for the rule-based personalities
 # --------------------------------------------------------------------------
 
 def size_bonus(size, strategic):
-    """規則 5：一般局面 5 格優先；戰略點（關鍵格／跨越）放寬到 4 格、3 格。
+    """Rule 5: 5 cells preferred in ordinary positions; relaxed to 4 and 3
+    cells on strategic squares (key squares / crossings).
 
-    戰略獎勵刻意略大於「少一格」的差距，所以 3 格的關鍵格贏得過 5 格的填色，
-    4 格的更是穩贏，但 5 格在戰略點仍然最好——允許用小棋，不是要求用小棋。
+    The strategic reward is deliberately a bit larger than the "one cell
+    missing" gap, so a 3-cell key square beats a 5-cell filler and a 4-cell one
+    wins comfortably -- but 5 cells is still best on a strategic square. This
+    allows small pieces; it does not demand them.
     """
     s = W_SIZE * (size - 3.0)
     return s + (W_STRATEGIC if strategic else 0.0)
 
 
 def crossing_bonus(squares, usable):
-    """規則 4：跨越那一步以可放空格數最大化為主，並額外懲罰可用交點太少。
+    """Rule 4: the crossing step is mainly driven by maximising the number of
+    playable squares, plus an extra penalty for too few usable vertices.
 
-    「剛跨過去就被封」是這條規則要防的事：跨過去之後要還有地方可放，否則
-    這一手只是把棋送掉。
+    "Crossing and immediately being sealed in" is what this rule guards
+    against: after crossing there must still be somewhere to play, otherwise
+    the move just throws the piece away.
     """
     s = W_CROSS + 2.0 * W_SQUARES * min(squares, SQ_CAP)
     if usable < SEAL_MIN:
@@ -525,13 +590,16 @@ def crossing_bonus(squares, usable):
 
 
 # --------------------------------------------------------------------------
-# 權重式人格：候選的評分函式
+# Weighted personalities: candidate scoring functions
 # --------------------------------------------------------------------------
 
 def board_feats(grid):
-    """每一個空格的三組特徵：鄰接空格數、挨著各家的棋數、挨著對手的棋數。
+    """Three feature sets for every empty square: number of adjacent empty
+    squares, number of stones of each player beside it, and number of opponent
+    stones beside it.
 
-    一次 O(400 × 4) 掃完，之後所有候選都只是查表加總。
+    One O(400 x 4) scan does it all; every candidate afterwards is just a table
+    lookup and a sum.
     """
     open_a = [0] * N
     block = [[0] * N for _ in range(4)]
@@ -600,11 +668,12 @@ def _corner_delta(ci, cs, owner, regions, borders):
 
 def _score_move(board, name, oi, base, owner, profile, open_a, block, defend,
                 regions, borders):
-    """權重式人格給單一候選的分數。
+    """The score a weighted personality gives to a single candidate.
 
-    六個權重項（角、中心、壓制、防守、開闊、大小）線性加總，所以每個權重
-    的大小關係就是它的取捨方向。`chooser.choose_move` 內嵌了同一段算式，
-    那裡是為了省掉函式呼叫而重寫的，兩邊必須同步。
+    Six weight terms (corner, centre, block, defend, open, size) summed
+    linearly, so the relative sizes of the weights are exactly their trade-off
+    directions. `chooser.choose_move` inlines the same expression, rewritten
+    there to avoid a function call; the two must stay in sync.
     """
     od = ODIRS[name][oi]
     cells = [base + o for o in od["offs"]]

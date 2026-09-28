@@ -16,11 +16,11 @@ ALL = (1 << N) - 1
 # The corner-contact rule reads far more naturally in vertex language: two
 # squares share an edge iff they share two vertices, and they touch at a corner
 # iff they share exactly one. The 20x20 squares therefore sit on a 21x21 grid
-# of 交點, indexed Y*V + X.
+# of vertices, indexed Y*V + X.
 V = B + 1
 ROW_BITS = (1 << B) - 1
 
-# Top-left corner of every 2x2 方塊, i.e. the anchors a crossing can sit on.
+# Top-left corner of every 2x2 block, i.e. the anchors a crossing can sit on.
 BLOCK_ANCHORS = 0
 for _y in range(B - 1):
     BLOCK_ANCHORS |= ((1 << (B - 1)) - 1) << (_y * B)
@@ -52,7 +52,7 @@ def dilate_diag(mask):
 
 
 def cells_to_vertices(mask):
-    """Project a 400-bit square mask onto the 441-bit 交點 grid.
+    """Project a 400-bit square mask onto the 441-bit vertex grid.
 
     A square (x, y) owns the four vertices (x, y) (x+1, y) (x, y+1) (x+1, y+1),
     so the whole projection is a row-wise widening plus one final shift down by
