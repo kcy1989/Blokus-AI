@@ -1,27 +1,32 @@
 {
+  "builder": {
+    "games": 353,
+    "total_points": 1223.0,
+    "total_remaining": 3115.0
+  },
   "optimizer": {
-    "games": 79,
-    "total_points": 290.0,
-    "total_remaining": 653.0
+    "games": 326,
+    "total_points": 1091.0,
+    "total_remaining": 3176.0
   },
   "intruder": {
-    "games": 86,
-    "total_points": 267.0,
-    "total_remaining": 1150.0
-  },
-  "wolf": {
-    "games": 87,
-    "total_points": 185.0,
-    "total_remaining": 2021.0
+    "games": 330,
+    "total_points": 976.0,
+    "total_remaining": 4128.0
   },
   "fox": {
-    "games": 72,
-    "total_points": 138.0,
-    "total_remaining": 1889.0
+    "games": 342,
+    "total_points": 574.0,
+    "total_remaining": 9080.0
+  },
+  "wolf": {
+    "games": 340,
+    "total_points": 639.0,
+    "total_remaining": 8549.0
   },
   "chess": {
-    "games": 76,
-    "total_points": 134.0,
-    "total_remaining": 2008.0
+    "games": 309,
+    "total_points": 582.0,
+    "total_remaining": 7582.0
   }
 }

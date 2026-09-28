@@ -116,29 +116,35 @@ def test_optimizer_prefers_the_largest_piece():
 # ------------------------------------------------------------ 緊急規則
 
 def test_optimizer_places_the_urgent_piece_first():
-    """I1 只剩一個落點時先放它，即使 5 格棋還有十幾個落點。"""
-    g = playout(0, 6)
+    """棋塊只剩唯一一個落點時先放它，即使 5 格棋還有好幾個落點。
+
+    局面用固定的 `playout(5, 46)`：這個位置自然長成 I4／O4／X5 三塊棋各只剩
+    一個落點，而同時還有 5 格棋有 5 個落點。稀有狀況不能用「隨便找一局」當
+    fixture——那會隨人格池與抽籤漂移。
+    """
+    g = playout(5, 46)
     owner = 1
     board, reach = g.board, g.reach(owner)
     hand = list(g.hands[owner].names)
     counts = ai.placement_counts(board, hand, owner, g.must_cover(owner))
-    # 局勢前提：I1 只剩一個落點，5 格棋還很寬鬆
+    # 局勢前提：三塊棋各只剩一個落點，而別的 5 格棋還有幾個落點
     assert g.must_cover(owner) is None
-    assert counts["I1"] == 1, counts
+    urgent = [n for n, k in counts.items() if 0 < k <= ai.URGENT_PLACES]
+    assert all(counts[n] == 1 for n in urgent) and len(urgent) == 3, counts
     five = {k: v for k, v in counts.items() if MASTER[k]["size"] == 5}
     assert max(five.values()) >= 5, five
-    ctx = ai.board_context(board, hand, owner, g.must_cover(owner))
+    assert max(five.values()) > max(counts[n] for n in urgent), five
     brain = optimizer_brain()
     full = brain.context(board, hand, owner, g.must_cover(owner), reach)
-    assert "I1" in full["urgent"], full["urgent"]
+    assert set(full["urgent"]) == set(urgent), full["urgent"]
     mv = pick(board, hand, owner, reach=reach)
     assert mv[0] in full["urgent"], (mv, full["urgent"])
-    assert MASTER[mv[0]]["size"] < 5, mv
+    assert counts[mv[0]] == 1, (mv, counts[mv[0]])
 
 
 def test_urgent_rescue_prefers_the_bigger_piece():
     """同樣只剩一個落點時先救大的：一樣救不回來，少留 5 格比較不痛。"""
-    g = playout(0, 6)
+    g = playout(5, 46)
     owner = 1
     board, reach = g.board, g.reach(owner)
     hand = list(g.hands[owner].names)
