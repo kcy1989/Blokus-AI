@@ -1,0 +1,11 @@
+# Editor / OS noise at the repo root
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
