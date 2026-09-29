@@ -29,9 +29,12 @@
 
 ---
 
-## 階段 A：修正 bug 與凍結資料格式（最優先）
+## 階段 A：修正 bug 與凍結資料格式（最優先） — ✅ 已完成
 
-### A1. 驗證並修正 `_adjoining_bases` 的首步分支
+> **狀態：** 已完成並提交（commit `4387934`）。165 項測試通過。
+> 實測結果與本文假設不符之處見下方 A1 的「實測補充」。
+
+### A1. 驗證並修正 `_adjoining_bases` 的首步分支 — ✅ 已完成
 
 **檔案：** `ai/formulas.py`
 
@@ -79,7 +82,21 @@ if cbit:
 
 **注意：** 這是 A 之後所有「改用 `_legal_bases`」任務的前提。在此修好之前，**不要**做 C 階段的任何任務，否則 owner 0、2、3 的首步可能被誤判為無合法步並自動 pass。
 
-### A2. 凍結動作表
+#### 實測補充（A1 執行後）
+
+| 項目 | 實測結果 |
+|---|---|
+| bug 是否存在 | **是**。owner 1（左上）91/91 正確（巧合），owner 0/2/3 各 **58/91 方向錯誤** |
+| 錯誤結果 | 合法落點 **0** 個，正確應為 58 個 |
+| 同種子逐手比對 1000 局 | **1000/1000 完全一致**，棋力與選步行為零改變 |
+| 本文「會自動 pass」的預測 | **不成立**。`choose_move` 用直接檢查 `(empt & shifted)` / `shifted & cbit`，`Game.has_legal` 用 `board.has_legal_move`，兩者都不經過此分支 |
+| 實際受影響的呼叫點 | 只有 `_opponent_pool` 的後備掃描與 `placement_counts`；抽樣 1200 個首步位置，對手預判池總數新舊完全相同（42876） |
+| C2 的必要性 | **仍然成立且是硬前提**。用舊分支把 `has_legal` 改寫到 `_legal_bases`，owner 0/2/3 首步會回傳 `False`，四人中有三人自動跳過 |
+
+修正後新增 6 項測試於 `tests/test_geometry_reference.py`，其中
+`test_first_move_branch_is_not_vacuous` 專門防止「兩邊都回傳空遮罩所以看起來通過」。
+
+### A2. 凍結動作表 — ✅ 已完成
 
 **新增檔案：** `tools/freeze_actions.py`，輸出 `action_table.json`。
 
@@ -110,33 +127,131 @@ print(digest)
 
 **驗收：** 測試通過；回報 `hash`、方向總數、`total_placements`。
 
+#### 實測結果（A2）
+
+```
+pieces           21
+orientations     91      （1+2+6+19+63，與本文預測一致）
+cells            89
+total_placements 30433
+hash             91252a354b090d43
+```
+
+實作補充：
+
+- `total_placements` 用**兩種獨立算法**計算（由 `MASTER` 幾何直接算 vs 由 `ODIRS["valid"]`
+  算），測試釘住兩者必須一致，避免定義漂移。
+- `freeze_actions.py` 只 import `hashlib/json/os/sys` 與 `pieces/config`，**不碰 pygame
+  與 AI**，且可從任何目錄執行。
+- JSON 採「一行一個 action」的排版，方便日後 diff；雜湊取自 `digest_of` 而非檔案
+  位元組，所以排版可自由修改而不影響已發布資料。
+
 ---
 
-## 階段 B：量測（在動手優化之前）
+## 階段 B：量測（在動手優化之前） — ✅ 已完成
 
-### B1. 跑 profile 並回報
+> **狀態：** 已完成。**未修改任何遊戲邏輯**（B 階段規定只量測）。
+> 新增的只有量測工具 `tools/bench_profiles.py`，它從外部包裝 `choose_move`，
+> 引擎本身完全沒有被改動。
+
+### B1. 跑 profile 並回報 — ✅ 已完成
 
 ```bash
 python3 -m cProfile -s cumtime match.py --games 3 --dry | head -60
 ```
 
-回報：
+**每局耗時：**
 
-- 每局耗時。
-- 累計時間前 15 名的函數。
-- 各人格每步平均耗時（如果現有程式能取得，否則新增計時記錄，不改行為）。
+| 量測方式 | 樣本 | 每局 |
+|---|---|---|
+| 無 profiler（真實速度） | 20 局 | **0.84 秒** |
+| cProfile（有測試開銷） | 8 局 | 1.11 秒 |
 
-**這一步只量測，不做任何修改。** 之後的優化優先次序由結果決定。
+**累計時間前 15 名**（cProfile，8 局 = 8.97 秒，已濾掉 import 雜訊）：
+
+| # | 函式 | 呼叫次數 | cumtime | 佔比 |
+|---|---|---|---|---|
+| 1 | `chooser.py:126 choose_move` | 616 | 8.451 | **94%** |
+| 2 | `builder.py:84 rescore` | 93 | 2.602 | 29% |
+| 3 | `builder.py:103 _score` | 21,845 | 2.446 | 27% |
+| 4 | `formulas.py:521 fill_components` | 21,845 | 1.544 | 17% |
+| 5 | `formulas.py:676 _score_move` | 522,742 | 1.431 | 16% |
+| 6 | `board.py:29 dilate` | **1,414,902** | 1.316 | 15% |
+| 7 | `formulas.py:603 board_feats` | 616 | 0.574 | 6% |
+| 8 | `formulas.py:494 fillable_closure` | 21,845 | 0.559 | 6% |
+| 9 | `chooser.py:19 _opponent_pool` | 672 | 0.394 | 4% |
+| 10 | `intruder.py:73 rescore` | 89 | 0.392 | 4% |
+| 11 | `formulas.py:545 pack_lost` | 21,845 | 0.128 | 1% |
+| 12 | `formulas.py:448 place_state` | 66,600 | 0.323 | 4% |
+| 13 | `formulas.py:644 _bfs_count` | 20,856 | 0.167 | 2% |
+| 14 | `game.py:149 _all_stuck` | 616 | 0.267 | 3% |
+| 15 | `board.py:246 has_legal_move` | 726 | 0.256 | 3% |
+
+**各人格每步平均耗時**（`tools/bench_profiles.py`，20 局、種子固定、可重現）：
+
+| 人格 | 類別 | 出手數 | ms/手 |
+|---|---|---|---|
+| **builder** | 規則式 | 233 | **22.14** ← 明顯離群 |
+| wolf | 權重式 | 267 | 9.80 |
+| chess | 權重式 | 300 | 9.62 |
+| fox | 權重式 | 265 | 9.72 |
+| intruder | 規則式 | 230 | 6.77 |
+| optimizer | 規則式 | 228 | 5.19 |
+
+全體平均 10.49 ms/手。三個權重式人格幾乎一樣（9.6～9.8 ms），因為它們共用同一條
+候選枚舉與對手預判路徑，差別只在權重。**builder 是次慢者的 2.2 倍**，而它 27% 的
+時間花在 `fill_components` / `fillable_closure` → `dilate` 這條鏈上。
+
+**推論（供 C 階段排序用）：** 優先順序應該是
+(1) `builder` 的閉包／裝箱鏈、(2) `choose_move` 的全 base 迴圈（自身耗時 2.750 秒，
+佔 31%，是最大的單一 self-time)、(3) 對手預判的 `_score_move`（52 萬次呼叫）。
+`board_feats` 只有 6%，優先級較低。
+
 
 推測的熱點（需驗證，不是結論）：`Game._all_stuck` → `has_legal` → `Board.any_legal`；`choose_move` 的全 base 迴圈；`board_feats`；`Board._update_regions`；對手前瞻的 `_score_move`。
 
-### B2. 查依賴
+#### 實測對照（推翻兩項推測）
+
+| 推測 | 實測 | 結論 |
+|---|---|---|
+| `choose_move` 全 base 迴圈 | 自身耗時 2.750s，佔 31% | ✅ **最大熱點**，預期正確 |
+| 對手前瞻 `_score_move` | 52 萬次呼叫，1.431s，佔 16% | ✅ 正確 |
+| `board_feats` | 0.574s，佔 6% | ✅ 正確但**優先級比預期低** |
+| `_all_stuck` → `has_legal` → `any_legal` | 合計 0.267s，佔 3% | ⚠️ 存在但**遠比預期小** |
+| `Board._update_regions` | 每次 0.013ms，每局 64 次 = **0.08%** | ❌ **不是熱點**（見 B2） |
+| （文件未預測） | `builder` 佔全部時間 27% | ⚠️ **新的最大單一人格負擔** |
+
+`board.dilate` 以 **141 萬次**呼叫吃掉 1.316 秒，是全站呼叫次數最多、self-time 第三名
+的函式，幾乎全部來自 `fill_components` 與 `fillable_closure` 的逐輪泛洪。
+
+### B2. 查依賴 — ✅ 已完成
 
 ```bash
 grep -rn "corner_regions\|borders\|\.grid\|all_owner_cells\|connected_region" --include=*.py .
 ```
 
 回報每個使用點屬於 UI、AI 還是 `board.py` 內部。**已知 `choose_move` 直接讀 `board.grid`、`board.corner_regions`、`board.borders`，所以 `_update_regions` 目前不可移除。**
+
+#### 實測結果
+
+| 資料 | 撰寫 | 讀取 | 判定 |
+|---|---|---|---|
+| `board.grid` | `board.py`（`place` / `unplace` / `can_place` / `connected_region` / `all_owner_cells`） | `ai/chooser.py:139`（`board_feats`）、`ui.py:1149`（繪製）、多個測試 | **共享**：UI 與 AI 都直接依賴 |
+| `board.corner_regions` | `board.py:218`（`_update_regions`） | `ai/chooser.py:140` → 傳給 `_score_move` / `_corner_delta` | **AI 依賴** |
+| `board.borders` | `board.py:219`（`_update_regions`） | `ai/chooser.py:141` → `_corner_delta` | **AI 依賴** |
+| `connected_region()` | `board.py` | 只在 `board.py:214`（`_update_regions`）內部呼叫 | **board.py 內部** |
+| `all_owner_cells()` | `board.py:253` 定義 | **引擎內完全沒有呼叫者**；只有 `tests/test_board.py:120` 斷言它有回傳 | **死碼**（見下） |
+
+**結論：`_update_regions` 目前確實不可移除** —— 本文原有的判斷正確。`corner_regions`
+與 `borders` 只有 `choose_move` 這條路徑在讀。
+
+**但它不是效能問題**：`_update_regions` 每次 0.013 ms，每局只被 `place` / `unplace`
+呼叫約 64 次，合計約 0.9 ms／局，佔一局約 0.08%。**保留它的成本可以忽略**，所以
+C 階段沒有任何理由去動它；反過來說，若日後要讓新引擎 `E1` 擺脫 `board.py`，
+`corner_regions` / `borders` 就必須重新實作（或放棄角位加成）。
+
+**額外發現：`Board.all_owner_cells` 是死碼。** 引擎裡沒有任何呼叫者，唯一引用是
+一個測試斷言。可以安全刪除（連同該斷言），但這不屬階段 B 的範圍，留給 C 階段決定。
 
 ---
 
@@ -354,18 +469,18 @@ def bits_to_plane(mask):
 
 ## 執行順序摘要
 
-| 順序 | 任務 | 依賴 |
-|---|---|---|
-| 1 | A1 修 `_adjoining_bases` | 無 |
-| 2 | A2 凍結動作表 | 無 |
-| 3 | B1、B2 量測與查依賴 | 無 |
-| 4 | C1 永久 pass（先做驗證測試） | 無 |
-| 5 | C2 `has_legal` 改寫 | A1 |
-| 6 | C3 枚舉改寫 | A1、C2 |
-| 7 | C4 預算計數式 | 無 |
-| 8 | D1 trace、D2 基準賽 | C3 |
-| 9 | E1 新引擎 | A1、A2 |
-| 10 | E2 旋轉表、E3 輸入編碼 | E1 |
+| 順序 | 任務 | 依賴 | 狀態 |
+|---|---|---|---|
+| 1 | A1 修 `_adjoining_bases` | 無 | ✅ 完成 |
+| 2 | A2 凍結動作表 | 無 | ✅ 完成 |
+| 3 | B1、B2 量測與查依賴 | 無 | ✅ 完成 |
+| 4 | C1 永久 pass（先做驗證測試） | 無 | 未開始 |
+| 5 | C2 `has_legal` 改寫 | A1 | 未開始 |
+| 6 | C3 枚舉改寫 | A1、C2 | 未開始 |
+| 7 | C4 預算計數式 | 無 | 未開始 |
+| 8 | D1 trace、D2 基準賽 | C3 | 未開始 |
+| 9 | E1 新引擎 | A1、A2 | 未開始 |
+| 10 | E2 旋轉表、E3 輸入編碼 | E1 | 未開始 |
 
 每完成一項，回報：改了哪些檔案、新增哪些測試、驗證結果，以及任何與本文件假設不符的發現。
 
