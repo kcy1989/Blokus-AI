@@ -5,6 +5,9 @@
 .DS_Store
 Thumbs.db
 
+# Agent tooling: worktrees are full copies of the repo
+.kilo/
+
 # Test / tooling caches
 .pytest_cache/
 .mypy_cache/

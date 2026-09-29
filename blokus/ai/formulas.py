@@ -177,11 +177,18 @@ def _adjoining_bases(od, reach, cbit):
     `need`, so a handful of big-int ORs replaces scanning every base. Bases
     that also land on `avoid` (edge contact with your own stones) are then
     subtracted.
+
+    `cbit` is the opening-move variant: a single square the piece must cover.
+    The same shift works, because bit b of `cbit >> o` means "base b puts the
+    piece's cell `o` on that square" - `cbit >> o` is already a set of *bases*,
+    so the shape mask `od["m"]` must NOT be ANDed in (that mixed a base set with
+    a shape and silently produced an empty set for every corner except TL,
+    where the offsets are small enough to make the mistake cancel out).
     """
     if cbit:
         hit = 0
         for o in od["offs"]:
-            hit |= od["m"] & (cbit >> o)
+            hit |= cbit >> o
         return hit & od["valid"]
     need = bad = 0
     for o in od["offs"]:

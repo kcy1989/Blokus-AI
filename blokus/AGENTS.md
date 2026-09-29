@@ -101,6 +101,11 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
 
 ## 四、開發時容易忘的技術細節
 
+- 引擎模組不得 import `pygame`、`ai`、`records` 或 `ui`。
+- 局面必須可序列化、可複製，複製不共享可變物件。
+- `action_table.json` 的雜湊一旦發佈就不能更改，否則舊資料與舊模型作廢。
+- 任何規則改動，必須同步更新引擎測試與交叉驗證。
+- 行為保持不變的重構，必須附同種子逐手比對的結果。
 - **棋盤是 400-bit 整數**（`empty_bits` / `owner_bits`）。合法性是幾個大整數的
   位移與求交，不是枚舉格子。`ai/formulas.py` 頂部有註解說明各個位元集合的含義。
 - **`_score_move` 在 `chooser.choose_move` 裡被重寫了一次**（候選枚舉是熱路徑，
