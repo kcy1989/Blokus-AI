@@ -123,6 +123,55 @@ def _weighted_pick(sl, rng):
     return sl[-1]
 
 
+def _candidates(board, names, owner, profile, must_cover, reach,
+                open_a, block, defend, regions, borders, empt):
+    """Every legal (score, name, oi, base) for `owner`, in enumeration order.
+
+    C3's replacement. The old loop visited every base of every orientation and
+    tested the two constraints by hand. `_legal_bases` computes the same set as
+    one bitmask per orientation, and walking it lowest bit first visits bases in
+    ascending order - which is exactly the order `od["bases"]` is built in, so
+    the candidate list comes out identical element for element.
+
+    Extracted into its own function so the verification tool can compare the
+    candidate list directly, not just the final move.
+    """
+    cbit = 0
+    if must_cover is not None:
+        cbit = 1 << (must_cover[0] + must_cover[1] * F.B)
+    cands = []
+    bi = block[owner]
+    di = defend[owner]
+    for name in names:
+        for oi, od in F.ODIRS[name].items():
+            mask = F._legal_bases(od, empt, reach, cbit)
+            if not mask:
+                continue
+            corner = od["corner"]
+            csum = od["csum"]
+            offs = od["offs"]
+            cs_const = (profile.w_large * od["size"]
+                        - F.SMALL_PENALTY * (5 - od["size"]))
+            while mask:
+                low = mask & -mask
+                mask ^= low
+                base = low.bit_length() - 1
+                s = cs_const + profile.w_center * csum[base]
+                for o in offs:
+                    i = base + o
+                    s += (profile.w_open * open_a[i] + profile.w_block * bi[i]
+                          + profile.w_defend * di[i])
+                cb = corner.get(base, 0)
+                if cb:
+                    cs = set(base + o for o in offs)
+                    for ci in (0, 1, 2, 3):
+                        if cb & (1 << ci):
+                            s += (profile.w_corner * 3.0
+                                  * F._corner_delta(ci, cs, owner, regions, borders))
+                cands.append((s, name, oi, base))
+    return cands
+
+
 def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
                 must_cover=None, reach=None, other_must_cover=None,
                 other_reach=None):
@@ -140,45 +189,9 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
     regions = board.corner_regions
     borders = board.borders
     profile = brain.profile
-    cbit = 0
-    if must_cover is not None:
-        cbit = 1 << (must_cover[0] + must_cover[1] * F.B)
     names = list(hand_names)
-    cands = []
-    for name in names:
-        od_map = F.ODIRS[name]
-        bi = block[owner]
-        di = defend[owner]
-        for oi, od in od_map.items():
-            m = od["m"]
-            corner = od["corner"]
-            csum = od["csum"]
-            offs = od["offs"]
-            cs_const = (profile.w_large * od["size"]
-                        - F.SMALL_PENALTY * (5 - od["size"]))
-            for base in od["bases"]:
-                shifted = m << base
-                if (empt & shifted) != shifted:
-                    continue
-                if cbit:
-                    if not shifted & cbit:
-                        continue
-                elif reach is not None:
-                    if not shifted & reach.need or shifted & reach.avoid:
-                        continue
-                s = cs_const + profile.w_center * csum[base]
-                for o in offs:
-                    i = base + o
-                    s += (profile.w_open * open_a[i] + profile.w_block * bi[i]
-                          + profile.w_defend * di[i])
-                cb = corner.get(base, 0)
-                if cb:
-                    cs = set(base + o for o in offs)
-                    for ci in (0, 1, 2, 3):
-                        if cb & (1 << ci):
-                            s += (profile.w_corner * 3.0
-                                  * F._corner_delta(ci, cs, owner, regions, borders))
-                cands.append((s, name, oi, base))
+    cands = _candidates(board, names, owner, profile, must_cover, reach,
+                        open_a, block, defend, regions, borders, empt)
     if not cands:
         return None
     cands.sort(key=lambda t: t[0], reverse=True)
@@ -193,7 +206,8 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
     adj = top
     opps = [o for o in range(4) if o != owner]
     if other_brains and opps and brain.uses_lookahead \
-            and time.perf_counter() - t0 < F.WALL_BUDGET:
+            and (not F.USE_WALL_BUDGET
+                 or time.perf_counter() - t0 < F.WALL_BUDGET):
         pools = [_opponent_pool(board, hand_names, o,
                                 (other_must_cover or {}).get(o),
                                 (other_reach or {}).get(o))

@@ -1,7 +1,8 @@
 """Game state machine: SETUP -> PLAYING -> GAME_OVER."""
 from board import Board
-from config import CLOCKWISE_OWNERS, OWNER_CORNER, PIECES, PLAYER_OWNER
+from config import B, CLOCKWISE_OWNERS, OWNER_CORNER, PIECES, PLAYER_OWNER
 from ai import draw_personalities, make_brain
+from ai.formulas import ODIRS, _legal_bases
 from pieces import Hand, MASTER
 
 HAND_NAMES = [p["name"] for p in PIECES]
@@ -26,6 +27,7 @@ class Game:
         self.colors = {0: None, 1: None, 2: None, 3: None}
         self.hands = [Hand(HAND_NAMES) for _ in range(4)]
         self.placed = [0, 0, 0, 0]
+        self.stuck = [False] * 4
 
     def setup_match(self, keys=None):
         """A game played entirely by AIs: all four seats get a personality,
@@ -94,6 +96,7 @@ class Game:
         self.board = Board()
         self.hands = [Hand(HAND_NAMES) for _ in range(4)]
         self.placed = [0, 0, 0, 0]
+        self.stuck = [False] * 4
         self.turn_count = 0
         self.turn_pos = 0
         self.state = "PLAYING"
@@ -113,9 +116,26 @@ class Game:
         return None if self.placed[owner] == 0 else self.board.reach(owner)
 
     def has_legal(self, owner):
-        cells_iter = [MASTER[n]["orientations"] for n in self.hands[owner].names]
-        return self.board.has_legal_move(owner, cells_iter, self.must_cover(owner),
-                                         self.reach(owner))
+        """Is there any legal placement for `owner` right now?
+
+        Bitmask version: `_legal_bases` answers "which placements are legal"
+        for a piece orientation with a handful of big-integer operations, so
+        there is no per-cell scan. `Board.has_legal_move` is kept as the
+        obviously-correct reference that this is checked against.
+
+        Always recomputed, even for a player already known to be stuck: the UI
+        asks this to decide whether to show a pass hint, and the tests use it
+        as the reference the cached `stuck` flag is checked against.
+        """
+        empt = self.board.empty_bits
+        reach = self.reach(owner)
+        must_cover = self.must_cover(owner)
+        cbit = 1 << (must_cover[0] + must_cover[1] * B) if must_cover else 0
+        for name in self.hands[owner].names:
+            for od in ODIRS[name].values():
+                if _legal_bases(od, empt, reach, cbit):
+                    return True
+        return False
 
     def can_act(self, name, oi, x, y, owner=None):
         owner = self.current_owner() if owner is None else owner
@@ -148,10 +168,21 @@ class Game:
 
     def _all_stuck(self):
         """The game ends only when *every* player, the human included, has no
-        legal move left."""
+        legal move left.
+
+        A player who has no legal move never will: their contact rule depends
+        only on their own stones, and empty squares never come back. So each
+        seat is tested once and the answer is remembered in `self.stuck`,
+        which turns the per-move sweep over all four seats into a sweep over
+        the ones still in play. `tests/test_stuck_monotone.py` is the evidence
+        that the permanence assumption actually holds.
+        """
         for o in range(4):
+            if self.stuck[o]:
+                continue
             if self.has_legal(o):
                 return False
+            self.stuck[o] = True
         return True
 
     def remaining_cells(self, owner):

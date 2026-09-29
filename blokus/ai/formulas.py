@@ -40,6 +40,14 @@ REGION_CAP = 120
 SIM_EVAL_BUDGET = 3000
 # Wall-clock cap for thinking about one move (seconds); past it, no more
 # opponent lookahead.
+#
+# C4: a wall-clock budget makes the engine non-deterministic - the same
+# position can yield different moves depending on how loaded the machine is.
+# That is acceptable for a game and fatal for training, evaluation and dataset
+# generation, where a run must be reproducible. Set this to False and the cap
+# is dropped, leaving SIM_EVAL_BUDGET (a pure count) as the only limit, which
+# makes the engine machine-independent. True keeps the historical behaviour.
+USE_WALL_BUDGET = True
 WALL_BUDGET = 0.9
 # 4-neighbour table, built once.
 NEIGH = neighbors_of()

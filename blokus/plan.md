@@ -255,7 +255,12 @@ C 階段沒有任何理由去動它；反過來說，若日後要讓新引擎 `E
 
 ---
 
-## 階段 C：行為不變的效能優化
+## 階段 C：行為不變的效能優化 — ✅ 已完成
+
+> **狀態：** C1～C4 全部完成。**棋力與選步行為完全不變**，已用同種子逐手比對
+> 與候選清單逐項比對證明。整體速度提升約 **30%**。
+> 驗證工具：`tools/verify_same_moves.py`（內含階段 C 之前的 `frozen_choose_move`
+> 作為永久對照組，以後不再改它）。
 
 每個任務都要用「同種子逐手比對」驗證。建立共用測試工具：
 
@@ -265,7 +270,7 @@ def play_recorded(seed, impl) -> list[(seed_game_idx, turn, owner, move_or_None)
 
 用同一個 seed 跑舊實作與新實作，逐手比較，不一致時印出第一個差異點的局面。
 
-### C1. 永久 pass 標記
+### C1. 永久 pass 標記 — ✅ 已完成
 
 **理由：** 玩家一旦沒有合法步，之後永遠沒有。他的角接觸點只由自己的棋子決定（沒下子就不變），而空格只會減少。
 
@@ -277,7 +282,30 @@ def play_recorded(seed, impl) -> list[(seed_game_idx, turn, owner, move_or_None)
 
 **驗收：** 同種子 1000 局逐手比對一致；`_all_stuck` 的呼叫成本下降（附 profile 前後對照）。
 
-### C2. `has_legal` 改用 `ODIRS` 與 `_legal_bases`
+#### 實測結果（C1）
+
+**前置閘門通過：** `tests/test_stuck_monotone.py` 在實作之前先跑，1000 局兩次獨立執行
+（929.65s 與 928.28s）**全數通過**，沒有任何反例，因此才進行實作。
+
+**同種子逐手比對：** 1000 局 / 76,617 手，**完全一致**（`IDENTICAL`）。
+
+**profile 前後（各 8 局）：**
+
+| 項目 | 前 | 後 | 變化 |
+|---|---|---|---|
+| `any_legal` 呼叫次數 | 2,963 | 1,117 | **−62%** |
+| `any_legal` 自身耗時 | 0.234s | 0.071s | **−70%** |
+| `_all_stuck` 累計耗時 | 0.258s | 0.014s | **−95%** |
+
+實作補充：
+
+- `has_legal` **不讀** `stuck`，永遠重算。UI 需要它決定是否顯示「必須跳過」提示，
+  測試也需要它當作 `stuck` 的對照組。
+- `stuck` 的不變式是**單向**的：`stuck[o] == True` 必須蘊含 `has_legal(o) == False`。
+  逆方向不成立 —— `_all_stuck` 遇到第一個還有合法步的玩家就提早返回，後面的座位
+  可能已經無步但尚未被標記。
+
+### C2. `has_legal` 改用 `ODIRS` 與 `_legal_bases` — ✅ 已完成
 
 **前提：A1 已完成。**
 
@@ -303,7 +331,21 @@ def has_legal(self, owner):
 - 隨機對局 1 萬局，每一步對每位玩家比較 `has_legal_new(owner) == board.has_legal_move(...)`（舊實作），必須全部相同。
 - 同種子逐手比對一致。
 
-### C3. `choose_move` 的候選枚舉改用 `_legal_bases`
+#### 實測結果（C2）
+
+`game.py` 照上例改寫，`from ai.formulas import ODIRS, _legal_bases`。**沒有循環
+import**：`game.py` 本來就 import `ai`，`ai.formulas` 不依賴 `game`，所以成立。
+`Board.has_legal_move` / `any_legal` 依本文要求**保留**，作為參照實作。
+
+| 檢查 | 結果 |
+|---|---|
+| 400 局、逐步對每位玩家比對 | 122,744 次比對，**0 差異** |
+| 常駐測試（12 局，預設） | 通過（`tests/test_optimised_paths.py`） |
+| 同種子 1000 局逐手比對 | 76,617 手**完全一致**（與 C1 同一份基準） |
+
+profile（8 局）：`has_legal` 累計 0.086s → **0.013s**；`any_legal` 已跌出前 15 名。
+
+### C3. `choose_move` 的候選枚舉改用 `_legal_bases` — ✅ 已完成
 
 **前提：A1、C2 已完成。**
 
@@ -323,13 +365,64 @@ while mask:
 
 **驗收：** 對 1000 局、六種人格，逐手比對選步完全一致；候選列表（`cands`）在每個決策點逐項相等。
 
-### C4. 預算改為計數式
+#### 實測結果（C3）
+
+| 檢查 | 結果 |
+|---|---|
+| 候選清單逐項比對（30 局） | 2,345 個決策點、**387,056 列候選，0 差異** |
+| 常駐測試（12 局，預設） | 通過 |
+| 枚舉順序測試 | 候選的 `(name, oi, base)` rank 嚴格遞增且不重複 |
+
+實作補充：
+
+- 枚舉獨立抽成 `chooser._candidates(...)`，讓驗證工具能直接比對候選清單，
+  而不是只能比對最後一步。
+- **順序確認：** 從遮罩最低位取值 = base 由小到大，而 `od["bases"]` 也是由小到大
+  （`for y ... for x ...`），兩者一致，所以 `cands.sort`（Python 穩定排序）的
+  並列順序沒有改變。這是硬性規則 4 的核心，測試
+  `test_candidate_order_is_still_piece_then_oi_then_base` 專門釘住它。
+- profile（8 局）：`choose_move` 自身耗時 **2.750s → 0.524s**。
+
+### C4. 預算改為計數式 — ✅ 已完成
 
 - `WALL_BUDGET`（0.9 秒）會令同局面、同種子在不同機器負載下選步不同。
-- 新增模組級開關，例如 `F.USE_WALL_BUDGET = True`（預設保持舊行為）。訓練與評測時設為 `False`。
+- 新增模組級開關 `F.USE_WALL_BUDGET = True`（預設保持舊行為）。訓練與評測時設為 `False`。
 - `SIM_EVAL_BUDGET` 已是計數式，保留。
 
 **驗收：** 開關關閉時，同種子重跑兩次結果逐手相同，且與機器負載無關。
+
+#### 實測結果（C4）
+
+`chooser.choose_move` 的判斷式改為：
+
+```python
+if other_brains and opps and brain.uses_lookahead \
+        and (not F.USE_WALL_BUDGET
+             or time.perf_counter() - t0 < F.WALL_BUDGET):
+```
+
+| 檢查 | 結果 |
+|---|---|
+| 開關關閉，同種子跑兩次 | **完全相同** |
+| 開關關閉，3 個執行緒燒 CPU 時重跑 | **與未負載時完全相同** |
+| 預設值 | `USE_WALL_BUDGET is True`（保持舊行為） |
+
+`SIM_EVAL_BUDGET` 是純計數，因此開關關掉後，lookahead 仍完全受它約束，引擎就變成
+與機器無關、與負載無關的純函數。這是訓練與評測可重現的前提。
+
+### 階段 C 總效果
+
+| 量測 | 階段 B | 階段 C 之後 | 變化 |
+|---|---|---|---|
+| cProfile 8 局總時間 | 8.965s | 6.661s | **−26%** |
+| 無 profiler（20 局，seed 100） | 0.837 s/局 | **0.548 s/局** | **−35%** |
+| 平均每手 | 10.49 ms | **7.10 ms** | **−32%** |
+| builder | 22.14 ms | 18.13 ms | −18% |
+| intruder | 6.77 ms | 3.51 ms | −48% |
+| optimizer | 5.19 ms | 1.94 ms | −63% |
+
+**行為不變的證據：** 同一組種子（`--games 20 --seed 100`）在階段 C 前後，剩餘格總數
+**同為 1508**，各人格出手數**完全相同**（233 / 300 / 267 / 265 / 230 / 228）。
 
 ---
 
@@ -474,10 +567,10 @@ def bits_to_plane(mask):
 | 1 | A1 修 `_adjoining_bases` | 無 | ✅ 完成 |
 | 2 | A2 凍結動作表 | 無 | ✅ 完成 |
 | 3 | B1、B2 量測與查依賴 | 無 | ✅ 完成 |
-| 4 | C1 永久 pass（先做驗證測試） | 無 | 未開始 |
-| 5 | C2 `has_legal` 改寫 | A1 | 未開始 |
-| 6 | C3 枚舉改寫 | A1、C2 | 未開始 |
-| 7 | C4 預算計數式 | 無 | 未開始 |
+| 4 | C1 永久 pass（先做驗證測試） | 無 | ✅ 完成 |
+| 5 | C2 `has_legal` 改寫 | A1 | ✅ 完成 |
+| 6 | C3 枚舉改寫 | A1、C2 | ✅ 完成 |
+| 7 | C4 預算計數式 | 無 | ✅ 完成 |
 | 8 | D1 trace、D2 基準賽 | C3 | 未開始 |
 | 9 | E1 新引擎 | A1、A2 | 未開始 |
 | 10 | E2 旋轉表、E3 輸入編碼 | E1 | 未開始 |
