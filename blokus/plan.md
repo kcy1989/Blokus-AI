@@ -339,9 +339,13 @@ import**：`game.py` 本來就 import `ai`，`ai.formulas` 不依賴 `game`，�
 
 | 檢查 | 結果 |
 |---|---|
+| **隨機對局 1 萬局、逐步對每位玩家比對（本文驗收標準）** | **3,066,404 次比對，0 差異** |
 | 400 局、逐步對每位玩家比對 | 122,744 次比對，**0 差異** |
 | 常駐測試（12 局，預設） | 通過（`tests/test_optimised_paths.py`） |
 | 同種子 1000 局逐手比對 | 76,617 手**完全一致**（與 C1 同一份基準） |
+
+1 萬局那一次在 2×N 核機器上跑了約 2.5 小時——每一步都要對四位玩家各跑一次舊的
+暴力 `has_legal_move`，而已無合法步的玩家沒有短路，整個盤面都要掃完。
 
 profile（8 局）：`has_legal` 累計 0.086s → **0.013s**；`any_legal` 已跌出前 15 名。
 
@@ -369,9 +373,14 @@ while mask:
 
 | 檢查 | 結果 |
 |---|---|
-| 候選清單逐項比對（30 局） | 2,345 個決策點、**387,056 列候選，0 差異** |
+| **候選清單逐項比對（1000 局，本文驗收標準）** | **76,617 個決策點、12,889,875 列候選，0 差異** |
+| 候選清單逐項比對（30 局，快速版） | 2,345 個決策點、387,056 列候選，0 差異 |
 | 常駐測試（12 局，預設） | 通過 |
 | 枚舉順序測試 | 候選的 `(name, oi, base)` rank 嚴格遞增且不重複 |
+| 同種子 1000 局逐手比對（六種人格都涵蓋） | 76,617 手**完全一致** |
+
+76,617 個決策點正好等於 1000 局的總出手數，代表**每一手**的候選清單都被逐項比對過，
+包含元素、順序與分數。
 
 實作補充：
 
@@ -423,6 +432,33 @@ if other_brains and opps and brain.uses_lookahead \
 
 **行為不變的證據：** 同一組種子（`--games 20 --seed 100`）在階段 C 前後，剩餘格總數
 **同為 1508**，各人格出手數**完全相同**（233 / 300 / 267 / 265 / 230 / 228）。
+
+#### 如何重跑階段 C 的驗證
+
+```bash
+# C1 閘門（1000 局，約 15 分鐘）
+BLOKUS_STUCK_GAMES=1000 python3 -m pytest tests/test_stuck_monotone.py
+
+# C1/C2/C3 的同種子逐手比對（1000 局，約 25 分鐘）
+python3 tools/verify_same_moves.py --impl frozen  --games 1000 --record /tmp/base.json
+python3 tools/verify_same_moves.py --impl current --games 1000 --baseline /tmp/base.json
+
+# C2 的逐步比對（本文驗收標準，1 萬局，約 2.5 小時）
+python3 tools/verify_same_moves.py --check-has-legal 10000
+
+# C3 的候選清單比對（1000 局，約 1.5 小時）
+python3 tools/verify_same_moves.py --check-candidates 1000
+
+# 常駐測試（12 局，約 1 分鐘）
+python3 -m pytest tests/test_optimised_paths.py
+```
+
+**長跑項目的預設值刻意調小**，否則每次 `pytest tests/` 都要多花好幾小時：
+
+| 環境變數 | 預設 | 用途 |
+|---|---|---|
+| `BLOKUS_STUCK_GAMES` | 120 | C1 閘門的局數 |
+| `BLOKUS_EQUIV_GAMES` | 12 | 常駐等價性測試的局數 |
 
 ---
 
