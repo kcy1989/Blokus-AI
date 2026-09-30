@@ -1,0 +1,1147 @@
+{
+ "environment": {
+  "cpu_model": "Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz",
+  "logical_cores": 28,
+  "mem_total_gib": 62.704654693603516,
+  "numpy_version": "2.5.3",
+  "nvidia_smi": "595.91.07, NVIDIA GeForce RTX 5060 Ti, 16311 MiB, 12.0",
+  "physical_cores": "14",
+  "platform_machine": "x86_64",
+  "platform_processor": "x86_64",
+  "process_model": "single process, single thread, no parallelism in bench_engine.py",
+  "python_build": "main",
+  "python_version": "3.12.3",
+  "siblings": "28",
+  "torch": {
+   "error": "No module named 'torch'",
+   "installed": false
+  }
+ },
+ "f1b": {
+  "decision_points": 13087,
+  "games": 200,
+  "legal_counts": {
+   "all": {
+    "max": 825,
+    "mean": 176.346322537112,
+    "median": 135.0,
+    "min": 1,
+    "n": 11856,
+    "p95": 474
+   },
+   "end": {
+    "max": 92,
+    "mean": 8.98404255319149,
+    "median": 6.0,
+    "min": 1,
+    "n": 2256,
+    "p95": 28
+   },
+   "middle": {
+    "max": 825,
+    "mean": 209.26890625,
+    "median": 181.0,
+    "min": 1,
+    "n": 6400,
+    "p95": 496
+   },
+   "opening": {
+    "max": 818,
+    "mean": 228.4915625,
+    "median": 216.5,
+    "min": 58,
+    "n": 3200,
+    "p95": 479
+   }
+  },
+  "legal_counts_by_move_bucket": {
+   "0-7": {
+    "max": 243,
+    "mean": 113.574375,
+    "median": 82.0,
+    "min": 58,
+    "n": 1600,
+    "p95": 219
+   },
+   "16-23": {
+    "max": 825,
+    "mean": 394.35875,
+    "median": 385.0,
+    "min": 94,
+    "n": 1600,
+    "p95": 593
+   },
+   "24-31": {
+    "max": 743,
+    "mean": 277.613125,
+    "median": 270.0,
+    "min": 24,
+    "n": 1600,
+    "p95": 465
+   },
+   "32-39": {
+    "max": 469,
+    "mean": 125.84,
+    "median": 114.0,
+    "min": 3,
+    "n": 1600,
+    "p95": 265
+   },
+   "40-47": {
+    "max": 228,
+    "mean": 39.26375,
+    "median": 31.0,
+    "min": 1,
+    "n": 1600,
+    "p95": 103
+   },
+   "48-55": {
+    "max": 92,
+    "mean": 11.225,
+    "median": 9.0,
+    "min": 1,
+    "n": 1560,
+    "p95": 31
+   },
+   "56-63": {
+    "max": 27,
+    "mean": 3.986880466472303,
+    "median": 3.0,
+    "min": 1,
+    "n": 686,
+    "p95": 12
+   },
+   "64-71": {
+    "max": 4,
+    "mean": 2.2,
+    "median": 2.0,
+    "min": 1,
+    "n": 10,
+    "p95": 4
+   },
+   "8-15": {
+    "max": 818,
+    "mean": 343.40875,
+    "median": 330.0,
+    "min": 132,
+    "n": 1600,
+    "p95": 532
+   }
+  },
+  "pass_decision_points": 1231,
+  "pass_points_by_stage": {
+   "end": 1209,
+   "middle": 22,
+   "opening": 0
+  },
+  "pass_share": 0.09406281042255674,
+  "piece_kinds_available": {
+   "max": 20,
+   "mean": 12.730263157894736,
+   "median": 14.0,
+   "min": 1,
+   "n": 11856,
+   "p95": 20
+  },
+  "real_decision_points": 11856
+ },
+ "f2": {
+  "action_table_hash": "91252a354b090d43",
+  "action_table_placements": {
+   "actions_entries": 91,
+   "actions_entry_shape": "list of [piece_name, orientation_index]",
+   "declared_total_cells": 89,
+   "declared_total_placements": 30433,
+   "note": "the table stores orientations, not per-base placements, so 30433 can only be checked against the declared field and against ORIENTS recomputed from pieces.py",
+   "pass": true
+  },
+  "action_table_shape": {
+   "actions": {
+    "len": 91,
+    "sample": [
+     [
+      "F5",
+      0
+     ],
+     [
+      "F5",
+      1
+     ]
+    ],
+    "type": "list"
+   },
+   "hash": {
+    "len": 16,
+    "sample": "91252a354b090d43",
+    "type": "str"
+   },
+   "pieces": {
+    "len": 21,
+    "sample": [
+     "F5",
+     "I1"
+    ],
+    "type": "list"
+   },
+   "total_cells": {
+    "len": null,
+    "sample": 89,
+    "type": "int"
+   },
+   "total_placements": {
+    "len": null,
+    "sample": 30433,
+    "type": "int"
+   }
+  },
+  "config": {
+   "B": 20,
+   "CLOCKWISE_OWNERS": [
+    1,
+    2,
+    0,
+    3
+   ],
+   "N": 400,
+   "OWNER_CORNER": {
+    "0": [
+     19,
+     19
+    ],
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     19,
+     0
+    ],
+    "3": [
+     0,
+     19
+    ]
+   }
+  },
+  "engine_derived": {
+   "HAND_CELLS_TOTAL": 89,
+   "MAX_ORIENTS": 8,
+   "N_PIECES": 21,
+   "PIECE_ORDER": [
+    "F5",
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "L4",
+    "L5",
+    "N5",
+    "O4",
+    "P5",
+    "T4",
+    "T5",
+    "U5",
+    "V3",
+    "V5",
+    "W5",
+    "X5",
+    "Y5",
+    "Z4",
+    "Z5"
+   ],
+   "total_valid_bases_recomputed": 30433
+  },
+  "opening_all_equal": true,
+  "opening_brute_force_corner_hits": {
+   "0": 58,
+   "1": 58,
+   "2": 58,
+   "3": 58
+  },
+  "opening_legal_moves": {
+   "0": 58,
+   "1": 58,
+   "2": 58,
+   "3": 58
+  },
+  "opening_matches_brute_force": true,
+  "orientation_checks": {
+   "engine_orientations": 91,
+   "expected": 91,
+   "pass": true
+  },
+  "valid_base_checks": {
+   "engine_valid_bases": 30433,
+   "expected": 30433,
+   "pass": true
+  }
+ },
+ "f3": {
+  "decision_points_including_passes": 13087,
+  "existing_test_coverage": {
+   "file": "tests/test_engine_cross.py",
+   "lines": "301-314, 343-367",
+   "note": "test_engine_tracks_a_live_game_exactly already asserts engine.result(s) == tuple(g.remaining_cells(o)) at the end of every game and engine.stuck == g.stuck at every step",
+   "seeds": 40
+  },
+  "games": 200,
+  "result_vs_game_replay": {
+   "detail": [],
+   "games_compared": 200,
+   "mismatches": 0,
+   "source": "bench_engine._replay_result drives Game.act/act_pass with the same move list"
+  },
+  "situation_x": {
+   "count": 751,
+   "definition": "legal_move_mask(state) == 0 and state.stuck[state.to_move] is False",
+   "example": {
+    "move_index": 53,
+    "seed": 113,
+    "serialize": "{\"hand_bits\":[\"168298\",\"1a8a20\",\"38a89\",\"112a61\"],\"own_bits\":[\"d8000680001100072000ae0009000090000b80008500067000c0000bb8000d00070000300004000040000000000000000000\",\"600005800050000428002f000302001020010200085003850048d00c7100c560000c0000a0003600003\",\"300003800004000040000400004000040007800023000c2803a640c39c08c640c5b3c\",\"141048e306f5d01019018060081d0000100007000c80003800048000500005000050000000000000000000000000000000\"],\"stuck\":[false,false,false,false],\"to_move\":2,\"turn_order\":[1,2,0,3]}",
+    "stuck": [
+     false,
+     false,
+     false,
+     false
+    ],
+    "to_move": 2
+   },
+   "games_with_at_least_one": 168,
+   "share_of_all_decision_points": 0.05738519141132421
+  },
+  "situation_y": {
+   "count": 0,
+   "definition": "state.stuck[o] is True and has_any_legal(state, o) is True",
+   "examples": []
+  },
+  "situation_z": {
+   "longest_pass_run": 3
+  },
+  "termination": {
+   "all_final_positions_immobile": true,
+   "all_games_over": true,
+   "games_not_over": [],
+   "games_with_a_legal_move_at_the_end": []
+  }
+ },
+ "f4a": {
+  "conversion": "engine move = (PIECE_IDX[picked[0]], picked[1], picked[2])",
+  "corner_reserve": 6,
+  "games": 200,
+  "lookahead_used": 0,
+  "misses": [],
+  "mistake_choices": 0,
+  "n_candidates": {
+   "max": 937,
+   "mean": 212.19021354829584,
+   "median": 103.0,
+   "min": 1,
+   "n": 14142,
+   "p95": 737
+  },
+  "per_personality": {
+   "builder": {
+    "games": 40,
+    "mistake_choices": 0,
+    "n_candidates": {
+     "max": 853,
+     "mean": 215.3069098561908,
+     "median": 103,
+     "min": 1,
+     "n": 2851,
+     "p95": 729
+    },
+    "picked_legal_share": 1.0,
+    "real_moves": 2851,
+    "shortlist_k": {
+     "max": 40,
+     "mean": 30.338477727113293,
+     "median": 34,
+     "min": 1,
+     "n": 2851,
+     "p95": 40
+    }
+   },
+   "chess": {
+    "games": 40,
+    "mistake_choices": 120,
+    "n_candidates": {
+     "max": 735,
+     "mean": 167.77375201288245,
+     "median": 99.0,
+     "min": 1,
+     "n": 2484,
+     "p95": 453
+    },
+    "picked_legal_share": 1.0,
+    "real_moves": 2484,
+    "shortlist_k": {
+     "max": 34,
+     "mean": 27.6280193236715,
+     "median": 34.0,
+     "min": 1,
+     "n": 2484,
+     "p95": 34
+    }
+   },
+   "fox": {
+    "games": 40,
+    "mistake_choices": 655,
+    "n_candidates": {
+     "max": 835,
+     "mean": 165.73480885311872,
+     "median": 104,
+     "min": 1,
+     "n": 2485,
+     "p95": 454
+    },
+    "picked_legal_share": 1.0,
+    "real_moves": 2485,
+    "shortlist_k": {
+     "max": 34,
+     "mean": 27.97585513078471,
+     "median": 34,
+     "min": 1,
+     "n": 2485,
+     "p95": 34
+    }
+   },
+   "intruder": {
+    "games": 40,
+    "mistake_choices": 0,
+    "n_candidates": {
+     "max": 754,
+     "mean": 193.42727589815138,
+     "median": 113,
+     "min": 1,
+     "n": 2867,
+     "p95": 557
+    },
+    "picked_legal_share": 1.0,
+    "real_moves": 2867,
+    "shortlist_k": {
+     "max": 34,
+     "mean": 25.142309033833275,
+     "median": 34,
+     "min": 1,
+     "n": 2867,
+     "p95": 34
+    }
+   },
+   "optimizer": {
+    "games": 40,
+    "mistake_choices": 0,
+    "n_candidates": {
+     "max": 853,
+     "mean": 212.5286219081272,
+     "median": 103.0,
+     "min": 1,
+     "n": 2830,
+     "p95": 729
+    },
+    "picked_legal_share": 1.0,
+    "real_moves": 2830,
+    "shortlist_k": {
+     "max": 37,
+     "mean": 18.930035335689045,
+     "median": 21.0,
+     "min": 1,
+     "n": 2830,
+     "p95": 37
+    }
+   },
+   "wolf": {
+    "games": 40,
+    "mistake_choices": 382,
+    "n_candidates": {
+     "max": 750,
+     "mean": 166.19174275506154,
+     "median": 86,
+     "min": 1,
+     "n": 2519,
+     "p95": 497
+    },
+    "picked_legal_share": 1.0,
+    "real_moves": 2519,
+    "shortlist_k": {
+     "max": 34,
+     "mean": 27.599444223898374,
+     "median": 34,
+     "min": 1,
+     "n": 2519,
+     "p95": 34
+    }
+   }
+  },
+  "per_personality_games": 40,
+  "personality": "optimizer",
+  "picked_in_legal_mask": 14142,
+  "picked_legal_share": 1.0,
+  "picked_total": 14142,
+  "real_moves": 14142,
+  "shortlist_core": 34,
+  "shortlist_k": {
+   "max": 37,
+   "mean": 18.858082308018666,
+   "median": 19.0,
+   "min": 1,
+   "n": 14142,
+   "p95": 37
+  },
+  "trace_records_with_no_move": 1501
+ },
+ "f4b": {
+  "default_use_wall_budget": true,
+  "default_wall_budget": 0.9,
+  "first_draw_of_seed_1": 0.13436424411240122,
+  "midgame_positions_available": 3200,
+  "personalities": {
+   "chess": {
+    "_measurement_decision_ms": {
+     "max": 13.570275999882142,
+     "mean": 8.989492292057548,
+     "median": 9.394309499839437,
+     "min": 2.5187979990732856,
+     "n": 500,
+     "p95": 11.008483001205605
+    },
+    "_measurement_wall_budget_on_same_seed": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "changed_given_entered": 0.7551020408163265,
+    "control_same_seed_budget_off": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "entered_share": 0.098,
+    "entered_weighted_draw": 49,
+    "mistake_rate": 0.04017852540044223,
+    "mistake_rates": [
+     0.04017852540044223,
+     0.056378094925084804,
+     0.042326347767721886,
+     0.06327819919418393
+    ],
+    "no_move_found": 0,
+    "rng_a_vs_rng_b": {
+     "differ": 37,
+     "differ_share": 0.074,
+     "same": 463
+    },
+    "uses_lookahead": true
+   },
+   "fox": {
+    "_measurement_decision_ms": {
+     "max": 15.091467999809538,
+     "mean": 9.168152112000826,
+     "median": 9.520582500044839,
+     "min": 2.5329580003017327,
+     "n": 500,
+     "p95": 11.24785200045153
+    },
+    "_measurement_wall_budget_on_same_seed": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "changed_given_entered": 0.8097345132743363,
+    "control_same_seed_budget_off": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "entered_share": 0.452,
+    "entered_weighted_draw": 226,
+    "mistake_rate": 0.2008926270022111,
+    "mistake_rates": [
+     0.2008926270022111,
+     0.281890474625424,
+     0.21163173883860942,
+     0.31639099597091963
+    ],
+    "no_move_found": 0,
+    "rng_a_vs_rng_b": {
+     "differ": 183,
+     "differ_share": 0.366,
+     "same": 317
+    },
+    "uses_lookahead": true
+   },
+   "optimizer": {
+    "_measurement_wall_budget_on_same_seed": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "changed_given_entered": null,
+    "control_same_seed_budget_off": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "entered_share": 0.0,
+    "entered_weighted_draw": 0,
+    "mistake_rate": 0.0,
+    "mistake_rates": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "no_move_found": 0,
+    "rng_a_vs_rng_b": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "uses_lookahead": false
+   },
+   "wolf": {
+    "_measurement_decision_ms": {
+     "max": 14.790713999900618,
+     "mean": 9.073620609997306,
+     "median": 9.48424750004051,
+     "min": 2.5853579991235165,
+     "n": 500,
+     "p95": 11.039664999771048
+    },
+    "_measurement_wall_budget_on_same_seed": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "changed_given_entered": 0.8243243243243243,
+    "control_same_seed_budget_off": {
+     "differ": 0,
+     "differ_share": 0.0,
+     "same": 500
+    },
+    "entered_share": 0.296,
+    "entered_weighted_draw": 148,
+    "mistake_rate": 0.12053557620132666,
+    "mistake_rates": [
+     0.12053557620132666,
+     0.16913428477525438,
+     0.12697904330316565,
+     0.18983459758255178
+    ],
+    "no_move_found": 0,
+    "rng_a_vs_rng_b": {
+     "differ": 122,
+     "differ_share": 0.244,
+     "same": 378
+    },
+    "uses_lookahead": true
+   }
+  },
+  "playout_games": 100,
+  "rng_seeds": "two per position, drawn from Random(sample_seed ^ 0x5EED)",
+  "sample_seed": 12345,
+  "sampled_positions": 500
+ },
+ "f4c": {
+  "average_ranks": [
+   "  48| def average_ranks(remaining):",
+   "  49|     \"\"\"Competition ranking with **tied places split evenly**.",
+   "  50| ",
+   "  51|     `remaining` is a list of remaining-cell counts. Lower is better, so the",
+   "  52|     smallest count is rank 1. Ties share the average of the places they span:",
+   "  53|     with [5, 5, 9] the two fives are joint first and get (1 + 2) / 2 = 1.5,",
+   "  54|     and the 9 is third. This is the standard \"1224\" convention, and unlike",
+   "  55|     `Game.standings` it never consults a seat number.",
+   "  56|     \"\"\"",
+   "  57|     order = sorted(range(len(remaining)), key=lambda i: remaining[i])",
+   "  58|     ranks = [0.0] * len(remaining)",
+   "  59|     i = 0",
+   "  60|     while i < len(order):",
+   "  61|         j = i",
+   "  62|         while j + 1 < len(order) and remaining[order[j + 1]] == remaining[order[i]]:",
+   "  63|             j += 1",
+   "  64|         # places i+1 .. j+1, shared evenly",
+   "  65|         shared = (i + 1 + j + 1) / 2.0",
+   "  66|         for k in range(i, j + 1):",
+   "  67|             ranks[order[k]] = shared",
+   "  68|         i = j + 1",
+   "  69|     return ranks"
+  ],
+  "callers_of_average_ranks": [
+   "tools/benchmark.py:48",
+   "tools/benchmark.py:161",
+   "tests/test_benchmark.py:57",
+   "tests/test_benchmark.py:63",
+   "tests/test_benchmark.py:65",
+   "tests/test_benchmark.py:72"
+  ],
+  "callers_of_standings": [
+   "game.py:203",
+   "game.py:204",
+   "ui.py:674",
+   "ui.py:694",
+   "ui.py:1349",
+   "ui.py:1350"
+  ],
+  "engine_is_over": [
+   " 210| def is_over(state):",
+   " 211|     \"\"\"The game ends only when *all four* players have no legal move.\"\"\"",
+   " 212|     return all(state.stuck)"
+  ],
+  "engine_result": [
+   " 194| def remaining_cells(state, owner):",
+   " 195|     \"\"\"Unplaced squares: the score. Fewer is better.\"\"\"",
+   " 196|     hand = state.hand_bits[owner]",
+   " 197|     total = 0",
+   " 198|     while hand:",
+   " 199|         low = hand & -hand",
+   " 200|         total += PIECE_SIZE[low.bit_length() - 1]",
+   " 201|         hand ^= low",
+   " 202|     return total",
+   " 203| ",
+   " 204| ",
+   " 205| def result(state):",
+   " 206|     \"\"\"(remaining cells) for all four owners, indexed by owner id.\"\"\"",
+   " 207|     return tuple(remaining_cells(state, o) for o in range(4))"
+  ],
+  "make_profile_perturbation": [
+   "  40| ",
+   "  41| ",
+   "  42| def make_profile(spec, rng):",
+   "  43|     \"\"\"Multiplying a set of base weights by a random 0.7-1.3 perturbation.",
+   "  44| ",
+   "  45|     The perturbation makes the same personality differ slightly from game to",
+   "  46|     game, otherwise the leaderboard would be a replay of one fixed set of",
+   "  47|     matchups.",
+   "  48|     \"\"\"",
+   "  49|     wc, wc2, wb, wd, wo, wl, mr = spec",
+   "  50|     u = rng.uniform",
+   "  51|     return Profile(",
+   "  52|         wc * u(0.7, 1.3), wc2 * u(0.7, 1.3), wb * u(0.7, 1.3), wd * u(0.7, 1.3),",
+   "  53|         wo * u(0.7, 1.3), wl * u(0.7, 1.3), mr * u(0.7, 1.3),",
+   "  54|     )",
+   "  55| "
+  ],
+  "remaining_cells": [
+   " 188|     def remaining_cells(self, owner):",
+   " 189|         return sum(MASTER[n][\"size\"] for n in self.hands[owner].names)"
+  ],
+  "standings": [
+   " 191|     def standings(self):",
+   " 192|         \"\"\"(owner, remaining) for all four, best first.",
+   " 193| ",
+   " 194|         Remaining squares *are* the score: the fewer a player leaves on the",
+   " 195|         board, the better they did. Ties are ordered by owner so the result is",
+   " 196|         deterministic.",
+   " 197|         \"\"\"",
+   " 198|         rows = [(o, self.remaining_cells(o)) for o in range(4)]",
+   " 199|         rows.sort(key=lambda t: (t[1], t[0]))",
+   " 200|         return rows"
+  ],
+  "winner": [
+   " 202|     def winner(self):",
+   " 203|         best = self.standings()[0][1]",
+   " 204|         top = [o for o, rem in self.standings() if rem == best]",
+   " 205|         if 0 in top:",
+   " 206|             return \"player\" if len(top) == 1 else \"draw\"",
+   " 207|         return str(top[0])"
+  ]
+ },
+ "timing": {
+  "function_timing": {
+   "functions": {
+    "apply_move": {
+     "all": {
+      "max": 0.7112080002116272,
+      "mean": 0.04144035235560483,
+      "median": 0.029532499866036233,
+      "min": 0.022992999220150523,
+      "n": 5866,
+      "p95": 0.09768600102688652
+     },
+     "end": {
+      "max": 0.7112080002116272,
+      "mean": 0.08419525761913503,
+      "median": 0.04062750031152973,
+      "min": 0.022992999220150523,
+      "n": 1114,
+      "p95": 0.3122100006294204
+     },
+     "middle": {
+      "max": 0.2823150007316144,
+      "mean": 0.03181679733705261,
+      "median": 0.02881700038415147,
+      "min": 0.02393400063738227,
+      "n": 3168,
+      "p95": 0.04741399970953353
+     },
+     "opening": {
+      "max": 0.05632799911836628,
+      "mean": 0.03061867169600935,
+      "median": 0.029942999390186742,
+      "min": 0.02603800021461211,
+      "n": 1584,
+      "p95": 0.03546599873516243
+     }
+    },
+    "deserialize": {
+     "all": {
+      "max": 0.0741380008548731,
+      "mean": 0.02956233198246436,
+      "median": 0.02910599869210273,
+      "min": 0.025553999876137823,
+      "n": 6437,
+      "p95": 0.03146999915770721
+     },
+     "end": {
+      "max": 0.05011299981561024,
+      "mean": 0.02939972803547051,
+      "median": 0.028866999855381437,
+      "min": 0.02687699998205062,
+      "n": 1673,
+      "p95": 0.03255100091337226
+     },
+     "middle": {
+      "max": 0.0741380008548731,
+      "mean": 0.029817538037856802,
+      "median": 0.029304000236152206,
+      "min": 0.02733000110310968,
+      "n": 3180,
+      "p95": 0.031225999919115566
+     },
+     "opening": {
+      "max": 0.04931900002702605,
+      "mean": 0.029221726646083523,
+      "median": 0.028856000426458195,
+      "min": 0.025553999876137823,
+      "n": 1584,
+      "p95": 0.03088600169576239
+     }
+    },
+    "hand_vectors": {
+     "all": {
+      "max": 1.2739430003421148,
+      "mean": 0.19535740500121415,
+      "median": 0.16970400065474678,
+      "min": 0.028333000955171883,
+      "n": 6437,
+      "p95": 0.4573379992507398
+     },
+     "end": {
+      "max": 1.2739430003421148,
+      "mean": 0.25521750925369036,
+      "median": 0.30076999973971397,
+      "min": 0.028333000955171883,
+      "n": 1673,
+      "p95": 0.49801900058810133
+     },
+     "middle": {
+      "max": 0.8421629991062218,
+      "mean": 0.20433117734574355,
+      "median": 0.19567800063668983,
+      "min": 0.0313319997076178,
+      "n": 3180,
+      "p95": 0.4163249996054219
+     },
+     "opening": {
+      "max": 0.45187200157670304,
+      "mean": 0.11411842111864083,
+      "median": 0.1010155010590097,
+      "min": 0.03635800021584146,
+      "n": 1584,
+      "p95": 0.2399419990979368
+     }
+    },
+    "has_any_legal": {
+     "all": {
+      "max": 0.2640589991642628,
+      "mean": 0.022862103598208557,
+      "median": 0.007893999281805009,
+      "min": 0.003715998900588602,
+      "n": 6437,
+      "p95": 0.1288960011152085
+     },
+     "end": {
+      "max": 0.2640589991642628,
+      "mean": 0.06138649964943264,
+      "median": 0.034353000955889,
+      "min": 0.004751000233227387,
+      "n": 1673,
+      "p95": 0.1766259993019048
+     },
+     "middle": {
+      "max": 0.23383000007015653,
+      "mean": 0.009724139617215117,
+      "median": 0.007108499630703591,
+      "min": 0.0047339999582618475,
+      "n": 3180,
+      "p95": 0.017734999346430413
+     },
+     "opening": {
+      "max": 0.040561999412602745,
+      "mean": 0.00854860035695935,
+      "median": 0.008154499482770916,
+      "min": 0.003715998900588602,
+      "n": 1584,
+      "p95": 0.014551000276696868
+     }
+    },
+    "legal_move_mask": {
+     "all": {
+      "max": 2.0251559999451274,
+      "mean": 0.47230587789829365,
+      "median": 0.373784001567401,
+      "min": 0.03330199979245663,
+      "n": 6437,
+      "p95": 0.9793550016183872
+     },
+     "end": {
+      "max": 0.45943999975861516,
+      "mean": 0.15253137895044752,
+      "median": 0.15080999946803786,
+      "min": 0.03330199979245663,
+      "n": 1673,
+      "p95": 0.2240939993498614
+     },
+     "middle": {
+      "max": 2.0251559999451274,
+      "mean": 0.5448953327183099,
+      "median": 0.5058930000814144,
+      "min": 0.12103000153729226,
+      "n": 3180,
+      "p95": 1.0037689989985665
+     },
+     "opening": {
+      "max": 1.9305879995954456,
+      "mean": 0.6643186748756261,
+      "median": 0.7014855000306852,
+      "min": 0.24295200091728475,
+      "n": 1584,
+      "p95": 1.0347039988118922
+     }
+    },
+    "legal_moves": {
+     "all": {
+      "max": 2.640172000610619,
+      "mean": 0.591672788411332,
+      "median": 0.4743850004160777,
+      "min": 0.03849099994113203,
+      "n": 6437,
+      "p95": 1.254394999705255
+     },
+     "end": {
+      "max": 0.5215609999140725,
+      "mean": 0.17244154632596395,
+      "median": 0.16878600035852287,
+      "min": 0.03849099994113203,
+      "n": 1673,
+      "p95": 0.26200199863524176
+     },
+     "middle": {
+      "max": 2.640172000610619,
+      "mean": 0.6920982921501663,
+      "median": 0.6428175001929048,
+      "min": 0.1274700007343199,
+      "n": 3180,
+      "p95": 1.282502998947166
+     },
+     "opening": {
+      "max": 2.1511799986910773,
+      "mean": 0.8328475144967664,
+      "median": 0.8602180005254922,
+      "min": 0.3217699995730072,
+      "n": 1584,
+      "p95": 1.326386998698581
+     }
+    },
+    "normalize": {
+     "all": {
+      "max": 0.737031999960891,
+      "mean": 0.16650899689184367,
+      "median": 0.1424470010533696,
+      "min": 0.009051000233739614,
+      "n": 6437,
+      "p95": 0.4317679995438084
+     },
+     "end": {
+      "max": 0.737031999960891,
+      "mean": 0.22997863541390412,
+      "median": 0.27409599897509906,
+      "min": 0.00907800131244585,
+      "n": 1673,
+      "p95": 0.4718470008810982
+     },
+     "middle": {
+      "max": 0.5512809984793421,
+      "mean": 0.1750947669691259,
+      "median": 0.1624550004635239,
+      "min": 0.009074999979929999,
+      "n": 3180,
+      "p95": 0.3855819995806087
+     },
+     "opening": {
+      "max": 0.3966170006606262,
+      "mean": 0.08223661425727002,
+      "median": 0.06947149995539803,
+      "min": 0.009051000233739614,
+      "n": 1584,
+      "p95": 0.2032690008491045
+     }
+    },
+    "pass_turn": {
+     "all": {
+      "max": 0.17631700029596686,
+      "mean": 0.03807756211674909,
+      "median": 0.023774000510456972,
+      "min": 0.014183000530465506,
+      "n": 571,
+      "p95": 0.10095099969475996
+     },
+     "end": {
+      "max": 0.17631700029596686,
+      "mean": 0.03855696596280832,
+      "median": 0.025719000404933468,
+      "min": 0.014183000530465506,
+      "n": 559,
+      "p95": 0.10397000005468726
+     },
+     "middle": {
+      "max": 0.01746199995977804,
+      "mean": 0.015745332954490248,
+      "median": 0.015595499462506268,
+      "min": 0.014825998732703738,
+      "n": 12,
+      "p95": 0.01746199995977804
+     },
+     "opening": {
+      "max": null,
+      "mean": null,
+      "median": null,
+      "min": null,
+      "n": 0,
+      "p95": null
+     }
+    },
+    "serialize": {
+     "all": {
+      "max": 0.0935280004341621,
+      "mean": 0.02894089731889626,
+      "median": 0.028531001589726657,
+      "min": 0.02485599907231517,
+      "n": 6437,
+      "p95": 0.031367000701720826
+     },
+     "end": {
+      "max": 0.0935280004341621,
+      "mean": 0.029038771681501617,
+      "median": 0.028528000257210806,
+      "min": 0.025814000764512457,
+      "n": 1673,
+      "p95": 0.032264999390463345
+     },
+     "middle": {
+      "max": 0.07385299977613613,
+      "mean": 0.029295225475314213,
+      "median": 0.02881500040530227,
+      "min": 0.025834000553004444,
+      "n": 3180,
+      "p95": 0.031180999940261245
+     },
+     "opening": {
+      "max": 0.04692000038630795,
+      "mean": 0.02812618308528019,
+      "median": 0.027830999897560105,
+      "min": 0.02485599907231517,
+      "n": 1584,
+      "p95": 0.03005399958055932
+     }
+    },
+    "to_plane": {
+     "all": {
+      "max": 1.4171069997246377,
+      "mean": 0.25745618517052543,
+      "median": 0.23257800057763234,
+      "min": 0.08294699910038617,
+      "n": 6437,
+      "p95": 0.5267239994282136
+     },
+     "end": {
+      "max": 1.4171069997246377,
+      "mean": 0.3197090179100556,
+      "median": 0.3652779996627942,
+      "min": 0.08500999865646008,
+      "n": 1673,
+      "p95": 0.5649940012517618
+     },
+     "middle": {
+      "max": 1.0197339997830568,
+      "mean": 0.2671912946516958,
+      "median": 0.2589924997664639,
+      "min": 0.0870749991008779,
+      "n": 3180,
+      "p95": 0.4835340005229227
+     },
+     "opening": {
+      "max": 0.5238070007180795,
+      "mean": 0.17216159090073022,
+      "median": 0.16013149979698937,
+      "min": 0.08294699910038617,
+      "n": 1584,
+      "p95": 0.30217399944376666
+     }
+    }
+   },
+   "games": 100,
+   "normalize_means_by_stage": {
+    "end": 0.22997863541390412,
+    "middle": 0.1750947669691259,
+    "opening": 0.08223661425727002
+   },
+   "positions_collected": 6487,
+   "positions_timed": 6437,
+   "to_plane_means_by_stage": {
+    "end": 0.3197090179100556,
+    "middle": 0.2671912946516958,
+    "opening": 0.17216159090073022
+   },
+   "to_plane_normalize_share": 0.6467469281484027,
+   "warmup_skipped": 50
+  },
+  "game_timing": {
+   "games": 200,
+   "mean_result_cells": [
+    28.565,
+    27.905,
+    28.42,
+    30.985
+   ],
+   "passes": {
+    "max": 19,
+    "mean": 6.155,
+    "median": 5.0,
+    "min": 0,
+    "n": 200,
+    "p95": 13
+   },
+   "real_moves": {
+    "max": 67,
+    "mean": 59.28,
+    "median": 59.0,
+    "min": 52,
+    "n": 200,
+    "p95": 64
+   },
+   "real_moves_per_second": 1257.1841582475693,
+   "seconds_per_game": {
+    "max": 0.07477528200070083,
+    "mean": 0.047152996330014504,
+    "median": 0.046183122000002186,
+    "min": 0.039444869000362814,
+    "n": 200,
+    "p95": 0.05812999299996591
+   },
+   "total_real_moves": 11856,
+   "total_seconds": 9.4305992660029
+  }
+ }
+}
