@@ -462,9 +462,12 @@ python3 -m pytest tests/test_optimised_paths.py
 
 ---
 
-## 階段 D：決策記錄與可重現性
+## 階段 D：決策記錄與可重現性 — ✅ 已完成
 
-### D1. `choose_move` 加可選的 `trace` 參數
+> **狀態：** D1、D2 全部完成。D1 的 `trace` 是**純觀測**，不影響任何選步；
+> D2 的評測賽在相同參數下分數**逐位重現**。
+
+### D1. `choose_move` 加可選的 `trace` 參數 — ✅ 已完成
 
 **不改變回傳值。** 若 `trace` 不是 None，往其中寫入一個 dict：
 
@@ -483,7 +486,7 @@ python3 -m pytest tests/test_optimised_paths.py
 
 **驗收：** `trace=None` 時行為與效能完全不變（同種子逐手比對）；`trace` 有值時，`picked` 與實際回傳一致。
 
-### D2. 固定座位輪換的評測賽
+### D2. 固定座位輪換的評測賽 — ✅ 已完成
 
 **新增檔案：** `tools/benchmark.py`，不改動現有 `match.py`。
 
@@ -493,6 +496,56 @@ python3 -m pytest tests/test_optimised_paths.py
 - **並列名次要平分：** 兩人並列第二各得 2.5，不要沿用 `Game.standings` 按座位編號決勝的做法（那會令座位編號成為偏差來源）。`standings` 本身不要改，因為 UI 依賴它。
 
 **驗收：** 相同參數跑兩次，輸出逐位相同。
+
+#### 實測補充（D1 與 D2）
+
+**D1 的關鍵設計：`trace=None` 時熱路徑完全不受影響。** 所有記錄動作都包在
+`if trace is not None:` 之內，預設不傳就不執行任何額外分支。`n_candidates` 在
+`cands.sort()` 之後、`brain.restrict()` 之前記錄，符合本文定義。
+
+| 檢查 | 結果 |
+|---|---|
+| `trace` 的 8 個欄位 | 齊全且型別正確 |
+| `picked` 與實際回傳值 | **每一步都相等** |
+| `picked` 一定在 `shortlist` 內 | 通過 |
+| `profile` | 等於 `dataclasses.asdict(brain.profile)` |
+| 規則式人格的 `lookahead_used` | 恆為 `False`（符合 `uses_lookahead = False`） |
+| `trace=None` 的同種子比對 | 1000 局 / 76,617 手**完全一致** |
+| 不開 trace 的耗時 | 未因這個功能變慢（測試有粗略上限把關） |
+
+兩個容易誤判的地方，已在 `tests/test_trace.py` 釘住：
+
+- **兩次呼叫同一局面會得到不同答案**，因為決策會消耗腦的 RNG（出錯抽籤）。所以
+  「`trace=None` 與不傳 `trace` 相同」必須用**兩個相同種子的獨立局面**比較，
+  不能在同一個 `Game` 上呼叫兩次。
+- **`picked` 等於短名單首位不代表沒有出錯**：`_weighted_pick` 是加權抽籤，
+  完全可能抽回首位。所以 `was_mistake == False` 無法由 `picked` 推出；反過來
+  `picked` **不等於**首位，則一定走過加權抽籤分支。
+
+**D2 的可重現性有一個必須說清楚的例外：`ms/move` 是掛鐘量測，本來就不會重現。**
+本文要求「輸出逐位相同」與「記錄每步平均耗時」兩者本質衝突，因此做法是：
+
+- **分數部分**（games / avg_place / avg_cells / wins）**逐位重現**，已驗證。
+- `ms/move` 移到獨立區塊並標註為「量測，非結果」。
+- 另有 `--no-timing` 開關，輸出**完全逐位相同**（含 JSON 檔，已用 `diff` 驗證）。
+
+**並列平分的實作：** 不用 `Game.standings`（它按座位編號決勝，那正是本工具要消除的
+偏差），改用 `average_ranks`：並列者平分他們所佔的順位區間。例如 `[3,8,8,12]`
+→ `[1, 2.5, 2.5, 4]`。測試直接釘住這張對照表，並驗證「交換座位不影響任何人的名次」
+與「四人平均名次恆為 2.5」。
+
+24 種座位排列各跑 2 局的實測結果（`--personalities wolf chess fox optimizer`）：
+
+```
+key          games  avg_place   avg_cells   wins   ms/move
+optimizer       48      1.177        6.02     38      1.97
+wolf            48      2.719       23.31      2      6.44
+chess           48      2.812       23.83      5      6.40
+fox             48      3.292       28.48      0      6.37
+```
+
+這也回答了 B 階段留下來的問題：優化者確實最強，而且不是座位造成的偏差（它贏了 48 局
+裡的 38 局）。
 
 ---
 
@@ -607,7 +660,7 @@ def bits_to_plane(mask):
 | 5 | C2 `has_legal` 改寫 | A1 | ✅ 完成 |
 | 6 | C3 枚舉改寫 | A1、C2 | ✅ 完成 |
 | 7 | C4 預算計數式 | 無 | ✅ 完成 |
-| 8 | D1 trace、D2 基準賽 | C3 | 未開始 |
+| 8 | D1 trace、D2 基準賽 | C3 | ✅ 完成 |
 | 9 | E1 新引擎 | A1、A2 | 未開始 |
 | 10 | E2 旋轉表、E3 輸入編碼 | E1 | 未開始 |
 

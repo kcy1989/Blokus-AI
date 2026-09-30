@@ -10,6 +10,7 @@ Pipeline:
     -> brain.context / restrict / rescore
     -> (optional) opponent-lookahead penalty -> shortlist -> pick -> place
 """
+import dataclasses
 import math
 import time
 
@@ -174,7 +175,7 @@ def _candidates(board, names, owner, profile, must_cover, reach,
 
 def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
                 must_cover=None, reach=None, other_must_cover=None,
-                other_reach=None):
+                other_reach=None, trace=None):
     """Returns (piece name, orientation, x, y), or None when no move is
     possible.
 
@@ -182,6 +183,12 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
     personalities pass it). If the budget (wall-clock cap and simulation
     count) is exceeded, that stage is skipped and it falls back to plain
     candidate ordering.
+
+    `trace` is a D1 opt-in. Pass a list and one dict per decision is appended,
+    recording what the engine saw and why it chose what it chose - the raw
+    material for a dataset. It never changes the return value, and with
+    `trace=None` (the default) every extra branch below is skipped, so the
+    decision path and its cost are bit-for-bit what they were before.
     """
     t0 = time.perf_counter()
     empt = board.empty_bits
@@ -193,8 +200,12 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
     cands = _candidates(board, names, owner, profile, must_cover, reach,
                         open_a, block, defend, regions, borders, empt)
     if not cands:
+        if trace is not None:
+            trace.append(_empty_trace(owner, brain))
         return None
     cands.sort(key=lambda t: t[0], reverse=True)
+    if trace is not None:
+        n_candidates = len(cands)
     # Personality takes over: restrict is the stage (soft) filter, rescore is
     # the expensive evaluation. For weighted personalities both are the
     # identity, so everything below leaves their existing behaviour untouched.
@@ -205,9 +216,11 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
 
     adj = top
     opps = [o for o in range(4) if o != owner]
+    lookahead_used = False
     if other_brains and opps and brain.uses_lookahead \
             and (not F.USE_WALL_BUDGET
                  or time.perf_counter() - t0 < F.WALL_BUDGET):
+        lookahead_used = True
         pools = [_opponent_pool(board, hand_names, o,
                                 (other_must_cover or {}).get(o),
                                 (other_reach or {}).get(o))
@@ -247,8 +260,37 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
 
     shortlist = _build_shortlist(adj)
     if not shortlist:
+        if trace is not None:
+            trace.append(_empty_trace(owner, brain))
         return None
     pick = shortlist[0]
+    was_mistake = False
     if len(shortlist) >= 2 and rng.random() < brain.mistake_rate:
         pick = _weighted_pick(shortlist, rng)
+        was_mistake = True
+    if trace is not None:
+        trace.append({
+            "owner": owner,
+            "brain_key": brain.key,
+            "profile": dataclasses.asdict(brain.profile),
+            "n_candidates": n_candidates,
+            "shortlist": [(sc, n, oi, b) for sc, n, oi, b in shortlist],
+            "picked": (pick[1], pick[2], pick[3]),
+            "was_mistake": was_mistake,
+            "lookahead_used": lookahead_used,
+        })
     return (pick[1], pick[2], pick[3] % F.B, pick[3] // F.B)
+
+
+def _empty_trace(owner, brain):
+    """Trace record for a decision with no move: there was nothing to pick."""
+    return {
+        "owner": owner,
+        "brain_key": brain.key,
+        "profile": dataclasses.asdict(brain.profile),
+        "n_candidates": 0,
+        "shortlist": [],
+        "picked": None,
+        "was_mistake": False,
+        "lookahead_used": False,
+    }
