@@ -671,6 +671,22 @@ def bits_to_plane(mask):
 1 萬局交叉驗證（`tools/cross_check_engine.py`）逐步比對：合法步集合、四個
 `owner_bits`、四個 `stuck`、`to_move`，終局再比剩餘格數與結束判定。
 
+```
+games          : 10000
+steps compared : 766601
+legal sets     : 766601 checks, 129060099 legal moves total,
+                 2000 brute-force audits
+elapsed        : 6605s
+IDENTICAL: engine.py and Game agree on every step of every game
+```
+
+**1 萬局、766,601 個決策點、1.29 億個合法步，零差異。** 其中 2,000 個取樣局面另外
+拿 `Board.can_place`（逐 base 逐格掃描）重算一次，確認用來對照的快速路徑本身也沒錯 ——
+否則「兩邊都對著同一個錯的東西」是可能的。
+
+（順帶一提：1,000 局時的 76,617 手與 D1 的驗證數字完全一致，代表兩套引擎在同種子下
+走的是同一局棋。）
+
 #### E2：旋轉對稱表
 
 本文給的 `rot_orient` / `rot_base` 草稿**經實測是對的**，已逐項驗證：
