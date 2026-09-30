@@ -510,7 +510,7 @@ python3 -m pytest tests/test_optimised_paths.py
 | `picked` 一定在 `shortlist` 內 | 通過 |
 | `profile` | 等於 `dataclasses.asdict(brain.profile)` |
 | 規則式人格的 `lookahead_used` | 恆為 `False`（符合 `uses_lookahead = False`） |
-| `trace=None` 的同種子比對 | 1000 局 / 76,617 手**完全一致** |
+| **`trace=None` 的同種子比對，1000 局** | **76,617 手完全一致（`IDENTICAL`）** |
 | 不開 trace 的耗時 | 未因這個功能變慢（測試有粗略上限把關） |
 
 兩個容易誤判的地方，已在 `tests/test_trace.py` 釘住：
