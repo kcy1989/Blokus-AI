@@ -764,7 +764,7 @@ plan3 未對這檔設時限。
 
 ## 提交資訊
 
-commit `見 git log`。**新增檔案：**
+commit **`612d487`**。**新增檔案：**
 
 | 檔案 | 內容 |
 | --- | --- |
@@ -792,7 +792,7 @@ commit `見 git log`。**新增檔案：**
 
 | 項目 | 狀態 |
 | --- | --- |
-| `git diff --stat` 只顯示 `AGENTS.md` 與 `.gitignore` | 見下方 |
+| `git diff --stat` 只顯示 `AGENTS.md` 與 `.gitignore` | 是，兩個檔案、15 行新增、4 行刪除 |
 | 既有 322 項測試全部通過，最終總數 414 | 是 |
 | `import engine` 不拉進 torch；`import rl.actions` 不拉進 pygame、torch | 是 |
 | `featurize` 前 7 通道與 `engine.to_plane` 逐位元相同 | 是（300 個局面） |
