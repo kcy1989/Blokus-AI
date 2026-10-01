@@ -73,36 +73,81 @@ def conv_smoke(dtype):
     largest batch this stage's measurements use, so it doubles as the upper
     bound on the smoke test.
     """
+    return gradient_probe(dtype)["runs"][str(dtype).replace("torch.", "")]
+
+
+def gradient_probe(seed=0, batch=256, in_ch=14, channels=64, size=20):
+    """The same convolution in fp32, fp16 and bf16, from **one** set of inputs.
+
+    Stage G ran `conv_smoke` once per dtype, and each call re-seeded and
+    re-initialised, so in principle the three runs shared an input and a weight
+    initialisation. They did not, in effect: the reported gradient magnitudes
+    differed by about 6,000x between fp16 and bf16, which is far too large to be
+    a property of either format and is the kind of gap that means the runs were
+    not comparable rather than that fp16 is 6,000x less accurate.
+
+    This builds `x`, the convolution and the batch norm **once** and runs the
+    same loss on all three, so the only thing that varies is the dtype. It also
+    reports the fp32 gradient as the reference the two reduced precisions are
+    measured against, which the stage G table had no way to do: without a
+    reference there is nothing to call a difference large or small.
+
+    fp32 is run outside autocast, because autocast has no fp32 mode and passing
+    one would silently fall back to the same fp16 path this is meant to
+    distinguish from.
+    """
     import torch
     from torch import nn
     dev = torch.device("cuda")
-    torch.manual_seed(0)
-    x = torch.randn(256, 14, 20, 20, device=dev)
-    conv = nn.Conv2d(14, 64, 3, padding=1).to(dev)
-    bn = nn.BatchNorm2d(64).to(dev)
-    grad_ok = None
-    try:
-        with torch.autocast("cuda", dtype=dtype):
-            out = bn(torch.relu(conv(x)))
-        out.float().sum().backward()
-        grads = [conv.weight.grad, conv.bias.grad,
-                 bn.weight.grad, bn.bias.grad]
-        nan = [bool(torch.isnan(g).any() or torch.isinf(g).any())
-               for g in grads]
-        grad_ok = not any(nan)
-        finite = all(g is not None for g in grads)
-    except Exception as exc:                      # pragma: no cover
-        return {"dtype": str(dtype), "ok": False, "error": repr(exc)}
-    return {
-        "dtype": str(dtype),
-        "ok": bool(grad_ok and finite),
-        "input_shape": [256, 14, 20, 20],
-        "output_shape": list(out.shape),
-        "output_dtype": str(out.dtype),
-        "gradients_present": finite,
-        "gradients_finite": grad_ok,
-        "grad_abs_mean": float(conv.weight.grad.abs().mean()),
-    }
+    torch.manual_seed(seed)
+    x = torch.randn(batch, in_ch, size, size, device=dev)
+    conv = nn.Conv2d(in_ch, channels, 3, padding=1).to(dev)
+    bn = nn.BatchNorm2d(channels).to(dev)
+
+    out = {}
+    runs = {}
+    for name, dtype, autocast in (("float32", None, False),
+                                  ("float16", torch.float16, True),
+                                  ("bfloat16", torch.bfloat16, True)):
+        conv.zero_grad(set_to_none=True)
+        bn.zero_grad(set_to_none=True)
+        if autocast:
+            with torch.autocast("cuda", dtype=dtype):
+                act = bn(torch.relu(conv(x)))
+        else:
+            act = bn(torch.relu(conv(x)))
+        loss = act.float().sum()
+        loss.backward()
+        grads = {"conv.weight": conv.weight.grad, "conv.bias": conv.bias.grad,
+                 "bn.weight": bn.weight.grad, "bn.bias": bn.bias.grad}
+        entry = {
+            "ok": all(g is not None and not bool(torch.isnan(g).any()
+                                                 or torch.isinf(g).any())
+                      for g in grads.values()),
+            "loss": float(loss),
+            "output_dtype": str(act.dtype),
+            "grad_abs_mean": {k: float(g.abs().mean())
+                              for k, g in grads.items()},
+            "grad_abs_max": {k: float(g.abs().max())
+                             for k, g in grads.items()},
+        }
+        if name == "float32":
+            out["reference"] = entry
+        runs[name] = entry
+
+    # Relative error against fp32, per tensor. `mean` is the mean of |g - g32|
+    # over the mean of |g32|, so it is scale-free and comparable across tensors.
+    for name, entry in runs.items():
+        rel = {}
+        for k in entry["grad_abs_mean"]:
+            ref = out["reference"]["grad_abs_mean"][k]
+            got = entry["grad_abs_mean"][k]
+            rel[k] = abs(got - ref) / abs(ref) if ref else None
+        entry["relative_to_fp32"] = rel
+    out["runs"] = runs
+    out["note"] = ("one x, one conv, one batchnorm, one loss; only the dtype "
+                   "differs between the three runs")
+    return out
 
 
 def _block(cin, cout):
@@ -154,6 +199,44 @@ def build_model(channels=64, blocks=6, in_ch=14):
     return TwinHead()
 
 
+def timing_record(batch, times, warmup=None, extra=None):
+    """One timing block, with throughput derived from the mean rather than the
+    sum.
+
+    The two have to be kept in this relationship, and it is written out here
+    instead of at the two call sites because the stage G report got it wrong
+    once: `positions_per_second` divided the batch by the *total* of every
+    iteration, so it came out `iters` times too small - 363.1 instead of
+    18,153.2 for a batch of 64 - while `mean_ms` on the row next to it was
+    correct, which is what made the table internally inconsistent. One function
+    that computes `mean_ms` from `times` and the rate from `mean_ms` cannot
+    disagree with itself.
+
+    `times` are per-iteration wall-clock seconds. The caller is responsible for
+    synchronising the device before starting and stopping the clock; this
+    function is pure so a test can hand it a fixed list and check the identity
+    `positions_per_second == batch / (mean_ms / 1000)` without a GPU.
+    """
+    times = sorted(float(t) for t in times)
+    n = len(times)
+    total = sum(times)
+    mean_ms = total / n * 1000.0
+    record = {
+        "batch": batch,
+        "iterations": n,
+        "mean_ms": mean_ms,
+        "median_ms": times[n // 2] * 1000.0,
+        "min_ms": times[0] * 1000.0,
+        "max_ms": times[-1] * 1000.0,
+        "positions_per_second": batch / (mean_ms / 1000.0),
+    }
+    if warmup is not None:
+        record["warmup"] = warmup
+    if extra:
+        record.update(extra)
+    return record
+
+
 def throughput(batches=(64, 256, 1024), warmup=10, iters=50,
                channels=64, blocks=6, in_ch=14):
     """Inference positions per second, and one train step.
@@ -187,21 +270,11 @@ def throughput(batches=(64, 256, 1024), warmup=10, iters=50,
                 if dev.type == "cuda":
                     torch.cuda.synchronize()
                 times.append(time.perf_counter() - t0)
-        times.sort()
-        total = sum(times)
         policy_out, value_out = out
-        inference.append({
-            "batch": bs,
-            "iterations": iters,
-            "warmup": warmup,
-            "mean_ms": total / iters * 1000.0,
-            "median_ms": times[len(times) // 2] * 1000.0,
-            "min_ms": times[0] * 1000.0,
-            "max_ms": times[-1] * 1000.0,
-            "positions_per_second": bs / total,
+        inference.append(timing_record(bs, times, warmup, {
             "policy_shape": list(policy_out.shape),
             "value_shape": list(value_out.shape),
-        })
+        }))
 
     # One real optimisation step: forward, backward, AdamW update. Measured
     # after the inference numbers so the caching allocator is warm and the
@@ -232,22 +305,12 @@ def throughput(batches=(64, 256, 1024), warmup=10, iters=50,
         if dev.type == "cuda":
             torch.cuda.synchronize()
         times.append(time.perf_counter() - t0)
-    times.sort()
-    total = sum(times)
-    train_step = {
-        "batch": bs,
-        "iterations": iters,
-        "warmup": warmup,
-        "mean_ms": total / iters * 1000.0,
-        "median_ms": times[len(times) // 2] * 1000.0,
-        "min_ms": times[0] * 1000.0,
-        "max_ms": times[-1] * 1000.0,
-        "positions_per_second": bs / total,
+    train_step = timing_record(bs, times, warmup, {
         "last_loss": float(loss),
         "optimizer": "AdamW lr=1e-4",
         "loss": "MSE against a random (91, 20, 20) target, standing in for "
                 "the real policy objective",
-    }
+    })
     peak = None
     if dev.type == "cuda":
         peak = {
@@ -293,8 +356,10 @@ def main():
         return 1
 
     raw["numpy_interop"] = numpy_interop()
-    raw["fp16"] = conv_smoke(torch.float16)
-    raw["bf16"] = conv_smoke(torch.bfloat16)
+    raw["gradient_probe"] = gradient_probe()
+    raw["fp16"] = raw["gradient_probe"]["runs"]["float16"]
+    raw["bf16"] = raw["gradient_probe"]["runs"]["bfloat16"]
+    raw["fp32"] = raw["gradient_probe"]["runs"]["float32"]
     if not args.skip_throughput:
         raw.update(throughput(warmup=args.warmup, iters=args.iters))
 

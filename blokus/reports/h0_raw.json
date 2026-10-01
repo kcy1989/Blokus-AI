@@ -1,0 +1,2538 @@
+{
+ "code": {
+  "commit": "5fee0c19111471cf4b5a68cd2029ddb08c9d5d10",
+  "diff_stat_vs_stage_g": "",
+  "python": "3.12.3",
+  "status_porcelain": "M blokus/reports/g_report.md\n M blokus/rl/smoke_gpu.py\n?? blokus/plan2.md\n?? blokus/plan3.md\n?? blokus/plan4.md\n?? blokus/reports/h0_raw.json\n?? blokus/reports/h0_report.md\n?? blokus/rl/opening.py\n?? blokus/rl/paired.py\n?? blokus/tests/test_rl_opening.py\n?? blokus/tests/test_rl_paired.py"
+ },
+ "h0_0_gpu": {
+  "_measurement_inference": [
+   {
+    "batch": 64,
+    "iterations": 50,
+    "max_ms": 4.718946001958102,
+    "mean_ms": 3.530367659695912,
+    "median_ms": 3.445769994868897,
+    "min_ms": 3.4016580029856414,
+    "policy_shape": [
+     64,
+     91,
+     20,
+     20
+    ],
+    "positions_per_second": 18128.423487063283,
+    "value_shape": [
+     64,
+     4,
+     20,
+     20
+    ],
+    "warmup": 10
+   },
+   {
+    "batch": 256,
+    "iterations": 50,
+    "max_ms": 6.604041991522536,
+    "mean_ms": 4.415670439193491,
+    "median_ms": 4.147963001742028,
+    "min_ms": 4.028094001114368,
+    "policy_shape": [
+     256,
+     91,
+     20,
+     20
+    ],
+    "positions_per_second": 57975.34112322877,
+    "value_shape": [
+     256,
+     4,
+     20,
+     20
+    ],
+    "warmup": 10
+   },
+   {
+    "batch": 1024,
+    "iterations": 50,
+    "max_ms": 30.023722996702418,
+    "mean_ms": 27.51624337892281,
+    "median_ms": 27.563429001020268,
+    "min_ms": 25.589622993720695,
+    "policy_shape": [
+     1024,
+     91,
+     20,
+     20
+    ],
+    "positions_per_second": 37214.382279536556,
+    "value_shape": [
+     1024,
+     4,
+     20,
+     20
+    ],
+    "warmup": 10
+   }
+  ],
+  "_measurement_memory": {
+   "peak_allocated_bytes": 643125248,
+   "peak_allocated_gib": 0.5989570617675781,
+   "peak_reserved_bytes": 805306368
+  },
+  "_measurement_train_step": {
+   "batch": 256,
+   "iterations": 50,
+   "last_loss": 0.9991368055343628,
+   "loss": "MSE against a random (91, 20, 20) target, standing in for the real policy objective",
+   "max_ms": 28.842450003139675,
+   "mean_ms": 21.65065489942208,
+   "median_ms": 21.995532006258145,
+   "min_ms": 16.944283997872844,
+   "optimizer": "AdamW lr=1e-4",
+   "positions_per_second": 11824.12269694592,
+   "warmup": 10
+  },
+  "bf16": {
+   "grad_abs_max": {
+    "bn.bias": 102400.0,
+    "bn.weight": 165.4374542236328,
+    "conv.bias": 158.0,
+    "conv.weight": 44.5
+   },
+   "grad_abs_mean": {
+    "bn.bias": 102400.0,
+    "bn.weight": 49.68022918701172,
+    "conv.bias": 52.782928466796875,
+    "conv.weight": 6.742703437805176
+   },
+   "loss": -81.834716796875,
+   "ok": true,
+   "output_dtype": "torch.bfloat16",
+   "relative_to_fp32": {
+    "bn.bias": 0.0,
+    "bn.weight": 12355.82639088522,
+    "conv.bias": 12136.362432756243,
+    "conv.weight": 12798.832200186916
+   }
+  },
+  "facts": {
+   "arch_list": [
+    "sm_75",
+    "sm_80",
+    "sm_86",
+    "sm_90",
+    "sm_100",
+    "sm_120"
+   ],
+   "cuda_is_available": true,
+   "device_0_capability": [
+    12,
+    0
+   ],
+   "device_0_multi_processor_count": 36,
+   "device_0_name": "NVIDIA GeForce RTX 5060 Ti",
+   "device_0_total_memory_bytes": 16616521728,
+   "device_0_total_memory_gib": 15.475341796875,
+   "device_count": 1,
+   "torch_version": "2.11.0+cu128",
+   "torch_version_cuda": "12.8"
+  },
+  "fp16": {
+   "grad_abs_max": {
+    "bn.bias": 102400.0,
+    "bn.weight": 0.022743450477719307,
+    "conv.bias": 0.0228424072265625,
+    "conv.weight": 0.00611114501953125
+   },
+   "grad_abs_mean": {
+    "bn.bias": 102400.0,
+    "bn.weight": 0.007935823872685432,
+    "conv.bias": 0.008329853415489197,
+    "conv.weight": 0.001057134009897709
+   },
+   "loss": 83.46923828125,
+   "ok": true,
+   "output_dtype": "torch.float16",
+   "relative_to_fp32": {
+    "bn.bias": 0.0,
+    "bn.weight": 0.9738555853734527,
+    "conv.bias": 0.9154384353479629,
+    "conv.weight": 1.0067823039546202
+   }
+  },
+  "fp32": {
+   "grad_abs_max": {
+    "bn.bias": 102400.0,
+    "bn.weight": 0.012500528246164322,
+    "conv.bias": 0.0131686981767416,
+    "conv.weight": 0.004091464448720217
+   },
+   "grad_abs_mean": {
+    "bn.bias": 102400.0,
+    "bn.weight": 0.004020468331873417,
+    "conv.bias": 0.004348797257989645,
+    "conv.weight": 0.0005267806118354201
+   },
+   "loss": 0.1343994140625,
+   "ok": true,
+   "output_dtype": "torch.float32",
+   "relative_to_fp32": {
+    "bn.bias": 0.0,
+    "bn.weight": 0.0,
+    "conv.bias": 0.0,
+    "conv.weight": 0.0
+   }
+  },
+  "gradient_probe": {
+   "note": "one x, one conv, one batchnorm, one loss; only the dtype differs between the three runs",
+   "reference": {
+    "grad_abs_max": {
+     "bn.bias": 102400.0,
+     "bn.weight": 0.012500528246164322,
+     "conv.bias": 0.0131686981767416,
+     "conv.weight": 0.004091464448720217
+    },
+    "grad_abs_mean": {
+     "bn.bias": 102400.0,
+     "bn.weight": 0.004020468331873417,
+     "conv.bias": 0.004348797257989645,
+     "conv.weight": 0.0005267806118354201
+    },
+    "loss": 0.1343994140625,
+    "ok": true,
+    "output_dtype": "torch.float32",
+    "relative_to_fp32": {
+     "bn.bias": 0.0,
+     "bn.weight": 0.0,
+     "conv.bias": 0.0,
+     "conv.weight": 0.0
+    }
+   },
+   "runs": {
+    "bfloat16": {
+     "grad_abs_max": {
+      "bn.bias": 102400.0,
+      "bn.weight": 165.4374542236328,
+      "conv.bias": 158.0,
+      "conv.weight": 44.5
+     },
+     "grad_abs_mean": {
+      "bn.bias": 102400.0,
+      "bn.weight": 49.68022918701172,
+      "conv.bias": 52.782928466796875,
+      "conv.weight": 6.742703437805176
+     },
+     "loss": -81.834716796875,
+     "ok": true,
+     "output_dtype": "torch.bfloat16",
+     "relative_to_fp32": {
+      "bn.bias": 0.0,
+      "bn.weight": 12355.82639088522,
+      "conv.bias": 12136.362432756243,
+      "conv.weight": 12798.832200186916
+     }
+    },
+    "float16": {
+     "grad_abs_max": {
+      "bn.bias": 102400.0,
+      "bn.weight": 0.022743450477719307,
+      "conv.bias": 0.0228424072265625,
+      "conv.weight": 0.00611114501953125
+     },
+     "grad_abs_mean": {
+      "bn.bias": 102400.0,
+      "bn.weight": 0.007935823872685432,
+      "conv.bias": 0.008329853415489197,
+      "conv.weight": 0.001057134009897709
+     },
+     "loss": 83.46923828125,
+     "ok": true,
+     "output_dtype": "torch.float16",
+     "relative_to_fp32": {
+      "bn.bias": 0.0,
+      "bn.weight": 0.9738555853734527,
+      "conv.bias": 0.9154384353479629,
+      "conv.weight": 1.0067823039546202
+     }
+    },
+    "float32": {
+     "grad_abs_max": {
+      "bn.bias": 102400.0,
+      "bn.weight": 0.012500528246164322,
+      "conv.bias": 0.0131686981767416,
+      "conv.weight": 0.004091464448720217
+     },
+     "grad_abs_mean": {
+      "bn.bias": 102400.0,
+      "bn.weight": 0.004020468331873417,
+      "conv.bias": 0.004348797257989645,
+      "conv.weight": 0.0005267806118354201
+     },
+     "loss": 0.1343994140625,
+     "ok": true,
+     "output_dtype": "torch.float32",
+     "relative_to_fp32": {
+      "bn.bias": 0.0,
+      "bn.weight": 0.0,
+      "conv.bias": 0.0,
+      "conv.weight": 0.0
+     }
+    }
+   }
+  },
+  "model": {
+   "architecture": "6 residual blocks, 64 channels, 14 input channels, policy head 1x1 -> 91 planes, value head 1x1 -> 4 planes",
+   "disposed": "built here and thrown away; nothing trains in this repository yet",
+   "parameters": 458271
+  },
+  "numpy_interop": {
+   "dtype_preserved": true,
+   "from_numpy": true,
+   "numpy_dtype_preserved": true,
+   "numpy_version": "2.5.3",
+   "shape_preserved": true,
+   "shares_memory": true,
+   "values_equal": true
+  }
+ },
+ "h0_1_blocker_scan": {
+  "opponent_openings_scanned": 174,
+  "step0_blocked_by_a_single_opponent_opening": 0,
+  "step1_blocked_by_a_single_opponent_opening": 0,
+  "step2_blocked_by_a_single_opponent_opening": 0
+ },
+ "h0_1_opening": {
+  "book_geometry": {
+   "0": {
+    "corner": [
+     19,
+     19
+    ],
+    "direction": [
+     -1,
+     -1
+    ],
+    "steps": [
+     {
+      "piece": "Z5",
+      "squares": [
+       [
+        19,
+        19
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "step": 0
+     },
+     {
+      "piece": "V5",
+      "squares": [
+       [
+        16,
+        16
+       ],
+       [
+        14,
+        14
+       ]
+      ],
+      "step": 1
+     },
+     {
+      "piece": "W5",
+      "squares": [
+       [
+        13,
+        13
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "step": 2
+     }
+    ]
+   },
+   "1": {
+    "corner": [
+     0,
+     0
+    ],
+    "direction": [
+     1,
+     1
+    ],
+    "steps": [
+     {
+      "piece": "Z5",
+      "squares": [
+       [
+        0,
+        0
+       ],
+       [
+        2,
+        2
+       ]
+      ],
+      "step": 0
+     },
+     {
+      "piece": "V5",
+      "squares": [
+       [
+        3,
+        3
+       ],
+       [
+        5,
+        5
+       ]
+      ],
+      "step": 1
+     },
+     {
+      "piece": "W5",
+      "squares": [
+       [
+        6,
+        6
+       ],
+       [
+        8,
+        8
+       ]
+      ],
+      "step": 2
+     }
+    ]
+   },
+   "2": {
+    "corner": [
+     19,
+     0
+    ],
+    "direction": [
+     -1,
+     1
+    ],
+    "steps": [
+     {
+      "piece": "Z5",
+      "squares": [
+       [
+        19,
+        0
+       ],
+       [
+        17,
+        2
+       ]
+      ],
+      "step": 0
+     },
+     {
+      "piece": "V5",
+      "squares": [
+       [
+        16,
+        3
+       ],
+       [
+        14,
+        5
+       ]
+      ],
+      "step": 1
+     },
+     {
+      "piece": "W5",
+      "squares": [
+       [
+        13,
+        6
+       ],
+       [
+        11,
+        8
+       ]
+      ],
+      "step": 2
+     }
+    ]
+   },
+   "3": {
+    "corner": [
+     0,
+     19
+    ],
+    "direction": [
+     1,
+     -1
+    ],
+    "steps": [
+     {
+      "piece": "Z5",
+      "squares": [
+       [
+        0,
+        19
+       ],
+       [
+        2,
+        17
+       ]
+      ],
+      "step": 0
+     },
+     {
+      "piece": "V5",
+      "squares": [
+       [
+        3,
+        16
+       ],
+       [
+        5,
+        14
+       ]
+      ],
+      "step": 1
+     },
+     {
+      "piece": "W5",
+      "squares": [
+       [
+        6,
+        13
+       ],
+       [
+        8,
+        11
+       ]
+      ],
+      "step": 2
+     }
+    ]
+   }
+  },
+  "complete_lines_per_player": {
+   "0": 8,
+   "1": 8,
+   "2": 8,
+   "3": 8
+  },
+  "definition": [
+   [
+    0,
+    "Z5",
+    0,
+    2
+   ],
+   [
+    1,
+    "V5",
+    3,
+    5
+   ],
+   [
+    2,
+    "W5",
+    6,
+    8
+   ]
+  ],
+  "empty_board_legal_moves_per_owner": {
+   "0": 58,
+   "1": 58,
+   "2": 58,
+   "3": 58
+  },
+  "rotation_k_maps_owner0_set_to": {
+   "0": [
+    0
+   ],
+   "1": [
+    3
+   ],
+   "2": [
+    1
+   ],
+   "3": [
+    2
+   ]
+  },
+  "step0_candidate_counts": {
+   "0": 2,
+   "1": 2,
+   "2": 2,
+   "3": 2
+  },
+  "step_candidate_counts": {
+   "0": {
+    "0": 2,
+    "1": 2,
+    "2": 2
+   },
+   "1": {
+    "0": 2,
+    "1": 2,
+    "2": 2
+   },
+   "2": {
+    "0": 2,
+    "1": 2,
+    "2": 2
+   },
+   "3": {
+    "0": 2,
+    "1": 2,
+    "2": 2
+   }
+  }
+ },
+ "h0_2_paired": {
+  "configurations": {
+   "A": 240,
+   "B": 24
+  },
+  "decision": {
+   "A_ci_high": 0.0391,
+   "A_ci_low": -0.023,
+   "A_mean": 0.0076,
+   "B_ci_high": 0.0834,
+   "B_ci_low": -0.023,
+   "B_mean": 0.03,
+   "reason": "group A 95% CI high is 0.039100, not below 0",
+   "verdict": "keep v1"
+  },
+  "diagnostic": {
+   "abandoned_at_counts": {
+    "1": 42,
+    "2": 8
+   },
+   "games": 50,
+   "in_book_share": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "piece_counts": [
+    {
+     "F5": 20,
+     "P5": 1,
+     "U5": 2,
+     "W5": 8,
+     "Y5": 19
+    },
+    {
+     "F5": 2,
+     "L5": 1,
+     "N5": 19,
+     "U5": 1,
+     "W5": 20,
+     "Z5": 7
+    },
+    {
+     "F5": 8,
+     "L5": 7,
+     "N5": 1,
+     "P5": 2,
+     "U5": 2,
+     "V5": 7,
+     "W5": 1,
+     "X5": 20,
+     "Y5": 1,
+     "Z5": 1
+    }
+   ],
+   "records": [
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000000,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000001,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 0,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28062,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29724,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000002,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 28817,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 35674,
+       "n_candidates": 2,
+       "piece": "Z5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 26531,
+       "n_candidates": 0,
+       "piece": "V5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000003,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32760,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 15923,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 19927,
+       "n_candidates": null,
+       "piece": "P5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000004,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000005,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 0,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28062,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29724,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000006,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 23617,
+       "n_candidates": 2,
+       "piece": "U5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 2834,
+       "n_candidates": 0,
+       "piece": "F5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 32430,
+       "n_candidates": null,
+       "piece": "Y5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000007,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32760,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16304,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 10226,
+       "n_candidates": null,
+       "piece": "L5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000008,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000009,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 0,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28062,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29724,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000010,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32818,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16076,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 155,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000011,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 29140,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 35883,
+       "n_candidates": 2,
+       "piece": "Z5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 26626,
+       "n_candidates": 0,
+       "piece": "V5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000012,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000013,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 31200,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 15623,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 11647,
+       "n_candidates": null,
+       "piece": "L5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000014,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32818,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16076,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 2154,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000015,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1140,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 29082,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29824,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000016,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000017,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 31200,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 14443,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 1267,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000018,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32818,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 15695,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 18872,
+       "n_candidates": null,
+       "piece": "P5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000019,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32760,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16304,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 23866,
+       "n_candidates": null,
+       "piece": "U5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000020,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000021,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 0,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28062,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29724,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000022,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32818,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16076,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 2154,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000023,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 29140,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 35883,
+       "n_candidates": 2,
+       "piece": "Z5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 26626,
+       "n_candidates": 0,
+       "piece": "V5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000024,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000025,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 28000,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 34863,
+       "n_candidates": 2,
+       "piece": "Z5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 26926,
+       "n_candidates": 0,
+       "piece": "V5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000026,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32818,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 13277,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 10536,
+       "n_candidates": null,
+       "piece": "L5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000027,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32760,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16304,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 10226,
+       "n_candidates": null,
+       "piece": "L5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000028,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 28357,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 1114,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 14350,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000029,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 23200,
+       "n_candidates": 2,
+       "piece": "U5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 11262,
+       "n_candidates": 0,
+       "piece": "L5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 2086,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000030,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 29217,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 35674,
+       "n_candidates": 2,
+       "piece": "Z5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 26531,
+       "n_candidates": 0,
+       "piece": "V5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000031,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 19540,
+       "n_candidates": 2,
+       "piece": "P5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 23482,
+       "n_candidates": 0,
+       "piece": "U5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 28622,
+       "n_candidates": null,
+       "piece": "W5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000032,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000033,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 31200,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 15623,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 12066,
+       "n_candidates": null,
+       "piece": "L5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000034,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 30816,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 15253,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 1290,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000035,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 29140,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 35883,
+       "n_candidates": 2,
+       "piece": "Z5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 27526,
+       "n_candidates": 0,
+       "piece": "V5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000036,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000037,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 31200,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 14443,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 1267,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000038,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32818,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16076,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 2154,
+       "n_candidates": null,
+       "piece": "F5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000039,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32760,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16304,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 10226,
+       "n_candidates": null,
+       "piece": "L5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000040,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000041,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 31200,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 14443,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 24027,
+       "n_candidates": null,
+       "piece": "U5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 2,
+     "game_seed": 3000042,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 28817,
+       "n_candidates": 2,
+       "piece": "W5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 35674,
+       "n_candidates": 2,
+       "piece": "Z5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 26531,
+       "n_candidates": 0,
+       "piece": "V5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000043,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1140,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 29082,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29824,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000044,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000045,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 31200,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 13624,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 35226,
+       "n_candidates": null,
+       "piece": "Z5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000046,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 32818,
+       "n_candidates": 2,
+       "piece": "Y5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 16076,
+       "n_candidates": 0,
+       "piece": "N5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 10154,
+       "n_candidates": null,
+       "piece": "L5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000047,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1140,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 29082,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29824,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000048,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 1957,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28314,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29871,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    },
+    {
+     "abandoned_at": 1,
+     "game_seed": 3000049,
+     "opened": [
+      {
+       "in_book": false,
+       "index": 0,
+       "n_candidates": 2,
+       "piece": "F5",
+       "size": 5,
+       "step": 0
+      },
+      {
+       "in_book": false,
+       "index": 28062,
+       "n_candidates": 0,
+       "piece": "W5",
+       "size": 5,
+       "step": 1
+      },
+      {
+       "in_book": false,
+       "index": 29724,
+       "n_candidates": null,
+       "piece": "X5",
+       "size": 5,
+       "step": 2
+      }
+     ]
+    }
+   ],
+   "share_all_three_in_book": 0.0,
+   "steps_in_book": [
+    0,
+    0,
+    0
+   ],
+   "steps_observed": [
+    50,
+    50,
+    50
+   ]
+  },
+  "expanded": {
+   "A": {
+    "pairs": 3000,
+    "seconds": 318.31395769899245,
+    "seed_hi": 3202999,
+    "seed_lo": 3200000
+   },
+   "B": {
+    "pairs": 1500,
+    "seconds": 154.46081097501155,
+    "seed_hi": 3301499,
+    "seed_lo": 3300000
+   }
+  },
+  "expanded_run": true,
+  "expansion_needed_after_phase1": true,
+  "phase1": {
+   "A": {
+    "pairs": 2000,
+    "seconds": 227.78327942200121,
+    "seed_hi": 3001999,
+    "seed_lo": 3000000
+   },
+   "B": {
+    "pairs": 1000,
+    "seconds": 103.19287000999611,
+    "seed_hi": 3100999,
+    "seed_lo": 3100000
+   }
+  },
+  "phase1_decision": {
+   "A_ci_high": 0.0495,
+   "A_ci_low": -0.04725,
+   "A_mean": 0.00125,
+   "B_ci_high": 0.151,
+   "B_ci_low": -0.0165,
+   "B_mean": 0.0665,
+   "reason": "group A 95% CI high is 0.049500, not below 0",
+   "verdict": "keep v1"
+  },
+  "phase1_stats": {
+   "counts": {
+    "games": 6000,
+    "pairs": 3000,
+    "pairs_A": 2000,
+    "pairs_B": 1000
+   },
+   "primary": {
+    "group_A_d": {
+     "ci_high": 0.0495,
+     "ci_low": -0.04725,
+     "iters": 10000,
+     "mean": 0.00125,
+     "n": 2000,
+     "seed": 20260901
+    },
+    "group_B_d": {
+     "ci_high": 0.151,
+     "ci_low": -0.0165,
+     "iters": 10000,
+     "mean": 0.0665,
+     "n": 1000,
+     "seed": 20260901
+    }
+   },
+   "secondary": {
+    "book_abandoned_v1_at_counts": {
+     "1": 2787,
+     "2": 213
+    },
+    "book_abandoned_v2_at_counts": {
+     "none": 3000
+    },
+    "book_abandoned_v2_share": 0.0,
+    "book_moves_v2_mean": 3.0,
+    "d_when_book_abandoned": {
+     "n": 0
+    },
+    "d_when_book_kept": {
+     "ci_high": 0.06566666666666666,
+     "ci_low": -0.019666666666666666,
+     "mean": 0.023,
+     "n": 3000,
+     "sd": 1.1948379248528507
+    },
+    "group_A_d_by_opponent": {
+     "builder": {
+      "ci_high": 0.060470779220779224,
+      "ci_low": -0.06939935064935066,
+      "mean": -0.00487012987012987,
+      "n": 1232,
+      "sd": 1.1532248612201987
+     },
+     "chess": {
+      "ci_high": 0.06123310810810811,
+      "ci_low": -0.06123310810810811,
+      "mean": 0.0,
+      "n": 1184,
+      "sd": 1.0622515607794503
+     },
+     "fox": {
+      "ci_high": 0.0625,
+      "ci_low": -0.055697278911564625,
+      "mean": 0.002976190476190476,
+      "n": 1176,
+      "sd": 1.040930862573301
+     },
+     "intruder": {
+      "ci_high": 0.07312091503267974,
+      "ci_low": -0.0559640522875817,
+      "mean": 0.008986928104575163,
+      "n": 1224,
+      "sd": 1.1636519676389114
+     },
+     "wolf": {
+      "ci_high": 0.06165540540540541,
+      "ci_low": -0.06165540540540541,
+      "mean": -0.0008445945945945946,
+      "n": 1184,
+      "sd": 1.0695806024037409
+     }
+    },
+    "group_A_d_by_tested_seat": {
+     "0": {
+      "ci_high": 0.1865079365079365,
+      "ci_low": -0.015873015873015872,
+      "mean": 0.08531746031746032,
+      "n": 504,
+      "sd": 1.1437644519048358
+     },
+     "1": {
+      "ci_high": 0.007,
+      "ci_low": -0.167,
+      "mean": -0.081,
+      "n": 500,
+      "sd": 0.9853623698924168
+     },
+     "2": {
+      "ci_high": 0.008032128514056224,
+      "ci_low": -0.1676706827309237,
+      "mean": -0.08032128514056225,
+      "n": 498,
+      "sd": 0.9967690259801257
+     },
+     "3": {
+      "ci_high": 0.18775100401606426,
+      "ci_low": -0.028112449799196786,
+      "mean": 0.08032128514056225,
+      "n": 498,
+      "sd": 1.241264374004768
+     }
+    },
+    "group_A_d_remaining": {
+     "ci_high": 0.1905,
+     "ci_low": -0.657,
+     "iters": 10000,
+     "mean": -0.2335,
+     "n": 2000,
+     "seed": 20260901
+    },
+    "group_A_d_sd": 1.1000561065236627,
+    "group_B_d_by_tested_seat": {
+     "0": {
+      "ci_high": 0.057539682539682536,
+      "ci_low": -0.25595238095238093,
+      "mean": -0.10119047619047619,
+      "n": 252,
+      "sd": 1.2609357240663608
+     },
+     "1": {
+      "ci_high": -0.20238095238095238,
+      "ci_low": -0.5178571428571429,
+      "mean": -0.3611111111111111,
+      "n": 252,
+      "sd": 1.2765263022565314
+     },
+     "2": {
+      "ci_high": 0.646,
+      "ci_low": 0.318,
+      "mean": 0.484,
+      "n": 250,
+      "sd": 1.299132017925815
+     },
+     "3": {
+      "ci_high": 0.43089430894308944,
+      "ci_low": 0.06910569105691057,
+      "mean": 0.25203252032520324,
+      "n": 246,
+      "sd": 1.455818133547875
+     }
+    },
+    "group_B_d_remaining": {
+     "ci_high": 0.258,
+     "ci_low": -0.807,
+     "iters": 10000,
+     "mean": -0.275,
+     "n": 1000,
+     "seed": 20260901
+    },
+    "rank_correlation": 0.20008540275396344,
+    "share_d_negative": 0.3343333333333333,
+    "share_d_positive": 0.3323333333333333,
+    "share_d_zero": 0.3333333333333333
+   }
+  },
+  "stats": {
+   "counts": {
+    "games": 15000,
+    "pairs": 7500,
+    "pairs_A": 5000,
+    "pairs_B": 2500
+   },
+   "primary": {
+    "group_A_d": {
+     "ci_high": 0.0391,
+     "ci_low": -0.023,
+     "iters": 10000,
+     "mean": 0.0076,
+     "n": 5000,
+     "seed": 20260901
+    },
+    "group_B_d": {
+     "ci_high": 0.0834,
+     "ci_low": -0.023,
+     "iters": 10000,
+     "mean": 0.03,
+     "n": 2500,
+     "seed": 20260901
+    }
+   },
+   "secondary": {
+    "book_abandoned_v1_at_counts": {
+     "1": 6977,
+     "2": 523
+    },
+    "book_abandoned_v2_at_counts": {
+     "none": 7500
+    },
+    "book_abandoned_v2_share": 0.0,
+    "book_moves_v2_mean": 3.0,
+    "d_when_book_abandoned": {
+     "n": 0
+    },
+    "d_when_book_kept": {
+     "ci_high": 0.0418,
+     "ci_low": -0.012666666666666666,
+     "mean": 0.015066666666666667,
+     "n": 7500,
+     "sd": 1.1992663016287175
+    },
+    "group_A_d_by_opponent": {
+     "builder": {
+      "ci_high": 0.0362012987012987,
+      "ci_low": -0.044642857142857144,
+      "mean": -0.004707792207792208,
+      "n": 3080,
+      "sd": 1.1534366685608881
+     },
+     "chess": {
+      "ci_high": 0.03699324324324324,
+      "ci_low": -0.040033783783783784,
+      "mean": -0.0016891891891891893,
+      "n": 2960,
+      "sd": 1.0647121730800058
+     },
+     "fox": {
+      "ci_high": 0.04844173441734417,
+      "ci_low": -0.027777777777777776,
+      "mean": 0.01016260162601626,
+      "n": 2952,
+      "sd": 1.0626058247875194
+     },
+     "intruder": {
+      "ci_high": 0.07291666666666667,
+      "ci_low": -0.011078042328042327,
+      "mean": 0.03091931216931217,
+      "n": 3024,
+      "sd": 1.1662214349292401
+     },
+     "wolf": {
+      "ci_high": 0.04205764075067024,
+      "ci_low": -0.03485254691689008,
+      "mean": 0.003351206434316354,
+      "n": 2984,
+      "sd": 1.0703264403846522
+     }
+    },
+    "group_A_d_by_tested_seat": {
+     "0": {
+      "ci_high": 0.1722488038277512,
+      "ci_low": 0.04585326953748006,
+      "mean": 0.11004784688995216,
+      "n": 1254,
+      "sd": 1.1358355190164284
+     },
+     "1": {
+      "ci_high": -0.0776,
+      "ci_low": -0.1872,
+      "mean": -0.1328,
+      "n": 1250,
+      "sd": 0.9907391987803853
+     },
+     "2": {
+      "ci_high": 0.019230769230769232,
+      "ci_low": -0.09334935897435898,
+      "mean": -0.03565705128205128,
+      "n": 1248,
+      "sd": 1.0149772880250523
+     },
+     "3": {
+      "ci_high": 0.15745192307692307,
+      "ci_low": 0.019230769230769232,
+      "mean": 0.08854166666666667,
+      "n": 1248,
+      "sd": 1.242917804255649
+     }
+    },
+    "group_A_d_remaining": {
+     "ci_high": 0.0688,
+     "ci_low": -0.4758,
+     "iters": 10000,
+     "mean": -0.2072,
+     "n": 5000,
+     "seed": 20260901
+    },
+    "group_A_d_sd": 1.1051435381885921,
+    "group_B_d_by_tested_seat": {
+     "0": {
+      "ci_high": 0.05396825396825397,
+      "ci_low": -0.1357142857142857,
+      "mean": -0.03968253968253968,
+      "n": 630,
+      "sd": 1.217275083692128
+     },
+     "1": {
+      "ci_high": -0.26031746031746034,
+      "ci_low": -0.4658730158730159,
+      "mean": -0.3634920634920635,
+      "n": 630,
+      "sd": 1.3061273896039083
+     },
+     "2": {
+      "ci_high": 0.4790996784565916,
+      "ci_low": 0.26768488745980706,
+      "mean": 0.3737942122186495,
+      "n": 622,
+      "sd": 1.3366842679741016
+     },
+     "3": {
+      "ci_high": 0.2766990291262136,
+      "ci_low": 0.03964401294498382,
+      "mean": 0.15614886731391586,
+      "n": 618,
+      "sd": 1.4919859456378661
+     }
+    },
+    "group_B_d_remaining": {
+     "ci_high": -0.0252,
+     "ci_low": -0.6764,
+     "iters": 10000,
+     "mean": -0.3476,
+     "n": 2500,
+     "seed": 20260901
+    },
+    "rank_correlation": 0.2062566429331938,
+    "share_d_negative": 0.332,
+    "share_d_positive": 0.32786666666666664,
+    "share_d_zero": 0.34013333333333334
+   }
+  }
+ }
+}
