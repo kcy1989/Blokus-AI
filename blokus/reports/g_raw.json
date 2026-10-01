@@ -2919,10 +2919,32 @@
   "workers": 12
  },
  "stats": {
+  "collect_game_shape": {
+   "max_real_moves": 76,
+   "mean_passes": 8.1133,
+   "mean_real_moves": 68.3667,
+   "mean_samples_per_game": 35.2,
+   "min_real_moves": 59,
+   "pass_share": 0.1061,
+   "sample_games": 50
+  },
   "distinct_positions": 82821,
+  "extrapolation_to_one_million": {
+   "games_needed": 25349,
+   "mib": 66.06,
+   "minutes": 15.92,
+   "samples_per_game": 39.4491,
+   "seconds": 955.2
+  },
   "games": 2200,
+  "in_prefix_300_game_sample": {
+   "samples_in_prefix": 972,
+   "samples_total": 11650,
+   "share": 0.08343
+  },
   "in_prefix_samples": 7214,
   "in_prefix_share": 0.08312209061160529,
+  "in_prefix_theoretical_if_all_prefix_moves_labelled": 0.15227216843983765,
   "n_candidates": {
    "max": 1066,
    "mean": 194.39422500806563
@@ -2985,6 +3007,22 @@
     "samples_per_game": 4.321818181818182
    }
   },
+  "prefix_length_distribution": {
+   "0": 298,
+   "10": 266,
+   "12": 301,
+   "2": 271,
+   "4": 280,
+   "6": 296,
+   "8": 288,
+   "mean": 6.007
+  },
+  "random_playout_baseline": {
+   "mean_passes": 6.37,
+   "mean_real_moves": 58.96,
+   "pass_share": 0.0975,
+   "sample_games": 200
+  },
   "repeated_position_share": 0.05475411347190856,
   "samples": 86788,
   "samples_per_ply_bucket": {
@@ -3015,6 +3053,21 @@
    "intruder": 0.057272727272727274,
    "optimizer": 0.5402272727272728,
    "wolf": 0.11431818181818182
+  },
+  "shortlist_k_by_ply_bucket": {
+   "means": {
+    "0": 30.64,
+    "16": 33.6,
+    "24": 31.96,
+    "32": 21.55,
+    "40": 6.5,
+    "48": 4.97,
+    "56": 3.95,
+    "64": 5.9,
+    "72": 6.83,
+    "8": 33.58
+   },
+   "note": "measured over 60 games (seeds 1000000-1000059), not the full trial run"
   },
   "shortlist_len": {
    "max": 37,
