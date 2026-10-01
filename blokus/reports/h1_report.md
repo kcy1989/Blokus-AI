@@ -487,11 +487,11 @@ B 組主指標 `d32` 名次差 +0.0242（區間跨 0），但 `d32_remaining` �
 | 既有 492 項測試全過，回報列出最終總數 | 是 —— 最終 **542** |
 | 書本之後差分項非常數的比例已回報 | **是** —— 55 / 100 = **0.550**，見 3.4 |
 | 判定嚴格依規則 | 是 —— 依 `plan5.md` 預先規則，判定只用第一階段；擴大未授權，已在 1.1 與 6.1 記為異常 |
-| 已 commit | 是 —— 見 8.4 |
+| 已 commit | 是 —— commit `bd1dbcd` |
 
 ### 8.4 commit
 
 ```
-<hash>  Stage H1: the differential-scoring optimizer beats v2 on the primary
-       comparison, but loses cells to strong opponents and depends on seat
+bd1dbcd  Stage H1: the differential-scoring optimizer beats v2, but loses cells to
+         strong opponents
 ```
