@@ -1,0 +1,831 @@
+{
+ "h1_0_read_only_findings": {
+  "candidate_range": {
+   "after_restrict_max": 524,
+   "after_restrict_mean": 94,
+   "decisions": 193,
+   "decisions_where_the_cap_bound": 0,
+   "optimizer_scan_cap": 1200,
+   "raw_max": 834,
+   "raw_mean": 214
+  },
+  "opponent_call": {
+   "differed": 0,
+   "incremental_identity": "A_j*(after) = playable_before_j & ~placed",
+   "known_problems": [
+    "a player with no stones has no corner contact, so own_reach returns None and the count is 0 by construction",
+    "F.board_context costs 8.830 us because it also builds cells_to_vertices(anchor); only own_reach (2.446 us) is needed"
+   ],
+   "matched": 2010,
+   "pairs_checked": 2010,
+   "why": "F.own_reach reads board.owner_bits[owner], so my stones never enter j*'s need or avoid set; they only cover squares that were playable for them"
+  },
+  "option_count_expression": {
+   "call": "F.place_state(ctx['board'], n, oi, b, ctx)[4].bit_count()",
+   "defined_at": "ai/formulas.py:456-466 (place_state), fifth element",
+   "is_playable_cells_not_legal_moves": true,
+   "meaning": "empty squares diagonally adjacent to one of my own stones (the new piece included) and sharing no edge with one of them",
+   "null_move_identity": {
+    "checked": "ctx['legal_before'] == need0 & empt & ~avoid0",
+    "claim": "place_state at the null move returns board_context's legal_before",
+    "legal_before_bit_count": 3,
+    "match": true
+   },
+   "oracle_check": {
+    "manual": 6,
+    "match": true,
+    "method": "cell-by-cell reconstruction over board.grid, using no ai.formulas helper",
+    "place_state_index4": 6
+   },
+   "site": "ai/optimizer.py:91"
+  },
+  "pipeline": [
+   "chooser.py:200 _candidates (all legal moves, weighted score)",
+   "chooser.py:206 sort by weighted score, descending, stable",
+   "chooser.py:212 brain.context",
+   "chooser.py:213 brain.restrict (urgent, then largest piece only)",
+   "chooser.py:214 brain.rescore  <-- the option count is used here",
+   "chooser.py:215 keep the top 40",
+   "chooser.py:220 lookahead skipped: OptimizerBrain.uses_lookahead is False (optimizer.py:47)",
+   "chooser.py:261 _build_shortlist (top 34 plus up to 6 corner moves within CORNER_BAND = 12 cells)",
+   "chooser.py:266 pick = shortlist[0]",
+   "chooser.py:268 no draw: OptimizerBrain.mistake_rate is 0.0 (optimizer.py:51)"
+  ],
+  "tie_break": "no explicit key; Python's stable sort keeps restrict's order, which is descending weighted score, which follows (hand piece order, orientation index, ascending base)",
+  "timings_us": {
+   "and_not_bit_count": 0.211,
+   "board_context": 8.83,
+   "odirs_shape_shift": 0.198,
+   "own_reach": 2.446
+  },
+  "unplaced_opponents": {
+   "decisions_where_all_three_counts_are_zero": 0,
+   "decisions_with_a_tie_at_the_max": 25,
+   "decisions_with_an_unplaced_opponent": 0,
+   "post_book_decisions": 320
+  },
+  "v1_per_move_ms": {
+   "games": 30,
+   "mean": 1.784,
+   "moves": 478
+  }
+ },
+ "h1_1_v3": {
+  "differential_term_varies": {
+   "distinct_value_histogram": {
+    "1": 45,
+    "2": 27,
+    "3": 25,
+    "4": 3
+   },
+   "note": "the acceptance item; 0 would mean the term cannot change any ranking",
+   "positions": 100,
+   "share": 0.55,
+   "varies": 55
+  },
+  "divergence_and_timing": {
+   "positions": 500,
+   "ratio": 1.03,
+   "share": 0.226,
+   "ten_x_limit_breached": false,
+   "v1_mean_ms": 2.1091,
+   "v3_mean_ms": 2.1728,
+   "v3_vs_v2_differ": 113
+  }
+ },
+ "h1_2_paired": {
+  "diagnostic": {
+   "abandoned_v2": 0,
+   "abandoned_v3": 0,
+   "book_moves_v2_total": 150,
+   "book_moves_v3_total": 150,
+   "games": 50,
+   "identical_book_behaviour": 50
+  },
+  "expansion": {
+   "authorised": false,
+   "pairs_a": 3000,
+   "pairs_b": 1500,
+   "seconds": {
+    "A": {
+     "seconds": 489.1055243139999
+    },
+    "B": {
+     "seconds": 225.78952465399925
+    }
+   },
+   "stats": {
+    "n_games": 22500,
+    "n_pairs": 7500,
+    "primary": {
+     "group_A_d32": {
+      "ci_high": -0.0543,
+      "ci_low": -0.1086,
+      "mean": -0.0817,
+      "n": 5000,
+      "sd": 0.9700326296885751
+     },
+     "group_B_d32": {
+      "ci_high": 0.0742,
+      "ci_low": -0.0254,
+      "mean": 0.0242,
+      "n": 2500,
+      "sd": 1.26394358313674
+     }
+    },
+    "secondary": {
+     "book_abandoned_v2_at_counts": {
+      "none": 7500
+     },
+     "book_abandoned_v2_share": 0.0,
+     "book_abandoned_v3_at_counts": {
+      "none": 7500
+     },
+     "book_abandoned_v3_share": 0.0,
+     "book_moves_v2_mean": 3.0,
+     "book_moves_v3_mean": 3.0,
+     "group_A_d21": {
+      "ci_high": 0.024602499999999965,
+      "ci_low": -0.0366,
+      "mean": -0.0059,
+      "n": 5000,
+      "sd": 1.1169443598230793
+     },
+     "group_A_d31": {
+      "ci_high": -0.05799750000000004,
+      "ci_low": -0.1175,
+      "mean": -0.0876,
+      "n": 5000,
+      "sd": 1.0987118246085763
+     },
+     "group_A_d32_by_opponent": {
+      "builder+chess+fox": {
+       "ci_high": 0.04375,
+       "ci_low": -0.12395833333333334,
+       "mean": -0.040625,
+       "n": 480,
+       "sd": 0.9385701963997884
+      },
+      "builder+chess+intruder": {
+       "ci_high": -0.06439393939393939,
+       "ci_low": -0.24147727272727273,
+       "mean": -0.1543560606060606,
+       "n": 528,
+       "sd": 1.0346648120815667
+      },
+      "builder+chess+wolf": {
+       "ci_high": -0.068359375,
+       "ci_low": -0.234375,
+       "mean": -0.15234375,
+       "n": 512,
+       "sd": 0.951995727904868
+      },
+      "builder+fox+intruder": {
+       "ci_high": -0.07670454545454546,
+       "ci_low": -0.2604166666666667,
+       "mean": -0.16856060606060605,
+       "n": 528,
+       "sd": 1.0780702645798041
+      },
+      "builder+fox+wolf": {
+       "ci_high": 0.05654761904761905,
+       "ci_low": -0.10617559523809521,
+       "mean": -0.0248015873015873,
+       "n": 504,
+       "sd": 0.935217711184716
+      },
+      "builder+intruder+wolf": {
+       "ci_high": 0.06723484848484848,
+       "ci_low": -0.1268939393939394,
+       "mean": -0.030303030303030304,
+       "n": 528,
+       "sd": 1.1338463291518905
+      },
+      "chess+fox+intruder": {
+       "ci_high": 0.029166666666666667,
+       "ci_low": -0.1354427083333333,
+       "mean": -0.052083333333333336,
+       "n": 480,
+       "sd": 0.9343792293224862
+      },
+      "chess+fox+wolf": {
+       "ci_high": 0.029166666666666667,
+       "ci_low": -0.10520833333333333,
+       "mean": -0.0375,
+       "n": 480,
+       "sd": 0.7400346998578763
+      },
+      "chess+intruder+wolf": {
+       "ci_high": 0.021875,
+       "ci_low": -0.1375,
+       "mean": -0.057291666666666664,
+       "n": 480,
+       "sd": 0.8938136714452023
+      },
+      "fox+intruder+wolf": {
+       "ci_high": -0.0020833333333333333,
+       "ci_low": -0.17291666666666666,
+       "mean": -0.08645833333333333,
+       "n": 480,
+       "sd": 0.9656544279668134
+      }
+     },
+     "group_A_d32_by_tested_seat": {
+      "0": {
+       "ci_high": -0.03787878787878788,
+       "ci_low": -0.14792663476874005,
+       "mean": -0.09250398724082935,
+       "n": 1254,
+       "sd": 1.0074619986654776
+      },
+      "1": {
+       "ci_high": 0.0272,
+       "ci_low": -0.06441,
+       "mean": -0.0188,
+       "n": 1250,
+       "sd": 0.8187691165970016
+      },
+      "2": {
+       "ci_high": -0.06169871794871795,
+       "ci_low": -0.16826923076923078,
+       "mean": -0.11458333333333333,
+       "n": 1248,
+       "sd": 0.955553800696291
+      },
+      "3": {
+       "ci_high": -0.040865384615384616,
+       "ci_low": -0.16145833333333334,
+       "mean": -0.10096153846153846,
+       "n": 1248,
+       "sd": 1.0780595468948084
+      }
+     },
+     "group_A_d32_remaining": {
+      "ci_high": 0.30020499999999994,
+      "ci_low": -0.176605,
+      "mean": 0.0596,
+      "n": 5000,
+      "sd": 8.650769619114858
+     },
+     "group_B_d21": {
+      "ci_high": 0.0952,
+      "ci_low": -0.013,
+      "mean": 0.0412,
+      "n": 2500,
+      "sd": 1.3797333168443255
+     },
+     "group_B_d31": {
+      "ci_high": 0.1194,
+      "ci_low": 0.0112,
+      "mean": 0.0654,
+      "n": 2500,
+      "sd": 1.3773095631168257
+     },
+     "group_B_d32_by_opponent": {
+      "builder+intruder+optimizer": {
+       "ci_high": 0.0742,
+       "ci_low": -0.0254,
+       "mean": 0.0242,
+       "n": 2500,
+       "sd": 1.26394358313674
+      }
+     },
+     "group_B_d32_by_tested_seat": {
+      "0": {
+       "ci_high": 0.18888888888888888,
+       "ci_low": 0.005555555555555556,
+       "mean": 0.09841269841269841,
+       "n": 630,
+       "sd": 1.1820722371180883
+      },
+      "1": {
+       "ci_high": 0.5190476190476191,
+       "ci_low": 0.3349206349206349,
+       "mean": 0.42857142857142855,
+       "n": 630,
+       "sd": 1.1766040124205173
+      },
+      "2": {
+       "ci_high": -0.3167202572347267,
+       "ci_low": -0.5289590032154341,
+       "mean": -0.4212218649517685,
+       "n": 622,
+       "sd": 1.3808792453176972
+      },
+      "3": {
+       "ci_high": 0.07766990291262135,
+       "ci_low": -0.10598705501618123,
+       "mean": -0.015372168284789644,
+       "n": 618,
+       "sd": 1.1581603674064085
+      }
+     },
+     "group_B_d32_remaining": {
+      "ci_high": 1.2628,
+      "ci_low": 0.664,
+      "mean": 0.962,
+      "n": 2500,
+      "sd": 7.637688767938005
+     },
+     "rank_corr_v1_v2": 0.1908913426479432,
+     "rank_corr_v1_v3": 0.21028746138267534,
+     "rank_corr_v2_v3": 0.3692025454070413,
+     "share_d32_negative": 0.3,
+     "share_d32_positive": 0.272,
+     "share_d32_zero": 0.428
+    }
+   },
+   "why": "plan5.md permits one expansion only when the phase 1 group A interval contains zero; it did not, so the expansion was not a permitted step"
+  },
+  "phase1": {
+   "decision": {
+    "A_ci_high": -0.05225,
+    "A_ci_low": -0.1395,
+    "A_mean": -0.096,
+    "B_ci_high": 0.1265,
+    "B_ci_low": -0.0265,
+    "B_mean": 0.05,
+    "reason": "group A d32 95% CI high is -0.052250, below 0, and group B low is -0.026500, at or below 0",
+    "verdict": "adopt v3"
+   },
+   "pairs_a": 2000,
+   "pairs_b": 1000,
+   "seconds": {
+    "A": {
+     "seconds": 344.9142500119924
+    },
+    "B": {
+     "seconds": 158.95160214600037
+    }
+   },
+   "stats": {
+    "n_games": 9000,
+    "n_pairs": 3000,
+    "primary": {
+     "group_A_d32": {
+      "ci_high": -0.05225,
+      "ci_low": -0.1395,
+      "mean": -0.096,
+      "n": 2000,
+      "sd": 0.9789091538880321
+     },
+     "group_B_d32": {
+      "ci_high": 0.1265,
+      "ci_low": -0.0265,
+      "mean": 0.05,
+      "n": 1000,
+      "sd": 1.2542220987819792
+     }
+    },
+    "secondary": {
+     "book_abandoned_v2_at_counts": {
+      "none": 3000
+     },
+     "book_abandoned_v2_share": 0.0,
+     "book_abandoned_v3_at_counts": {
+      "none": 3000
+     },
+     "book_abandoned_v3_share": 0.0,
+     "book_moves_v2_mean": 3.0,
+     "book_moves_v3_mean": 3.0,
+     "group_A_d21": {
+      "ci_high": 0.04675,
+      "ci_low": -0.051,
+      "mean": -0.00175,
+      "n": 2000,
+      "sd": 1.1227208863267384
+     },
+     "group_A_d31": {
+      "ci_high": -0.04875,
+      "ci_low": -0.14725,
+      "mean": -0.09775,
+      "n": 2000,
+      "sd": 1.1171140986733303
+     },
+     "group_A_d32_by_opponent": {
+      "builder+chess+fox": {
+       "ci_high": 0.0390625,
+       "ci_low": -0.23697916666666666,
+       "mean": -0.09895833333333333,
+       "n": 192,
+       "sd": 0.9884669807721392
+      },
+      "builder+chess+intruder": {
+       "ci_high": -0.06481481481481481,
+       "ci_low": -0.3194444444444444,
+       "mean": -0.19212962962962962,
+       "n": 216,
+       "sd": 0.9481355520063925
+      },
+      "builder+chess+wolf": {
+       "ci_high": -0.11,
+       "ci_low": -0.37,
+       "mean": -0.2375,
+       "n": 200,
+       "sd": 0.9323034369197951
+      },
+      "builder+fox+intruder": {
+       "ci_high": 0.041666666666666664,
+       "ci_low": -0.2523148148148148,
+       "mean": -0.1087962962962963,
+       "n": 216,
+       "sd": 1.1127031552935276
+      },
+      "builder+fox+wolf": {
+       "ci_high": 0.10416666666666667,
+       "ci_low": -0.1485026041666666,
+       "mean": -0.0234375,
+       "n": 192,
+       "sd": 0.8998095530029634
+      },
+      "builder+intruder+wolf": {
+       "ci_high": 0.0763888888888889,
+       "ci_low": -0.22453703703703703,
+       "mean": -0.07407407407407407,
+       "n": 216,
+       "sd": 1.1610236357885242
+      },
+      "chess+fox+intruder": {
+       "ci_high": 0.12766927083333238,
+       "ci_low": -0.1328125,
+       "mean": 0.0,
+       "n": 192,
+       "sd": 0.9294484092996976
+      },
+      "chess+fox+wolf": {
+       "ci_high": 0.13541666666666666,
+       "ci_low": -0.0703125,
+       "mean": 0.033854166666666664,
+       "n": 192,
+       "sd": 0.7272912806390179
+      },
+      "chess+intruder+wolf": {
+       "ci_high": 0.0,
+       "ci_low": -0.2734375,
+       "mean": -0.13541666666666666,
+       "n": 192,
+       "sd": 0.969371704184004
+      },
+      "fox+intruder+wolf": {
+       "ci_high": 0.033919270833332384,
+       "ci_low": -0.2500651041666666,
+       "mean": -0.10677083333333333,
+       "n": 192,
+       "sd": 1.0079817529218402
+      }
+     },
+     "group_A_d32_by_tested_seat": {
+      "0": {
+       "ci_high": -0.003968253968253968,
+       "ci_low": -0.17956349206349206,
+       "mean": -0.09126984126984126,
+       "n": 504,
+       "sd": 1.0121543538350517
+      },
+      "1": {
+       "ci_high": 0.08,
+       "ci_low": -0.065,
+       "mean": 0.007,
+       "n": 500,
+       "sd": 0.8377676941842754
+      },
+      "2": {
+       "ci_high": -0.09437751004016064,
+       "ci_low": -0.2740963855421687,
+       "mean": -0.18473895582329317,
+       "n": 498,
+       "sd": 1.0095161062315747
+      },
+      "3": {
+       "ci_high": -0.02610441767068273,
+       "ci_low": -0.20481927710843373,
+       "mean": -0.11546184738955824,
+       "n": 498,
+       "sd": 1.0366628704608618
+      }
+     },
+     "group_A_d32_remaining": {
+      "ci_high": 0.3125,
+      "ci_low": -0.4535,
+      "mean": -0.068,
+      "n": 2000,
+      "sd": 8.648686367763833
+     },
+     "group_B_d21": {
+      "ci_high": 0.1445,
+      "ci_low": -0.02401249999999999,
+      "mean": 0.06,
+      "n": 1000,
+      "sd": 1.3497117180056346
+     },
+     "group_B_d31": {
+      "ci_high": 0.196,
+      "ci_low": 0.023,
+      "mean": 0.11,
+      "n": 1000,
+      "sd": 1.3940385013848589
+     },
+     "group_B_d32_by_opponent": {
+      "builder+intruder+optimizer": {
+       "ci_high": 0.1265,
+       "ci_low": -0.0265,
+       "mean": 0.05,
+       "n": 1000,
+       "sd": 1.2542220987819792
+      }
+     },
+     "group_B_d32_by_tested_seat": {
+      "0": {
+       "ci_high": 0.20833333333333334,
+       "ci_low": -0.07936507936507936,
+       "mean": 0.06547619047619048,
+       "n": 252,
+       "sd": 1.1692774403444963
+      },
+      "1": {
+       "ci_high": 0.5952380952380952,
+       "ci_low": 0.3115079365079365,
+       "mean": 0.45436507936507936,
+       "n": 252,
+       "sd": 1.1444047120973033
+      },
+      "2": {
+       "ci_high": -0.176,
+       "ci_low": -0.51805,
+       "mean": -0.346,
+       "n": 250,
+       "sd": 1.3989683519648317
+      },
+      "3": {
+       "ci_high": 0.16666666666666666,
+       "ci_low": -0.12398373983739837,
+       "mean": 0.022357723577235773,
+       "n": 246,
+       "sd": 1.1634344522029403
+      }
+     },
+     "group_B_d32_remaining": {
+      "ci_high": 1.692,
+      "ci_low": 0.7699750000000001,
+      "mean": 1.23,
+      "n": 1000,
+      "sd": 7.534711133936846
+     },
+     "rank_corr_v1_v2": 0.2060392730286278,
+     "rank_corr_v1_v3": 0.18901478818934853,
+     "rank_corr_v2_v3": 0.3684681405313079,
+     "share_d32_negative": 0.31333333333333335,
+     "share_d32_positive": 0.2773333333333333,
+     "share_d32_zero": 0.4093333333333333
+    }
+   }
+  },
+  "phase1_rerun": {
+   "decision": {
+    "A_ci_high": -0.05225,
+    "A_ci_low": -0.1395,
+    "A_mean": -0.096,
+    "B_ci_high": 0.1265,
+    "B_ci_low": -0.0265,
+    "B_mean": 0.05,
+    "reason": "group A d32 95% CI high is -0.052250, below 0, and group B low is -0.026500, at or below 0",
+    "verdict": "adopt v3"
+   },
+   "seconds": {
+    "A": {
+     "seconds": 362.07319080500747
+    },
+    "B": {
+     "seconds": 157.9711949259945
+    }
+   },
+   "stats": {
+    "n_games": 9000,
+    "n_pairs": 3000,
+    "primary": {
+     "group_A_d32": {
+      "ci_high": -0.05225,
+      "ci_low": -0.1395,
+      "mean": -0.096,
+      "n": 2000,
+      "sd": 0.9789091538880321
+     },
+     "group_B_d32": {
+      "ci_high": 0.1265,
+      "ci_low": -0.0265,
+      "mean": 0.05,
+      "n": 1000,
+      "sd": 1.2542220987819792
+     }
+    },
+    "secondary": {
+     "book_abandoned_v2_at_counts": {
+      "none": 3000
+     },
+     "book_abandoned_v2_share": 0.0,
+     "book_abandoned_v3_at_counts": {
+      "none": 3000
+     },
+     "book_abandoned_v3_share": 0.0,
+     "book_moves_v2_mean": 3.0,
+     "book_moves_v3_mean": 3.0,
+     "group_A_d21": {
+      "ci_high": 0.04675,
+      "ci_low": -0.051,
+      "mean": -0.00175,
+      "n": 2000,
+      "sd": 1.1227208863267384
+     },
+     "group_A_d31": {
+      "ci_high": -0.04875,
+      "ci_low": -0.14725,
+      "mean": -0.09775,
+      "n": 2000,
+      "sd": 1.1171140986733303
+     },
+     "group_A_d32_by_opponent": {
+      "builder+chess+fox": {
+       "ci_high": 0.0390625,
+       "ci_low": -0.23697916666666666,
+       "mean": -0.09895833333333333,
+       "n": 192,
+       "sd": 0.9884669807721392
+      },
+      "builder+chess+intruder": {
+       "ci_high": -0.06481481481481481,
+       "ci_low": -0.3194444444444444,
+       "mean": -0.19212962962962962,
+       "n": 216,
+       "sd": 0.9481355520063925
+      },
+      "builder+chess+wolf": {
+       "ci_high": -0.11,
+       "ci_low": -0.37,
+       "mean": -0.2375,
+       "n": 200,
+       "sd": 0.9323034369197951
+      },
+      "builder+fox+intruder": {
+       "ci_high": 0.041666666666666664,
+       "ci_low": -0.2523148148148148,
+       "mean": -0.1087962962962963,
+       "n": 216,
+       "sd": 1.1127031552935276
+      },
+      "builder+fox+wolf": {
+       "ci_high": 0.10416666666666667,
+       "ci_low": -0.1485026041666666,
+       "mean": -0.0234375,
+       "n": 192,
+       "sd": 0.8998095530029634
+      },
+      "builder+intruder+wolf": {
+       "ci_high": 0.0763888888888889,
+       "ci_low": -0.22453703703703703,
+       "mean": -0.07407407407407407,
+       "n": 216,
+       "sd": 1.1610236357885242
+      },
+      "chess+fox+intruder": {
+       "ci_high": 0.12766927083333238,
+       "ci_low": -0.1328125,
+       "mean": 0.0,
+       "n": 192,
+       "sd": 0.9294484092996976
+      },
+      "chess+fox+wolf": {
+       "ci_high": 0.13541666666666666,
+       "ci_low": -0.0703125,
+       "mean": 0.033854166666666664,
+       "n": 192,
+       "sd": 0.7272912806390179
+      },
+      "chess+intruder+wolf": {
+       "ci_high": 0.0,
+       "ci_low": -0.2734375,
+       "mean": -0.13541666666666666,
+       "n": 192,
+       "sd": 0.969371704184004
+      },
+      "fox+intruder+wolf": {
+       "ci_high": 0.033919270833332384,
+       "ci_low": -0.2500651041666666,
+       "mean": -0.10677083333333333,
+       "n": 192,
+       "sd": 1.0079817529218402
+      }
+     },
+     "group_A_d32_by_tested_seat": {
+      "0": {
+       "ci_high": -0.003968253968253968,
+       "ci_low": -0.17956349206349206,
+       "mean": -0.09126984126984126,
+       "n": 504,
+       "sd": 1.0121543538350517
+      },
+      "1": {
+       "ci_high": 0.08,
+       "ci_low": -0.065,
+       "mean": 0.007,
+       "n": 500,
+       "sd": 0.8377676941842754
+      },
+      "2": {
+       "ci_high": -0.09437751004016064,
+       "ci_low": -0.2740963855421687,
+       "mean": -0.18473895582329317,
+       "n": 498,
+       "sd": 1.0095161062315747
+      },
+      "3": {
+       "ci_high": -0.02610441767068273,
+       "ci_low": -0.20481927710843373,
+       "mean": -0.11546184738955824,
+       "n": 498,
+       "sd": 1.0366628704608618
+      }
+     },
+     "group_A_d32_remaining": {
+      "ci_high": 0.3125,
+      "ci_low": -0.4535,
+      "mean": -0.068,
+      "n": 2000,
+      "sd": 8.648686367763833
+     },
+     "group_B_d21": {
+      "ci_high": 0.1445,
+      "ci_low": -0.02401249999999999,
+      "mean": 0.06,
+      "n": 1000,
+      "sd": 1.3497117180056346
+     },
+     "group_B_d31": {
+      "ci_high": 0.196,
+      "ci_low": 0.023,
+      "mean": 0.11,
+      "n": 1000,
+      "sd": 1.3940385013848589
+     },
+     "group_B_d32_by_opponent": {
+      "builder+intruder+optimizer": {
+       "ci_high": 0.1265,
+       "ci_low": -0.0265,
+       "mean": 0.05,
+       "n": 1000,
+       "sd": 1.2542220987819792
+      }
+     },
+     "group_B_d32_by_tested_seat": {
+      "0": {
+       "ci_high": 0.20833333333333334,
+       "ci_low": -0.07936507936507936,
+       "mean": 0.06547619047619048,
+       "n": 252,
+       "sd": 1.1692774403444963
+      },
+      "1": {
+       "ci_high": 0.5952380952380952,
+       "ci_low": 0.3115079365079365,
+       "mean": 0.45436507936507936,
+       "n": 252,
+       "sd": 1.1444047120973033
+      },
+      "2": {
+       "ci_high": -0.176,
+       "ci_low": -0.51805,
+       "mean": -0.346,
+       "n": 250,
+       "sd": 1.3989683519648317
+      },
+      "3": {
+       "ci_high": 0.16666666666666666,
+       "ci_low": -0.12398373983739837,
+       "mean": 0.022357723577235773,
+       "n": 246,
+       "sd": 1.1634344522029403
+      }
+     },
+     "group_B_d32_remaining": {
+      "ci_high": 1.692,
+      "ci_low": 0.7699750000000001,
+      "mean": 1.23,
+      "n": 1000,
+      "sd": 7.534711133936846
+     },
+     "rank_corr_v1_v2": 0.2060392730286278,
+     "rank_corr_v1_v3": 0.18901478818934853,
+     "rank_corr_v2_v3": 0.3684681405313079,
+     "share_d32_negative": 0.31333333333333335,
+     "share_d32_positive": 0.2773333333333333,
+     "share_d32_zero": 0.4093333333333333
+    }
+   }
+  }
+ },
+ "stage": "H1",
+ "totals": {
+  "games": 22500,
+  "pairs": 7500
+ },
+ "verdict": "adopt v3"
+}
