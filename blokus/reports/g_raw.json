@@ -1,0 +1,3030 @@
+{
+ "disk": {
+  "bytes": 6011986,
+  "files": {
+   "imit_train_1000000_1000166.npz": 440284,
+   "imit_train_1000167_1000333.npz": 452208,
+   "imit_train_1000334_1000500.npz": 446603,
+   "imit_train_1000501_1000667.npz": 450993,
+   "imit_train_1000668_1000834.npz": 460486,
+   "imit_train_1000835_1001001.npz": 460106,
+   "imit_train_1001002_1001168.npz": 443892,
+   "imit_train_1001169_1001335.npz": 453866,
+   "imit_train_1001336_1001502.npz": 460639,
+   "imit_train_1001503_1001669.npz": 438857,
+   "imit_train_1001670_1001836.npz": 443258,
+   "imit_train_1001837_1001999.npz": 430238,
+   "imit_valid_2000000_2000016.npz": 50063,
+   "imit_valid_2000017_2000033.npz": 49443,
+   "imit_valid_2000034_2000050.npz": 49479,
+   "imit_valid_2000051_2000067.npz": 50027,
+   "imit_valid_2000068_2000084.npz": 51323,
+   "imit_valid_2000085_2000101.npz": 47953,
+   "imit_valid_2000102_2000118.npz": 50937,
+   "imit_valid_2000119_2000135.npz": 54267,
+   "imit_valid_2000136_2000152.npz": 51512,
+   "imit_valid_2000153_2000169.npz": 48288,
+   "imit_valid_2000170_2000186.npz": 52376,
+   "imit_valid_2000187_2000199.npz": 39271,
+   "manifest.json": 35617
+  },
+  "mib": 5.733476638793945
+ },
+ "g0": {
+  "_measurement_inference": [
+   {
+    "batch": 64,
+    "iterations": 50,
+    "max_ms": 3.7010510059189983,
+    "mean_ms": 3.5255573003087193,
+    "median_ms": 3.523115999996662,
+    "min_ms": 3.4538489999249578,
+    "policy_shape": [
+     64,
+     91,
+     20,
+     20
+    ],
+    "positions_per_second": 363.0631673148286,
+    "value_shape": [
+     64,
+     4,
+     20,
+     20
+    ],
+    "warmup": 10
+   },
+   {
+    "batch": 256,
+    "iterations": 50,
+    "max_ms": 4.5937149989185855,
+    "mean_ms": 4.1795534593984485,
+    "median_ms": 4.2563479946693406,
+    "min_ms": 4.023870998935308,
+    "policy_shape": [
+     256,
+     91,
+     20,
+     20
+    ],
+    "positions_per_second": 1225.0112481482429,
+    "value_shape": [
+     256,
+     4,
+     20,
+     20
+    ],
+    "warmup": 10
+   },
+   {
+    "batch": 1024,
+    "iterations": 50,
+    "max_ms": 28.08238899888238,
+    "mean_ms": 26.87480310065439,
+    "median_ms": 26.917542003502604,
+    "min_ms": 26.259436999680474,
+    "policy_shape": [
+     1024,
+     91,
+     20,
+     20
+    ],
+    "positions_per_second": 762.0520947928851,
+    "value_shape": [
+     1024,
+     4,
+     20,
+     20
+    ],
+    "warmup": 10
+   }
+  ],
+  "_measurement_memory": {
+   "peak_allocated_bytes": 642076672,
+   "peak_allocated_gib": 0.5979804992675781,
+   "peak_reserved_bytes": 801112064
+  },
+  "_measurement_train_step": {
+   "batch": 256,
+   "iterations": 50,
+   "last_loss": 0.9991368055343628,
+   "loss": "MSE against a random (91, 20, 20) target, standing in for the real policy objective",
+   "max_ms": 22.835463998490013,
+   "mean_ms": 20.675074860046152,
+   "median_ms": 21.328585004084744,
+   "min_ms": 17.698846000712365,
+   "optimizer": "AdamW lr=1e-4",
+   "positions_per_second": 247.64118314726,
+   "warmup": 10
+  },
+  "bf16": {
+   "dtype": "torch.bfloat16",
+   "grad_abs_mean": 6.742703437805176,
+   "gradients_finite": true,
+   "gradients_present": true,
+   "input_shape": [
+    256,
+    14,
+    20,
+    20
+   ],
+   "ok": true,
+   "output_dtype": "torch.bfloat16",
+   "output_shape": [
+    256,
+    64,
+    20,
+    20
+   ]
+  },
+  "facts": {
+   "arch_list": [
+    "sm_75",
+    "sm_80",
+    "sm_86",
+    "sm_90",
+    "sm_100",
+    "sm_120"
+   ],
+   "cuda_is_available": true,
+   "device_0_capability": [
+    12,
+    0
+   ],
+   "device_0_multi_processor_count": 36,
+   "device_0_name": "NVIDIA GeForce RTX 5060 Ti",
+   "device_0_total_memory_bytes": 16616521728,
+   "device_0_total_memory_gib": 15.475341796875,
+   "device_count": 1,
+   "torch_version": "2.11.0+cu128",
+   "torch_version_cuda": "12.8"
+  },
+  "fp16": {
+   "dtype": "torch.float16",
+   "grad_abs_mean": 0.001057134009897709,
+   "gradients_finite": true,
+   "gradients_present": true,
+   "input_shape": [
+    256,
+    14,
+    20,
+    20
+   ],
+   "ok": true,
+   "output_dtype": "torch.float16",
+   "output_shape": [
+    256,
+    64,
+    20,
+    20
+   ]
+  },
+  "model": {
+   "architecture": "6 residual blocks, 64 channels, 14 input channels, policy head 1x1 -> 91 planes, value head 1x1 -> 4 planes",
+   "disposed": "built here and thrown away; nothing trains in this repository yet",
+   "parameters": 458271
+  },
+  "numpy_interop": {
+   "dtype_preserved": true,
+   "from_numpy": true,
+   "numpy_dtype_preserved": true,
+   "numpy_version": "2.5.3",
+   "shape_preserved": true,
+   "shares_memory": true,
+   "values_equal": true
+  }
+ },
+ "g1": {
+  "legal_indices": {
+   "mean_ms": 0.5548804091955682,
+   "positions": 29580
+  },
+  "legal_mask_view": {
+   "mean_ms": 0.5977651470925639,
+   "positions": 29580
+  },
+  "legal_move_mask": {
+   "mean_ms": 0.5058885567613447,
+   "positions": 29580
+  },
+  "legal_moves_engine": {
+   "mean_ms": 0.6570914664975469,
+   "positions": 29580
+  },
+  "note": "wall-clock; a measurement, not a result"
+ },
+ "g1_constants": {
+  "N_ACTIONS": 36400,
+  "N_ORIENT": 91,
+  "real_actions": 30433
+ },
+ "g2": {
+  "all": {
+   "featurize": {
+    "max_ms": 0.26305299979867414,
+    "mean_ms": 0.1185022525180011,
+    "median_ms": 0.12079199950676411,
+    "min_ms": 0.07776200072839856,
+    "n": 5916
+   },
+   "featurize_via_normalize": {
+    "max_ms": 1.1733179999282584,
+    "mean_ms": 0.2918773726508029,
+    "median_ms": 0.25019849999807775,
+    "min_ms": 0.07404400093946606,
+    "n": 5916
+   },
+   "positions": 5916,
+   "to_plane_plus_hand_vectors": {
+    "max_ms": 2.426008002657909,
+    "mean_ms": 0.41417274158994044,
+    "median_ms": 0.3584254991437774,
+    "min_ms": 0.08345099922735244,
+    "n": 5916
+   }
+  },
+  "batch": {
+   "1": {
+    "ms_per_position": 0.0792729050226626,
+    "total_ms": 0.0792729050226626
+   },
+   "256": {
+    "ms_per_position": 0.1171175312606465,
+    "total_ms": 29.982088002725504
+   },
+   "32": {
+    "ms_per_position": 0.1205117448156064,
+    "total_ms": 3.856375834099405
+   }
+  },
+  "note": "wall-clock; a measurement, not a result",
+  "stages": {
+   "end": {
+    "featurize": {
+     "max_ms": 0.13581100211013108,
+     "mean_ms": 0.10717764864669442,
+     "median_ms": 0.11181749869138002,
+     "min_ms": 0.0778359972173348,
+     "n": 1116
+    },
+    "featurize_via_normalize": {
+     "max_ms": 0.611716001003515,
+     "mean_ms": 0.3108398019667155,
+     "median_ms": 0.3676745000120718,
+     "min_ms": 0.07276299584191293,
+     "n": 1116
+    },
+    "to_plane_plus_hand_vectors": {
+     "max_ms": 1.1380340001778677,
+     "mean_ms": 0.5493011163205691,
+     "median_ms": 0.6611540011363104,
+     "min_ms": 0.0857479972182773,
+     "n": 1116
+    }
+   },
+   "middle": {
+    "featurize": {
+     "max_ms": 0.17539099644636735,
+     "mean_ms": 0.11633259775862825,
+     "median_ms": 0.1204350010084454,
+     "min_ms": 0.08530900231562555,
+     "n": 3200
+    },
+    "featurize_via_normalize": {
+     "max_ms": 0.5959769987384789,
+     "mean_ms": 0.25971693157998743,
+     "median_ms": 0.24807400404824875,
+     "min_ms": 0.07914600428193808,
+     "n": 3200
+    },
+    "to_plane_plus_hand_vectors": {
+     "max_ms": 0.9691630039014854,
+     "mean_ms": 0.4359783597396927,
+     "median_ms": 0.40582549991086125,
+     "min_ms": 0.09325599967269227,
+     "n": 3200
+    }
+   },
+   "opening": {
+    "featurize": {
+     "max_ms": 0.2855120037565939,
+     "mean_ms": 0.12266087562693428,
+     "median_ms": 0.1277090013900306,
+     "min_ms": 0.08492800407111645,
+     "n": 1600
+    },
+    "featurize_via_normalize": {
+     "max_ms": 0.33744000393198803,
+     "mean_ms": 0.16866379803104792,
+     "median_ms": 0.15503399845329113,
+     "min_ms": 0.08207499922718853,
+     "n": 1600
+    },
+    "to_plane_plus_hand_vectors": {
+     "max_ms": 0.6752490007784218,
+     "mean_ms": 0.25009051131291926,
+     "median_ms": 0.22114749663160183,
+     "min_ms": 0.09505700290901586,
+     "n": 1600
+    }
+   }
+  }
+ },
+ "g5": {
+  "pytest_stdout": "\n--- G5 normalize probe (measurement, not an assertion) ---\nmover_not_yet_opened         positions 200  equal   0  differ 200  share_differing 1.0000\n    mover owner 0:  50 positions,   0 equal,  50 differ\n    mover owner 1:  50 positions,   0 equal,  50 differ\n    mover owner 2:  50 positions,   0 equal,  50 differ\n    mover owner 3:  50 positions,   0 equal,  50 differ\n    example seed 0 to_move 1: real 58, view 58, only-in-real 58, only-in-view 58\n    example seed 0 to_move 2: real 58, view 58, only-in-real 58, only-in-view 58\nmover_already_opened         positions 200  equal 200  differ   0  share_differing 0.0000\n    mover owner 0:  51 positions,  51 equal,   0 differ\n    mover owner 1:  54 positions,  54 equal,   0 differ\n    mover owner 2:  48 positions,  48 equal,   0 differ\n    mover owner 3:  47 positions,  47 equal,   0 differ\n--- end G5 probe ---\n\n...\n3 passed in 7.35s\n",
+  "returncode": 0,
+  "summary": {
+   "mover_already_opened": {
+    "differ": 0,
+    "equal": 200,
+    "positions": 200,
+    "share_differing": 0.0
+   },
+   "mover_counts_opened": {
+    "0": 51,
+    "1": 54,
+    "2": 48,
+    "3": 47
+   },
+   "mover_counts_unopened": {
+    "0": 50,
+    "1": 50,
+    "2": 50,
+    "3": 50
+   },
+   "mover_not_yet_opened": {
+    "differ": 200,
+    "equal": 0,
+    "positions": 200,
+    "share_differing": 1.0
+   }
+  }
+ },
+ "manifest": {
+  "action_table_hash": "91252a354b090d43",
+  "code": {
+   "commit": "5bfc1349315d5d8a801b1e6ffcada4254aed4d24",
+   "dirty": true,
+   "note": "the tree had uncommitted changes, so the commit alone does not identify this data"
+  },
+  "controller_weights": {
+   "builder": 0.0625,
+   "chess": 0.125,
+   "fox": 0.125,
+   "intruder": 0.0625,
+   "optimizer": 0.5,
+   "wolf": 0.125
+  },
+  "created_by": "rl/collect.py",
+  "excluded_seed_ranges": {
+   "bench_engine": [
+    0,
+    199
+   ],
+   "tools_benchmark": [
+    20240101,
+    20336965
+   ]
+  },
+  "field_order": [
+   "own_bits",
+   "hand_bits",
+   "stuck",
+   "to_move",
+   "action",
+   "n_legal",
+   "n_candidates",
+   "shortlist_idx",
+   "shortlist_score",
+   "ply",
+   "game_id",
+   "in_prefix",
+   "outcome_util",
+   "outcome_remaining"
+  ],
+  "field_spec": {
+   "action": {
+    "dtype": "int32",
+    "shape": []
+   },
+   "game_id": {
+    "dtype": "int32",
+    "shape": []
+   },
+   "hand_bits": {
+    "dtype": "uint32",
+    "shape": [
+     4
+    ]
+   },
+   "in_prefix": {
+    "dtype": "bool",
+    "shape": []
+   },
+   "n_candidates": {
+    "dtype": "int16",
+    "shape": []
+   },
+   "n_legal": {
+    "dtype": "int16",
+    "shape": []
+   },
+   "outcome_remaining": {
+    "dtype": "float32",
+    "shape": [
+     4
+    ]
+   },
+   "outcome_util": {
+    "dtype": "float32",
+    "shape": [
+     4
+    ]
+   },
+   "own_bits": {
+    "dtype": "uint8",
+    "shape": [
+     4,
+     50
+    ]
+   },
+   "ply": {
+    "dtype": "int16",
+    "shape": []
+   },
+   "shortlist_idx": {
+    "dtype": "int32",
+    "shape": [
+     40
+    ]
+   },
+   "shortlist_score": {
+    "dtype": "float32",
+    "shape": [
+     40
+    ]
+   },
+   "stuck": {
+    "dtype": "bool",
+    "shape": [
+     4
+    ]
+   },
+   "to_move": {
+    "dtype": "int8",
+    "shape": []
+   }
+  },
+  "max_samples_per_shard": 20000,
+  "prefix_choices": [
+   0,
+   2,
+   4,
+   6,
+   8,
+   10,
+   12
+  ],
+  "shards": [
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6300
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6300
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6300,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6300
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6300
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6300
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6300,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6300,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6300,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6300
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6300,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6300,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6300,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6300
+      ]
+     }
+    },
+    "path": "imit_train_1000000_1000166.npz",
+    "prefix": "imit_train",
+    "samples": 6300,
+    "seed_hi": 1000166,
+    "seed_lo": 1000000
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6672
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6672
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6672,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6672
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6672
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6672
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6672,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6672,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6672,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6672
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6672,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6672,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6672,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6672
+      ]
+     }
+    },
+    "path": "imit_train_1000167_1000333.npz",
+    "prefix": "imit_train",
+    "samples": 6672,
+    "seed_hi": 1000333,
+    "seed_lo": 1000167
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6538
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6538
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6538
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6538
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6538
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6538,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6538
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6538,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6538,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6538
+      ]
+     }
+    },
+    "path": "imit_train_1000334_1000500.npz",
+    "prefix": "imit_train",
+    "samples": 6538,
+    "seed_hi": 1000500,
+    "seed_lo": 1000334
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6595
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6595
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6595,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6595
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6595
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6595
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6595,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6595,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6595,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6595
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6595,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6595,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6595,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6595
+      ]
+     }
+    },
+    "path": "imit_train_1000501_1000667.npz",
+    "prefix": "imit_train",
+    "samples": 6595,
+    "seed_hi": 1000667,
+    "seed_lo": 1000501
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6735
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6735
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6735,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6735
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6735
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6735
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6735,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6735,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6735,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6735
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6735,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6735,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6735,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6735
+      ]
+     }
+    },
+    "path": "imit_train_1000668_1000834.npz",
+    "prefix": "imit_train",
+    "samples": 6735,
+    "seed_hi": 1000834,
+    "seed_lo": 1000668
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6739
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6739
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6739,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6739
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6739
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6739
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6739,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6739,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6739,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6739
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6739,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6739,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6739,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6739
+      ]
+     }
+    },
+    "path": "imit_train_1000835_1001001.npz",
+    "prefix": "imit_train",
+    "samples": 6739,
+    "seed_hi": 1001001,
+    "seed_lo": 1000835
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6538
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6538
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6538
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6538
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6538
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6538,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6538
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6538,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6538,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6538,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6538
+      ]
+     }
+    },
+    "path": "imit_train_1001002_1001168.npz",
+    "prefix": "imit_train",
+    "samples": 6538,
+    "seed_hi": 1001168,
+    "seed_lo": 1001002
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6629
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6629
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6629,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6629
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6629
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6629
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6629,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6629,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6629,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6629
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6629,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6629,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6629,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6629
+      ]
+     }
+    },
+    "path": "imit_train_1001169_1001335.npz",
+    "prefix": "imit_train",
+    "samples": 6629,
+    "seed_hi": 1001335,
+    "seed_lo": 1001169
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6713
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6713
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6713,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6713
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6713
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6713
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6713,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6713,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6713,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6713
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6713,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6713,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6713,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6713
+      ]
+     }
+    },
+    "path": "imit_train_1001336_1001502.npz",
+    "prefix": "imit_train",
+    "samples": 6713,
+    "seed_hi": 1001502,
+    "seed_lo": 1001336
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6403
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6403
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6403,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6403
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6403
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6403
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6403,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6403,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6403,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6403
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6403,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6403,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6403,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6403
+      ]
+     }
+    },
+    "path": "imit_train_1001503_1001669.npz",
+    "prefix": "imit_train",
+    "samples": 6403,
+    "seed_hi": 1001669,
+    "seed_lo": 1001503
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6623
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6623
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6623,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6623
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6623
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6623
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6623,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6623,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6623,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6623
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6623,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6623,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6623,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6623
+      ]
+     }
+    },
+    "path": "imit_train_1001670_1001836.npz",
+    "prefix": "imit_train",
+    "samples": 6623,
+    "seed_hi": 1001836,
+    "seed_lo": 1001670
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       6289
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       6289
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       6289,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       6289
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       6289
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       6289
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       6289,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       6289,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       6289,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       6289
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       6289,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       6289,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       6289,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       6289
+      ]
+     }
+    },
+    "path": "imit_train_1001837_1001999.npz",
+    "prefix": "imit_train",
+    "samples": 6289,
+    "seed_hi": 1001999,
+    "seed_lo": 1001837
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       657
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       657
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       657
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       657
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       657
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       657,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       657
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       657,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       657,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       657
+      ]
+     }
+    },
+    "path": "imit_valid_2000000_2000016.npz",
+    "prefix": "imit_valid",
+    "samples": 657,
+    "seed_hi": 2000016,
+    "seed_lo": 2000000
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       673
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       673
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       673,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       673
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       673
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       673
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       673,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       673,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       673,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       673
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       673,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       673,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       673,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       673
+      ]
+     }
+    },
+    "path": "imit_valid_2000017_2000033.npz",
+    "prefix": "imit_valid",
+    "samples": 673,
+    "seed_hi": 2000033,
+    "seed_lo": 2000017
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       650
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       650
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       650,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       650
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       650
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       650
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       650,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       650,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       650,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       650
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       650,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       650,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       650,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       650
+      ]
+     }
+    },
+    "path": "imit_valid_2000034_2000050.npz",
+    "prefix": "imit_valid",
+    "samples": 650,
+    "seed_hi": 2000050,
+    "seed_lo": 2000034
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       657
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       657
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       657
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       657
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       657
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       657,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       657
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       657,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       657,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       657,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       657
+      ]
+     }
+    },
+    "path": "imit_valid_2000051_2000067.npz",
+    "prefix": "imit_valid",
+    "samples": 657,
+    "seed_hi": 2000067,
+    "seed_lo": 2000051
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       730
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       730
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       730,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       730
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       730
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       730
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       730,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       730,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       730,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       730
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       730,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       730,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       730,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       730
+      ]
+     }
+    },
+    "path": "imit_valid_2000068_2000084.npz",
+    "prefix": "imit_valid",
+    "samples": 730,
+    "seed_hi": 2000084,
+    "seed_lo": 2000068
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       620
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       620
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       620,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       620
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       620
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       620
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       620,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       620,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       620,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       620
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       620,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       620,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       620,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       620
+      ]
+     }
+    },
+    "path": "imit_valid_2000085_2000101.npz",
+    "prefix": "imit_valid",
+    "samples": 620,
+    "seed_hi": 2000101,
+    "seed_lo": 2000085
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       718
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       718
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       718,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       718
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       718
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       718
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       718,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       718,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       718,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       718
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       718,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       718,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       718,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       718
+      ]
+     }
+    },
+    "path": "imit_valid_2000102_2000118.npz",
+    "prefix": "imit_valid",
+    "samples": 718,
+    "seed_hi": 2000118,
+    "seed_lo": 2000102
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       747
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       747
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       747,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       747
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       747
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       747
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       747,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       747,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       747,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       747
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       747,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       747,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       747,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       747
+      ]
+     }
+    },
+    "path": "imit_valid_2000119_2000135.npz",
+    "prefix": "imit_valid",
+    "samples": 747,
+    "seed_hi": 2000135,
+    "seed_lo": 2000119
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       716
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       716
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       716,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       716
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       716
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       716
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       716,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       716,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       716,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       716
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       716,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       716,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       716,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       716
+      ]
+     }
+    },
+    "path": "imit_valid_2000136_2000152.npz",
+    "prefix": "imit_valid",
+    "samples": 716,
+    "seed_hi": 2000152,
+    "seed_lo": 2000136
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       619
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       619
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       619,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       619
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       619
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       619
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       619,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       619,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       619,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       619
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       619,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       619,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       619,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       619
+      ]
+     }
+    },
+    "path": "imit_valid_2000153_2000169.npz",
+    "prefix": "imit_valid",
+    "samples": 619,
+    "seed_hi": 2000169,
+    "seed_lo": 2000153
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       722
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       722
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       722,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       722
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       722
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       722
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       722,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       722,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       722,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       722
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       722,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       722,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       722,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       722
+      ]
+     }
+    },
+    "path": "imit_valid_2000170_2000186.npz",
+    "prefix": "imit_valid",
+    "samples": 722,
+    "seed_hi": 2000186,
+    "seed_lo": 2000170
+   },
+   {
+    "fields": {
+     "action": {
+      "dtype": "int32",
+      "shape": [
+       505
+      ]
+     },
+     "game_id": {
+      "dtype": "int32",
+      "shape": [
+       505
+      ]
+     },
+     "hand_bits": {
+      "dtype": "uint32",
+      "shape": [
+       505,
+       4
+      ]
+     },
+     "in_prefix": {
+      "dtype": "bool",
+      "shape": [
+       505
+      ]
+     },
+     "n_candidates": {
+      "dtype": "int16",
+      "shape": [
+       505
+      ]
+     },
+     "n_legal": {
+      "dtype": "int16",
+      "shape": [
+       505
+      ]
+     },
+     "outcome_remaining": {
+      "dtype": "float32",
+      "shape": [
+       505,
+       4
+      ]
+     },
+     "outcome_util": {
+      "dtype": "float32",
+      "shape": [
+       505,
+       4
+      ]
+     },
+     "own_bits": {
+      "dtype": "uint8",
+      "shape": [
+       505,
+       4,
+       50
+      ]
+     },
+     "ply": {
+      "dtype": "int16",
+      "shape": [
+       505
+      ]
+     },
+     "shortlist_idx": {
+      "dtype": "int32",
+      "shape": [
+       505,
+       40
+      ]
+     },
+     "shortlist_score": {
+      "dtype": "float32",
+      "shape": [
+       505,
+       40
+      ]
+     },
+     "stuck": {
+      "dtype": "bool",
+      "shape": [
+       505,
+       4
+      ]
+     },
+     "to_move": {
+      "dtype": "int8",
+      "shape": [
+       505
+      ]
+     }
+    },
+    "path": "imit_valid_2000187_2000199.npz",
+    "prefix": "imit_valid",
+    "samples": 505,
+    "seed_hi": 2000199,
+    "seed_lo": 2000187
+   }
+  ],
+  "shortlist_pad": 40,
+  "teacher": "optimizer",
+  "total_games": 2200,
+  "total_samples": 86788,
+  "wall_seconds": 82.93894436999835,
+  "workers": 12
+ },
+ "stats": {
+  "distinct_positions": 82821,
+  "games": 2200,
+  "in_prefix_samples": 7214,
+  "in_prefix_share": 0.08312209061160529,
+  "n_candidates": {
+   "max": 1066,
+   "mean": 194.39422500806563
+  },
+  "n_legal": {
+   "max": 1066,
+   "mean": 194.39422500806563,
+   "min": 1,
+   "p95": 615
+  },
+  "per_ply_bucket_detail": {
+   "0": {
+    "games_with_samples": 2200,
+    "samples": 9508,
+    "samples_per_game": 4.321818181818182
+   },
+   "16": {
+    "games_with_samples": 2200,
+    "samples": 9508,
+    "samples_per_game": 4.321818181818182
+   },
+   "24": {
+    "games_with_samples": 2200,
+    "samples": 9508,
+    "samples_per_game": 4.321818181818182
+   },
+   "32": {
+    "games_with_samples": 2200,
+    "samples": 9514,
+    "samples_per_game": 4.324545454545454
+   },
+   "40": {
+    "games_with_samples": 2200,
+    "samples": 9609,
+    "samples_per_game": 4.367727272727273
+   },
+   "48": {
+    "games_with_samples": 2197,
+    "samples": 10156,
+    "samples_per_game": 4.622667273554847
+   },
+   "56": {
+    "games_with_samples": 2173,
+    "samples": 11396,
+    "samples_per_game": 5.2443626323055685
+   },
+   "64": {
+    "games_with_samples": 1807,
+    "samples": 7651,
+    "samples_per_game": 4.234089651355839
+   },
+   "72": {
+    "games_with_samples": 251,
+    "samples": 430,
+    "samples_per_game": 1.7131474103585658
+   },
+   "8": {
+    "games_with_samples": 2200,
+    "samples": 9508,
+    "samples_per_game": 4.321818181818182
+   }
+  },
+  "repeated_position_share": 0.05475411347190856,
+  "samples": 86788,
+  "samples_per_ply_bucket": {
+   "0": 9508,
+   "16": 9508,
+   "24": 9508,
+   "32": 9514,
+   "40": 9609,
+   "48": 10156,
+   "56": 11396,
+   "64": 7651,
+   "72": 430,
+   "8": 9508
+  },
+  "samples_with_empty_shortlist": 0,
+  "seat_controller_counts": {
+   "builder": 491,
+   "chess": 1015,
+   "fox": 1030,
+   "intruder": 504,
+   "optimizer": 4754,
+   "wolf": 1006
+  },
+  "seat_controller_share": {
+   "builder": 0.055795454545454544,
+   "chess": 0.11534090909090909,
+   "fox": 0.11704545454545455,
+   "intruder": 0.057272727272727274,
+   "optimizer": 0.5402272727272728,
+   "wolf": 0.11431818181818182
+  },
+  "shortlist_len": {
+   "max": 37,
+   "mean": 18.945026962252847,
+   "p95": 37
+  },
+  "teacher_equals_shortlist_first": 86788,
+  "teacher_equals_shortlist_first_share": 1.0,
+  "teacher_mean_remaining": 11.367269667648296,
+  "teacher_mean_utility": 0.6537652503155238,
+  "teacher_seats": 4754
+ }
+}

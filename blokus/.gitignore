@@ -8,10 +8,17 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Virtual environments
+# Virtual environments. `.venv-rl/` is the stage-G reinforcement-learning
+# environment: about 4 GiB of CUDA wheels, regenerateable with one pip command.
 .venv/
+.venv-rl/
 venv/
 env/
+
+# The stage-G imitation dataset. Regenerateable from a fixed seed range, and
+# `plan3.md` asks for `data/` as a whole to be ignored - which also ignores
+# `data/manifest.json`. Its contents are reproduced in `reports/g_report.md`.
+data/
 
 # Runtime-generated game data (recreated on first play)
 records.json
