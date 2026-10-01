@@ -9,9 +9,9 @@ from records import Records
 
 
 def test_setup_match_seats_four_distinct_personalities():
-    """4 are drawn from the 6 personalities, so exactly two sit out each game."""
+    """4 are drawn from the 7 personalities, so exactly three sit out each game."""
     pool = set(PERSONALITY_ORDER)
-    assert len(pool) == 6
+    assert len(pool) == 7
     benched = set()
     for seed in range(60):
         g = Game(random.Random(seed))
@@ -19,7 +19,7 @@ def test_setup_match_seats_four_distinct_personalities():
         keys = [g.owner_key[o] for o in range(4)]
         assert len(set(keys)) == 4, keys
         assert set(keys) <= pool, keys
-        assert len(pool - set(keys)) == 2, "exactly two personalities sat out"
+        assert len(pool - set(keys)) == 3, "exactly three personalities sat out"
         benched |= pool - set(keys)
         # each seat's brain is the matching personality
         for o in range(4):

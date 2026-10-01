@@ -1,4 +1,4 @@
-"""The AI package: six personalities + shared formulas + the move pipeline.
+"""The AI package: the personalities + shared formulas + the move pipeline.
 
 Architecture (three layers, bottom to top):
 
@@ -18,12 +18,14 @@ after `import ai` the old spellings such as `ai.choose_move`, `ai.ODIRS` and
 """
 from . import formulas
 from .base import Brain, Profile, WeightedBrain
-from .base import BUILDER_KEY, INTRUDER_KEY, OPTIMIZER_KEY, RULE_KEYS
+from .base import (BUILDER_KEY, HUNTER_KEY, INTRUDER_KEY, OPTIMIZER_KEY,
+                   RULE_KEYS)
 from .builder import BuilderBrain
 from .builder import (BUILDER_SCAN, BUILDER_W_LOST, BUILDER_W_SIZE,
                       BUILDER_W_TOTAL)
 from .chess import ChessBrain
 from .fox import FoxBrain
+from .hunter import HunterBrain, BOOK, BOOK_STEPS, book_candidates
 from .intruder import IntruderBrain, INTRUDER_SCAN
 from .optimizer import OptimizerBrain, OPTIMIZER_SCAN, URGENT_PLACES
 from .registry import (PROFILE_SPECS, RULE_BRAIN_CLASSES, WEIGHTED_BRAIN_CLASSES,
@@ -50,12 +52,12 @@ __all__ = [
     "make_brain", "make_profile", "draw_personalities", "personality_keys",
     "PROFILE_SPECS", "RULE_BRAIN_CLASSES", "WEIGHTED_BRAIN_CLASSES",
     "WEIGHTED_SPECS", "RULE_KEYS", "INTRUDER_KEY", "OPTIMIZER_KEY",
-    "BUILDER_KEY",
+    "BUILDER_KEY", "HUNTER_KEY",
     # base
     "Brain", "WeightedBrain", "Profile",
     # personalities
     "WolfBrain", "ChessBrain", "FoxBrain", "IntruderBrain", "OptimizerBrain",
-    "BuilderBrain",
+    "BuilderBrain", "HunterBrain", "BOOK", "BOOK_STEPS", "book_candidates",
     # formulas
     "formulas", "B", "N", "CENTER", "ODIRS", "Reach", "board_context",
     "board_feats", "contact_vertices", "cross_anchors", "crossing_bonus",

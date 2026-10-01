@@ -16,7 +16,8 @@ from dataclasses import dataclass
 INTRUDER_KEY = "intruder"
 OPTIMIZER_KEY = "optimizer"
 BUILDER_KEY = "builder"
-RULE_KEYS = (INTRUDER_KEY, OPTIMIZER_KEY, BUILDER_KEY)
+HUNTER_KEY = "hunter"
+RULE_KEYS = (INTRUDER_KEY, OPTIMIZER_KEY, BUILDER_KEY, HUNTER_KEY)
 
 
 @dataclass(frozen=True)

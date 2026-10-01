@@ -30,10 +30,21 @@ def playout(seed, moves, brains=None):
     every assertion below would no longer test the position it was meant to
     test. The position stopped here has nothing to do with the Optimizer, so it
     will not drift as the Optimizer's behaviour changes either.
+
+    `set_player_color` runs first because it is what lays out the colours and
+    hands, but it draws 3 of N personalities from `g.rng` **before** the pinning,
+    and how much of the stream `rng.sample` consumes depends on N. So the rng is
+    re-seeded from here on - both the local one and `g.rng`, which is the same
+    object - and every later consumer sees a stream that does not depend on the
+    pool at all. Without that, adding a seventh personality moved every
+    downstream draw and this fixture landed on a different position whose
+    premise no longer held.
     """
     rng = random.Random(seed)
     g = Game(rng)
     g.set_player_color("blue")
+    rng = random.Random(seed)
+    g.rng = rng
     for o, key in enumerate(("chess", "fox", "wolf"), start=1):
         g.owner_key[o] = key
         g.brains[o] = ai.make_brain(key, rng)
@@ -128,13 +139,16 @@ def test_optimizer_places_the_urgent_piece_first():
     """A piece down to its only placement goes first, even when a 5-cell piece
     still has several placements.
 
-    The position uses a fixed `playout(5, 46)`: this spot naturally grows into
-    I4 / O4 / X5 each having exactly one placement left, while at the same time
+    The position uses a fixed `playout(0, 47)`: this spot naturally grows into
+    O4 / V5 / Z5 each having exactly one placement left, while at the same time
     a 5-cell piece still has 5 placements. A rare situation must not use "just
     find some game" as a fixture - that would drift with the personality pool
-    and the lottery.
+    and the lottery. It was `playout(5, 46)` until the pool reached seven
+    personalities; the assertions below did not change, only which real position
+    they are checked on, because `playout` now re-seeds its rng after the lottery
+    (see its docstring) and the old spot no longer had the required shape.
     """
-    g = playout(5, 46)
+    g = playout(0, 47)
     owner = 1
     board, reach = g.board, g.reach(owner)
     hand = list(g.hands[owner].names)
@@ -158,7 +172,7 @@ def test_optimizer_places_the_urgent_piece_first():
 def test_urgent_rescue_prefers_the_bigger_piece():
     """With several pieces down to one placement each, rescue the bigger one
     first: they are equally unsavable, and leaving 5 cells hurts less."""
-    g = playout(5, 46)
+    g = playout(0, 47)
     owner = 1
     board, reach = g.board, g.reach(owner)
     hand = list(g.hands[owner].names)

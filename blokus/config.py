@@ -92,9 +92,12 @@ I = {
     "optimizer_desc": "效率 — 大塊先放、留住可放空間",
     "builder": "築城者",
     "builder_desc": "築城 — 圍住一整塊放得下大棋的地",
+    "hunter": "獵手",
+    "hunter_desc": "攻勢 — 開局定式，其後搶對手的可放空間",
 }
 
-PERSONALITY_ORDER = ("wolf", "chess", "fox", "intruder", "optimizer", "builder")
+PERSONALITY_ORDER = ("wolf", "chess", "fox", "intruder", "optimizer", "builder",
+                     "hunter")
 
 PIECES = []
 

@@ -287,7 +287,16 @@ def test_builder_move_speed():
 def test_builder_is_in_the_pool_and_renders():
     assert "builder" in ai.personality_keys()
     assert "builder" in PERSONALITY_ORDER
-    assert PERSONALITY_ORDER[-1] == "builder"
+    # Was `PERSONALITY_ORDER[-1] == "builder"`, which pinned builder to the end
+    # of the order. plan6.md decision 4 appends "hunter" after it, so that
+    # statement became false and could not be kept: it was asserting an ordering
+    # the plan deliberately changed. What it really guarded - builder is in the
+    # pool and in the display order - is asserted on the two lines above.
+    # `PERSONALITY_ORDER` and `ai.personality_keys()` are maintained by hand in
+    # two different modules and nothing else cross-checks them, so the ordering
+    # claim is replaced by a claim that survives: the two lists still agree.
+    assert PERSONALITY_ORDER[-1] in ai.personality_keys()
+    assert PERSONALITY_ORDER == ai.personality_keys()
     from config import I
     from ui import PERSONA_ZH
     assert I["builder"] and I["builder_desc"]
