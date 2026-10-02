@@ -146,9 +146,48 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
 
 ## 六、測試規則
 
+**日常全套用 `-n 8`：**
+
 ```bash
-python3 -m pytest tests/ -q     # 159 項，約 2.5 分鐘
+.venv-rl/bin/python -m pytest tests/ -q -n 8     # 601 項，約 160–175 秒
 ```
+
+**不得用 `-n 12` 或更高。** 這不是保守，是實測：`tests/test_rl_env.py` 有三個模組
+層級的快取（`test_rl_env.py` 的 `_FINISHED`、`test_rl_paired.py` 的 `_CACHE`、
+`test_rl_collect.py` 的 `_CACHE`），每個 worker 各自建一份。worker 越多，總 CPU
+工作量越多，抵銷並行收益。實測 `-n 8` 159–175 s，`-n 12` **217.66 s** —— 慢 37%。
+
+| 組合 | 601 項耗時 |
+| --- | --- |
+| 串行（`-n 0`） | 850.30 s |
+| **`-n 8`** | **159.12 / 163.01 / 174.31 / 174.42 s** |
+| `-n 12` | 217.66 s（更慢） |
+| `-n 12 --dist loadfile` | 226.06 s（消除快取重複，但整個 `test_rl_env.py` 落在一個 worker，零加速） |
+
+單看 `test_rl_env.py`：串行 218.17 s、`-n 8` **461.97 s**（2.12×）、`loadfile`
+219.00 s。原本近乎免費的三個測試在 `-n 8` 下各變成 100 秒級，因為快取被重建。
+
+**階段驗收要另串行單跑** `test_without_the_wall_cap_results_do_not_depend_on_machine_load`
+（`-n 0`，不與其他 worker 共用機器）：
+
+```bash
+.venv-rl/bin/python -m pytest \
+    tests/test_optimised_paths.py::test_without_the_wall_cap_results_do_not_depend_on_machine_load \
+    -q
+```
+
+**注意 `::` 前後都不能有空格** —— `file.py ::name` 會選到零個測試，而且 pytest 只印
+「no tests ran」，不會報錯。
+
+**已知取捨：** 這項測試在並行下**斷言仍然成立**（兩次執行結果逐項相同），但它原本
+比較的兩次「未負載」執行，在並行下其實是有負載的。**它證明的東西比原設計弱。**
+並行只是日常跑得快，權威驗收仍以串行為準。
+
+**量時間與除錯用 `-n 0` 或不加 `-n`。** 有 5 處斷言執行時間
+（`test_ai.py`、`test_builder.py`、`test_intruder.py`、`test_optimizer.py` 的
+`dt < 1.5`，與 `test_rl_paired3.py` 的 `elapsed < 3.0`），實測在 24 個 CPU 密集
+行程下最小餘裕仍有 10.5 倍，所以**不會**因並行而誤報 —— 但在並行下量出來的數字
+沒有意義，要量就脫離並行。
 
 - **測試要從真實對局位置出發**（用 `Game.act` 走出來），不要把棋塊硬放上去：
   角對角規則意味著 owner 0 必須先開在自己的角上，否則 `reach` 對所有候選都是錯的。
@@ -173,6 +212,9 @@ python3 -m pytest tests/ -q     # 159 項，約 2.5 分鐘
   - `torch` 是 2026-10-01 為了階段 G 才放行的，安裝在 `.venv-rl/`（不入
     commit）。**`import engine` 不得拉進 torch，`import rl.actions` 不得拉進
     torch 或 pygame**，由 `tests/test_rl_isolation.py` 在乾淨子進程中檢查。
+  - `pytest-xdist`（2026-10-02，3.8.0，相依 `execnet` 2.1.2）是**跑測試**用的，
+    不是專案執行期的相依。裝在 `.venv-rl/`，不入 commit。日常全套靠它，見第六節。
+    **刻意不設 `addopts`**：那會讓量時間與逐項驗證也被自動並行，語意會被靜默改變。
 - 模組頂部有一句話 docstring 說明「這層只回答什麼問題」。
 - 註解解釋**為什麼**，不重述程式在做什麼。
 - 已知近似（例如 `fillable_closure` 只是上界）要寫在註解裡當作已知代價。
