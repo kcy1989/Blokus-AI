@@ -254,15 +254,21 @@ def test_every_game_has_at_least_one_teacher_seat():
 
 
 def test_the_controller_weights_are_the_ones_the_plan_asks_for():
+    """All seven personalities, the teacher at half and the rest splitting it.
+
+    Hunter is the teacher (`plan6.md` stage H) and appears exactly once: a weight
+    table is a per-seat draw, so a second entry would put two Hunters in a game.
+    """
     weights = dict(C.CONTROLLER_WEIGHTS)
-    assert weights["optimizer"] == 0.5
-    assert weights["wolf"] == 0.125
-    assert weights["chess"] == 0.125
-    assert weights["fox"] == 0.125
-    assert weights["intruder"] == 0.0625
-    assert weights["builder"] == 0.0625
+    assert C.TEACHER == "hunter"
+    assert weights["hunter"] == 0.5
+    for key in ("wolf", "chess", "fox", "intruder", "optimizer", "builder"):
+        assert weights[key] == pytest.approx(0.5 / 6), key
     assert sum(weights.values()) == pytest.approx(1.0)
     assert set(weights) == set(C.CONTROLLER_KEYS)
+    # one entry per personality: no duplicates in the draw table
+    assert len(C.CONTROLLER_KEYS) == len(set(C.CONTROLLER_KEYS)) == 7
+    assert len(C.CONTROLLER_WEIGHTS) == 7
 
 
 def test_the_drawn_seat_share_is_close_to_the_design():
@@ -289,15 +295,34 @@ def test_the_prefix_length_distribution_is_the_design():
     assert all(v > 0 for v in counts.values())
 
 
-def test_in_prefix_samples_exist_and_really_are_in_the_prefix():
+def test_no_teacher_sample_comes_from_an_opening_prefix():
+    """B1: the prefix is off for the teacher's own seat.
+
+    The old version of this test asserted the opposite - that `in_prefix` samples
+    exist and that they sit inside the prefix. That was right while the prefix
+    applied to every seat, and it measured 8.312% of samples. It cannot hold now:
+    a prefix ply asks the teacher for a move and then discards it, which advances
+    Hunter's book counter without the player having moved, so the teacher's first
+    three moves stop being book moves (measured: 79.9% / 49.8% / 21.0% of book
+    steps 0 / 1 / 2 displaced). `plan6.md` decision 7 requires those three to
+    survive as supervised labels.
+
+    What the prefix still does is move the board: the other three seats keep
+    playing random opening moves, so the positions the teacher is later asked
+    about are reached differently. Only the *labelled* prefix samples are gone.
+    """
     rows, _summary = games(train_seeds(10))
     by_game = {g["game_id"]: g["prefix_len"] for g in _summary}
-    seen = 0
+    assert rows, "no samples at all"
+    inside_prefix_len = 0
     for r in rows:
-        want = int(r["ply"]) < by_game[int(r["game_id"])]
-        assert bool(r["in_prefix"]) == want
-        seen += bool(r["in_prefix"])
-    assert seen > 0, "no sample came from an opening prefix"
+        assert not bool(r["in_prefix"]), \
+            "a teacher sample was marked in_prefix; the prefix must be off for it"
+        if int(r["ply"]) < by_game[int(r["game_id"])]:
+            inside_prefix_len += 1
+    # the prefix still covers plies: it just does not relabel the teacher's move
+    assert inside_prefix_len > 0, \
+        "no sample sits inside its game's prefix length, so the prefix is inert"
 
 
 # --------------------------------------------------------------- the budget switch
@@ -357,6 +382,9 @@ def test_the_summary_counts_what_the_rows_contain(tmp_path):
     assert stats["samples"] == len(rows)
     assert stats["games"] == len(summary)
     assert 0.0 <= stats["in_prefix_share"] <= 1.0
+    # The teacher is the shortlist's head: true when it scores the shortlist
+    # itself, and also when the book narrows it to the single drawn candidate,
+    # because then the head *is* the teacher's pick by construction.
     assert stats["teacher_equals_shortlist_first_share"] == 1.0
     assert 0.0 <= stats["teacher_mean_utility"] <= 1.0
     assert stats["n_legal"]["max"] <= 30433
@@ -372,7 +400,7 @@ def test_the_manifest_records_what_the_data_is(tmp_path):
                               prefix="probe")
     assert manifest["total_games"] == len(trains) + len(valids)
     assert manifest["total_samples"] > 0
-    assert manifest["teacher"] == "optimizer"
+    assert manifest["teacher"] == C.TEACHER == "hunter"
     assert manifest["action_table_hash"] == "91252a354b090d43"
     assert manifest["code"]["commit"]
     assert os.path.exists(os.path.join(out, "manifest.json"))

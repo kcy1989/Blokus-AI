@@ -49,16 +49,38 @@ PLANE_C_V2 = len(PLANE_CHANNELS_V2)
 assert PLANE_C_V2 == 14
 assert PLANE_CHANNELS_V2[:7] == engine.PLANE_CHANNELS
 
-# Twelve scalars, in this order. Everything is per-seat, so a single position
-# gives the same twelve numbers whichever corner the mover happens to sit in.
+# Thirteen scalars, in this order. The first twelve are per-seat, so a single
+# position gives the same numbers whichever corner the mover happens to sit in.
+# The thirteenth is the mover's alone, because it is the one quantity that is
+# about *how long the game has been* rather than about the position.
 SCALAR_NAMES_V2 = (
     "stuck_me", "stuck_next", "stuck_opposite", "stuck_previous",
     "remaining_me", "remaining_next", "remaining_opposite",
     "remaining_previous",
     "opened_me", "opened_next", "opened_opposite", "opened_previous",
+    # How many real moves the mover has made. `plan6.md` H-B0 item 3: Hunter's
+    # opening book applies to its first three own moves, and without this the
+    # book step is only inferable from the mover's own stone count - which works
+    # solely because Z5, V5 and W5 are all pentominoes, and stops working the
+    # moment a learner opens with a smaller piece. That failure is silent, so the
+    # count is stated outright instead of inferred.
+    #
+    # `N_PIECES - popcount(hand_bits[o])` is the count, because a player holds all
+    # 21 pieces and a pass changes nothing in `hand_bits`. Verified over 2,804
+    # moves and 330 passes with zero mismatches, which is also why no change to
+    # `engine.State` was needed.
+    "own_move_count",
 )
 SCALAR_C_V2 = len(SCALAR_NAMES_V2)
-assert SCALAR_C_V2 == 12
+assert SCALAR_C_V2 == 13
+# The first twelve are the stage G set, unchanged and in the same order, so an
+# existing shard's scalars are a prefix of the new ones rather than a reshuffle.
+assert SCALAR_NAMES_V2[:12] == (
+    "stuck_me", "stuck_next", "stuck_opposite", "stuck_previous",
+    "remaining_me", "remaining_next", "remaining_opposite",
+    "remaining_previous",
+    "opened_me", "opened_next", "opened_opposite", "opened_previous",
+)
 
 # In the view, seat 0 sits at the top-left corner. `engine.normalize` rotates
 # the board until that is true, so a player's opening square in view
@@ -204,6 +226,11 @@ def featurize_batch(states):
             scalars[row, i] = 1.0 if s.stuck[o] else 0.0
             scalars[row, 4 + i] = engine.remaining_cells(s, o) / 89.0
             scalars[row, 8 + i] = 1.0 if s.own_bits[o] else 0.0
+            if i == 0:
+                # the mover's own move count; seat 0 in the view is `to_move`
+                scalars[row, 12] = (engine.N_PIECES
+                                    - bin(s.hand_bits[o]).count("1")) \
+                    / float(engine.N_PIECES)
             bits = s.hand_bits[o]
             for j in range(engine.N_PIECES):
                 if bits >> j & 1:
@@ -256,6 +283,8 @@ def featurize_via_normalize(state):
         scalars[i] = 1.0 if view.stuck[i] else 0.0
         scalars[4 + i] = engine.remaining_cells(view, i) / 89.0
         scalars[8 + i] = 1.0 if view.own_bits[i] else 0.0
+    scalars[12] = (engine.N_PIECES
+                   - bin(view.hand_bits[0]).count("1")) / float(engine.N_PIECES)
     hands = np.zeros((4, engine.N_PIECES), dtype=np.float32)
     for i in range(4):
         bits = view.hand_bits[i]

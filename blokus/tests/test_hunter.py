@@ -31,7 +31,7 @@ from ai.hunter import (BOOK, BOOK_STEPS, HunterBrain, after_moves,
 from config import B, CLOCKWISE_OWNERS, I, PERSONALITY_ORDER
 from game import Game
 from rl import opening as O
-from rl.actions import index_to_move
+from rl.actions import index_to_move, legal_indices, move_to_index
 from rl.collect import board_from_state
 from rl.opening import (BookTracker, act_to_engine_move, must_cover, reach,
                         to_act_move)
@@ -454,6 +454,89 @@ def test_both_implementations_agree_on_the_step_abandoned():
             hunter_abandoned = (BOOK_STEPS if not hunter.book_abandoned
                                else hunter.summary()["book_step"] - 1)
             assert v3_abandoned == hunter_abandoned == BOOK_STEPS
+
+
+def spent_book_piece_state(owner, piece_name):
+    """A real position where `owner` has opened with `piece_name` instead of Z5.
+
+    Reaching step 1 of the book with V5 already spent is what `rl/collect`'s
+    random opening prefix does to a Hunter teacher: `teacher_move` is asked for a
+    move at every ply, which advances `context`'s counter, but a prefix ply
+    throws that move away and plays a uniformly random legal one instead. The
+    brain's book step then runs ahead of the player's real move count and asks
+    for a piece the player is no longer holding.
+
+    The opening is built by *playing* V5 on the owner's corner, so it is a
+    position somebody could reach, not a hand-edited one.
+    """
+    cur = O.align_to(engine.initial_state(CLOCKWISE_OWNERS), owner)
+    cbit = 1 << OWNER_CORNER_FOR(owner)
+    piece_idx = engine.PIECE_IDX[piece_name]
+    opening = None
+    for idx in legal_indices(cur, owner):
+        got, oi, base = index_to_move(int(idx))
+        if got != piece_idx:
+            continue
+        if (engine.ORIENTS[piece_idx][oi]["m"] << base) & cbit:
+            opening = (got, oi, base)
+            break
+    assert opening is not None, ("no %s covers %s's own corner"
+                                 % (piece_name, owner))
+    cur = O.align_to(engine.apply_move(cur, opening), owner)
+    assert piece_name not in hand_names_of(cur, owner), \
+        "the setup must actually spend the piece"
+    assert cur.to_move == owner
+    return cur
+
+
+def test_a_book_step_whose_piece_is_gone_does_not_return_an_illegal_move():
+    """The soft filter and the rescore must agree on whether the book still holds.
+
+    `restrict` narrows to the book's candidates *intersected with the real,
+    hand-filtered candidate list*. When the book asks for a piece the player no
+    longer holds that intersection is empty, and `restrict` correctly hands the
+    untouched list back. `rescore` used to return `hunter_book_pick` regardless,
+    overriding that fallback and putting a move with a piece the player does not
+    hold at the top of the shortlist - which `choose_move` then returned.
+
+    The two hooks are the only things standing between a desynchronised book step
+    and an illegal move, so this asserts on `choose_move`'s actual return value
+    rather than on either hook in isolation.
+    """
+    owner = 0
+    cur = spent_book_piece_state(owner, "V5")
+    board = board_from_state(cur)
+    brain = HunterBrain(HUNTER_KEY,
+                        ai.make_profile("chess", random.Random(0)),
+                        game_seed=23)
+    brain.book_step = 1                      # the step V5's opening displaced
+
+    book = book_candidates(board, owner, 1)
+    assert book, "the book must still offer step 1, or this proves nothing"
+    assert all(t[0] == "V5" for t in book)
+    assert "V5" not in hand_names_of(cur, owner)
+
+    g = Game(random.Random(0))
+    g.turn_order = list(CLOCKWISE_OWNERS)
+    g.turn_pos = 0
+    g.start()
+    g.hands[owner].names = hand_names_of(cur, owner)
+
+    other_brains = {o: ai.make_brain(OPTIMIZER_KEY, random.Random(o))
+                    for o in range(4)}
+    mv = ai.choose_move(board, g.hands[owner].names, owner, brain,
+                        random.Random(0), other_brains=other_brains,
+                        must_cover=must_cover(cur, owner),
+                        reach=reach(cur, board, owner),
+                        other_must_cover={x: must_cover(cur, x) for x in range(4)},
+                        other_reach={x: reach(cur, board, x) for x in range(4)})
+    assert mv is not None, "the player has legal moves; none was expected"
+    name, oi, x, y = mv
+    assert name in g.hands[owner].names, \
+        ("choose_move returned %s, which is not in the player's hand" % name)
+    real_index = move_to_index((engine.PIECE_IDX[name], oi, x + y * B))
+    assert real_index in legal_indices(cur, owner), \
+        "choose_move returned a move the engine refuses"
 
 
 # --------------------------------------------------------------------------

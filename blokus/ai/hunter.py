@@ -397,9 +397,17 @@ class HunterBrain(OptimizerBrain):
         `A_me` comes from calling `F.place_state` precisely as v1's `rescore`
         does, so it is bit-identical to v1 by construction rather than by a test
         agreeing with a re-implementation.
+
+        The book pick is only forced when it is *in* `cands`. `restrict` hands
+        back the book's candidates intersected with the real, hand-filtered
+        candidate list, and falls back to the untouched list when that
+        intersection is empty - which is what happens when the book asks for a
+        piece the player has already spent. Forcing the pick regardless of that
+        decision put a move with a piece the player does not hold at the top of
+        the shortlist, and `choose_move` returns the shortlist's head.
         """
         pick = ctx.get("hunter_book_pick")
-        if pick is not None:
+        if pick is not None and pick in {(c[1], c[2], c[3]) for c in cands}:
             return [(0.0, pick[0], pick[1], pick[2])]
         weight = self.diff_weight
         jmask = ctx["hunter_masks"][ctx["hunter_jstar"]]

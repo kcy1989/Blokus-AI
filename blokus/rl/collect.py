@@ -1,21 +1,32 @@
 """This layer answers one question: what does a dataset of teacher choices look
 like, and how is it written down?
 
-The teacher is the optimizer personality. It is the right choice for one reason
-above the others: stage F' measured its two calls with the same seed differing
-0 times out of 500, so its top-1 move is a function of the position alone. A
-learner trained on a deterministic label has something it can actually reach;
-one trained on a personality that answers differently a quarter of the time is
-being asked to guess.
+The teacher is the Hunter personality: the optimizer scored as "my playable cells
+minus the strongest opponent's", plus a fixed three-move opening book. Stage H
+adopted it over v1 on the paired evidence in `reports/h1_report.md`. It is
+deterministic given a seed, which is the property that makes a supervised label
+reachable at all: stage F' measured the optimizer's two calls with the same seed
+differing 0 times out of 500, so its top-1 move is a function of the position
+alone. A learner trained on a deterministic label has something it can actually
+reach; one trained on a personality that answers differently a quarter of the
+time is being asked to guess.
 
-That determinism is also the problem. Four optimizers playing each other
-produce the same game every time, and a dataset of one game is a dataset of one
-line through the tree. So every game here gets two sources of variety, both
-drawn from the game seed:
+The teacher's seat is *not* given a random opening prefix, and that is a
+correction rather than a preference. A prefix ply asks the teacher for a move and
+then discards it, which advances Hunter's book counter once per `choose_move`
+without the player having moved. The book step then runs ahead of the real move
+count, the book asks for a piece already spent, and the teacher's first three
+moves stop being book moves. Measured on the optimizer table, the prefix
+displaced 79.9% / 49.8% / 21.0% of book steps 0 / 1 / 2.
 
-    a random opening prefix, up to 12 real moves, played uniformly at random,
-    which also contributes labels - the position is real even though the move
-    that reached it was not chosen;
+That determinism is also the problem. Four teachers playing each other produce
+the same game every time, and a dataset of one game is a dataset of one line
+through the tree. So every game here gets two sources of variety, both drawn from
+the game seed:
+
+    a random opening prefix, up to 12 real moves, played uniformly at random on
+    every seat except the teacher's, which also contributes labels - the position
+    is real even though the move that reached it was not chosen;
     and one controller personality per seat, drawn so that at least one seat is
     always the teacher. The others play the game out, so the prefix keeps
     extending itself.
@@ -72,7 +83,7 @@ BENCHMARK_SEED_BASE = 20240101
 BENCHMARK_SEED_STRIDE = 1009
 BENCHMARK_MAX_GAMES = 96          # 4 games x 24 permutations, its defaults
 
-TEACHER = "optimizer"
+TEACHER = "hunter"
 
 # Opening prefix lengths. Even numbers only: a prefix of 6 real moves leaves the
 # board half open, and an odd length would put the same number of players ahead
@@ -81,15 +92,25 @@ PREFIX_CHOICES = (0, 2, 4, 6, 8, 10, 12)
 
 # Seat controllers. The teacher is half of all seats, on purpose: it is the only
 # label this dataset carries, so a game in which the teacher sits out
-# contributes nothing. The rest spread over the other five so the positions the
+# contributes nothing. The rest spread over the other six so the positions the
 # teacher is asked about are reached by opponents that behave differently.
+#
+# All seven personalities are in the pool. Hunter is the teacher and appears
+# exactly once: a weight table is a per-seat draw, so listing it twice would put
+# two Hunters in one game - one of them the teacher - and turn the pool into six
+# personalities plus a duplicate. One entry at 0.50 already puts all seven keys
+# in play.
+#
+# The redraw rate is `1 - 0.5 ** 4 = 6.25%`, which depends only on the teacher's
+# weight and not on how many keys there are.
 CONTROLLER_WEIGHTS = (
     (TEACHER, 0.50),
-    ("wolf", 0.125),
-    ("chess", 0.125),
-    ("fox", 0.125),
-    ("intruder", 0.0625),
-    ("builder", 0.0625),
+    ("wolf", 0.50 / 6),
+    ("chess", 0.50 / 6),
+    ("fox", 0.50 / 6),
+    ("intruder", 0.50 / 6),
+    ("optimizer", 0.50 / 6),
+    ("builder", 0.50 / 6),
 )
 CONTROLLER_KEYS = tuple(k for k, _w in CONTROLLER_WEIGHTS)
 CONTROLLER_TOTAL = sum(w for _k, w in CONTROLLER_WEIGHTS)
@@ -282,7 +303,15 @@ def collect_game(seed, prefix_len, controllers):
 
             legal = legal_indices(s)
             n_legal = int(legal.size)
-            in_prefix = ply < prefix_len
+            # The prefix is off for the teacher's own seat. A prefix ply asks the
+            # teacher for a move and then throws that move away, which advances
+            # Hunter's book counter (`context` is called once per `choose_move`)
+            # without the player having moved - so the book step runs ahead of the
+            # real move count, the book asks for a piece already spent, and the
+            # teacher's first three moves stop being book moves at all. Measured on
+            # the optimizer table this displaced 79.9% / 49.8% / 21.0% of book steps
+            # 0/1/2. The prefix still does its job on the other three seats.
+            in_prefix = ply < prefix_len and controllers[owner] != TEACHER
 
             if controllers[owner] == TEACHER:
                 chosen, record = teacher_move(s, teacher_brains[owner])
@@ -358,6 +387,12 @@ def _row(state, index, record, n_legal, seed, ply, in_prefix):
         "hand_bits": np.array(state.hand_bits, dtype=np.uint32),
         "stuck": np.array(state.stuck, dtype=bool),
         "to_move": np.int8(state.to_move),
+        # How many real moves the mover has made. Redundant with `hand_bits` -
+        # it is `N_PIECES - popcount(hand_bits[to_move])` - and stored anyway so
+        # that finding the three book steps of a game is a comparison rather than
+        # a popcount over every row, which is what H-B5's book metric needs.
+        "own_move_count": np.int8(
+            engine.N_PIECES - bin(state.hand_bits[state.to_move]).count("1")),
         "action": np.int32(index),
         "n_legal": np.int16(n_legal),
         "n_candidates": np.int16(min(record["n_candidates"], 32767)),
@@ -381,6 +416,7 @@ FIELD_SPEC = {
     "hand_bits": ("uint32", (4,)),
     "stuck": ("bool", (4,)),
     "to_move": ("int8", ()),
+    "own_move_count": ("int8", ()),
     "action": ("int32", ()),
     "n_legal": ("int16", ()),
     "n_candidates": ("int16", ()),

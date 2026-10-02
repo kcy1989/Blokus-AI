@@ -56,8 +56,12 @@ def test_the_channel_names_and_count_are_fixed():
     assert len(F.PLANE_CHANNELS_V2) == 14
     assert F.PLANE_CHANNELS_V2[:7] == engine.PLANE_CHANNELS, \
         "the first seven channels must stay the engine's"
-    assert F.SCALAR_C_V2 == 12
-    assert len(F.SCALAR_NAMES_V2) == 12
+    # 12 per-seat scalars plus `own_move_count`, which is the mover's alone.
+    # `plan6.md` H-B0 item 3 added the thirteenth: Hunter's book applies to its
+    # first three own moves, and the count is what says so.
+    assert F.SCALAR_C_V2 == 13
+    assert len(F.SCALAR_NAMES_V2) == 13
+    assert F.SCALAR_NAMES_V2[12] == "own_move_count"
     assert len(set(F.PLANE_CHANNELS_V2)) == 14
 
 
@@ -65,7 +69,7 @@ def test_shapes_and_dtypes():
     s = engine.initial_state()
     planes, scalars, hands = F.featurize(s)
     assert planes.shape == (14, 20, 20)
-    assert scalars.shape == (12,)
+    assert scalars.shape == (13,)
     assert hands.shape == (4, 21)
     assert planes.dtype == np.float32
     assert scalars.dtype == np.float32
@@ -315,7 +319,7 @@ def test_batch_equals_stacking_the_single_calls():
     batch = positions(range(20), stride=3)[:40]
     planes, scalars, hands = F.featurize_batch(batch)
     assert planes.shape == (len(batch), 14, 20, 20)
-    assert scalars.shape == (len(batch), 12)
+    assert scalars.shape == (len(batch), 13)
     assert hands.shape == (len(batch), 4, 21)
     for i, s in enumerate(batch):
         p, sc, h = F.featurize(s)
@@ -327,7 +331,7 @@ def test_batch_equals_stacking_the_single_calls():
 def test_an_empty_batch_is_well_typed():
     planes, scalars, hands = F.featurize_batch([])
     assert planes.shape == (0, 14, 20, 20) and planes.dtype == np.float32
-    assert scalars.shape == (0, 12) and scalars.dtype == np.float32
+    assert scalars.shape == (0, 13) and scalars.dtype == np.float32
     assert hands.shape == (0, 4, 21) and hands.dtype == np.float32
 
 
@@ -380,3 +384,94 @@ def test_rng_is_not_used_so_the_features_are_a_pure_function():
     for _ in range(20):
         random.random()
     assert np.array_equal(F.featurize(s)[0], first)
+
+def _own_move_count(state, owner):
+    """The scalar's value, computed the way the features compute it."""
+    return ((engine.N_PIECES - bin(state.hand_bits[owner]).count("1"))
+            / float(engine.N_PIECES))
+
+
+def test_the_movers_own_move_count_is_the_thirteenth_scalar():
+    """`own_move_count` says how many real moves the mover has made.
+
+    Pinned on value, not just on shape: a thirteenth scalar that was always zero
+    would pass every count assertion and quietly leave the book step unlearnable,
+    which is the only reason this scalar exists (`plan6.md` H-B0 item 3).
+    """
+    checked = 0
+    for s in positions(range(12), stride=1):
+        _planes, scalars, _hands = F.featurize(s)
+        want = _own_move_count(s, s.to_move)
+        assert scalars[12] == pytest.approx(want), \
+            ("mover %d: scalar says %r, hand says %r"
+             % (s.to_move, scalars[12], want))
+        assert 0.0 <= scalars[12] <= 1.0
+        checked += 1
+    assert checked > 100, "only %d positions checked" % checked
+
+
+def test_a_pass_leaves_every_players_move_count_untouched():
+    """It has to count real moves, which is what the book step is defined against.
+
+    A pass is not a move. If the count moved across one, a blocked seat's book
+    step would silently become a different book - the failure `ai/hunter.py`
+    already documents for its own counter.
+    """
+    passes_seen = 0
+    for seed in range(8):
+        tape = []
+        random_playout(seed, tape=tape, max_passes=MAX_PASSES)
+        for st, _mask, _n_real, mv in tape:
+            if mv is not None:
+                continue
+            passes_seen += 1
+            after = engine.pass_turn(st)
+            for owner in range(4):
+                assert after.hand_bits[owner] == st.hand_bits[owner], \
+                    "a pass changed a hand, so the move count moved with it"
+                assert _own_move_count(after, owner) == \
+                    _own_move_count(st, owner)
+    assert passes_seen > 0, "no pass in 8 games, so the branch is untested"
+
+
+def test_the_stone_count_alone_cannot_stand_in_for_the_move_count():
+    """Why this scalar exists, stated as a test.
+
+    Inside Hunter's book window the mover's own stone count does reveal the step -
+    Z5, V5 and W5 are all pentominoes, so 0, 5 and 10 stones are steps 0, 1 and 2
+    and nothing else. That coincidence is not a substitute for the count, because
+    the book pieces are not representative of the pieces: one I4 covers four
+    squares, I3 plus I1 covers the same four squares in two moves, and the two
+    are indistinguishable in stone count.
+
+    These two positions have identical board planes and identical first twelve
+    scalars - same stones, same cells left in hand - and a different move count.
+    The thirteenth scalar is what separates them. (`hands` does differ too, which
+    is the other route to the number; the scalar states it outright instead of
+    leaving it to be read off a 4x21 mask.)
+    """
+    mover = 0
+    squares = [1 << (x + 5 * B) for x in (2, 3, 4, 5)]
+    stones = 0
+    for bit in squares:
+        stones |= bit
+    i1 = engine.PIECE_IDX["I1"]
+    i3 = engine.PIECE_IDX["I3"]
+    i4 = engine.PIECE_IDX["I4"]
+
+    one_move = _handmade(mover, {mover: stones},
+                         hands={mover: engine.FULL_HAND & ~(1 << i4)})
+    two_moves = _handmade(mover, {mover: stones},
+                          hands={mover: engine.FULL_HAND
+                                 & ~((1 << i3) | (1 << i1))})
+
+    p1, sc1, h1 = F.featurize(one_move)
+    p2, sc2, h2 = F.featurize(two_moves)
+
+    assert sc1[12] == pytest.approx(1.0 / engine.N_PIECES)
+    assert sc2[12] == pytest.approx(2.0 / engine.N_PIECES)
+    # the board and the twelve per-seat scalars cannot tell them apart
+    assert np.array_equal(p1, p2)
+    assert np.array_equal(sc1[:12], sc2[:12])
+    # the hands can, in principle: different pieces are absent
+    assert not np.array_equal(h1, h2)
