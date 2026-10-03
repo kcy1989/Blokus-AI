@@ -14,7 +14,8 @@ import ai
 from config import HAND_CELLS_TOTAL
 from game import Game
 from pieces import MASTER
-from config import I
+from records import Records
+from config import COLORS, I
 import seats as seats_mod
 import ui
 from ui import (DEFAULT_HAND_ZOOM, HAND_ITEMS, HAND_ZOOMS, PERSONA_ZH, SCALES,
@@ -1324,3 +1325,93 @@ def test_the_league_pool_is_unchanged_by_the_new_option():
     from match import league_options
     assert len(league_options()) == 11
     assert seats_mod.RANDOM_AI_KEY not in league_options()
+
+
+# --------------------------------- two seats on the same option, results screen
+
+def _finish_with_remaining(u, targets, options, colours):
+    """Force a finished game's four scores, so a result can be asserted without
+    playing a whole game to a particular shape."""
+    import itertools
+    from pieces import MASTER
+    items = [(n, v["size"]) for n, v in MASTER.items()]
+    u.game.setup_seats(options, colours, random.Random(0))
+    for owner, target in enumerate(targets):
+        for k in range(1, 8):
+            done = False
+            for combo in itertools.combinations(items, k):
+                if sum(sz for _n, sz in combo) == target:
+                    u.game.hands[owner].names = [n for n, _sz in combo]
+                    done = True
+                    break
+            if done:
+                break
+        assert u.game.remaining_cells(owner) == target, (owner, target)
+    u.enter_game_over()
+    return u
+
+
+def test_two_seats_on_the_same_option_each_get_their_own_place(tmp_path):
+    """The regression: the results screen keyed the table by option, so two
+    seats on one checkpoint came back as a single row and both were shown with
+    the same rank, the same points and the same colour."""
+    u = make_ui()
+    u.game = Game(random.Random(0))
+    u.records = Records(str(tmp_path / "records.json"))
+    _finish_with_remaining(u, [7, 15, 16, 17],
+                           ["step_38000", "human", "step_38000", "human_log"],
+                           ["yellow", "blue", "green", "red"])
+    rows = u.seat_rows()
+    assert len(rows) == 4, rows
+    assert [r[2] for r in rows] == [7, 15, 16, 17], rows
+    assert [r[3] for r in rows] == [1, 2, 3, 4], rows
+    assert [r[4] for r in rows] == [4, 3, 2, 1], rows
+    assert [r[1] for r in rows] == ["step_38000", "human", "step_38000",
+                                    "human_log"]
+    # the two matching seats must not carry the same place
+    twins = [r[3] for r in rows if r[1] == "step_38000"]
+    assert twins == [1, 3], twins
+    # and each row takes its colour from its own seat, not from the option
+    assert [u.game.colors[r[0]] for r in rows] == ["yellow", "blue", "green",
+                                                   "red"]
+
+
+def test_the_results_screen_renders_four_distinct_rows(tmp_path):
+    u = make_ui()
+    u.game = Game(random.Random(0))
+    u.records = Records(str(tmp_path / "records.json"))
+    _finish_with_remaining(u, [7, 15, 16, 17],
+                           ["step_38000", "human", "step_38000", "human_log"],
+                           ["yellow", "blue", "green", "red"])
+    real = u.label
+    texts = []
+    u.label = lambda t, *a, **kw: (texts.append(str(t)), real(t, *a, **kw))[1]
+    u.draw_results()
+    u.label = real
+    shown = [t for t in texts if I["left_won_fmt"].split("{")[0] in t]
+    assert len(shown) == 4, shown
+    for rank, target in zip([1, 2, 3, 4], [7, 15, 16, 17]):
+        assert I["left_won_fmt"].format(rank, target) in shown, (rank, shown)
+    # the ranks must all differ - the bug put the same place on two rows
+    places = [t for t in shown if t.count("排第") == 1]
+    assert len({t.split("，")[0] for t in places}) == 4, places
+
+
+def test_a_leaderboard_row_for_a_repeated_contestant_is_neutral():
+    """A contestant holding two seats has no single colour, so its leaderboard
+    swatch says so rather than borrowing one seat's."""
+    u = make_ui()
+    u.game = Game(random.Random(0))
+    u.game.setup_seats(["step_2000", "fox", "step_2000", "wolf"],
+                       ["blue", "green", "red", "yellow"], random.Random(0))
+    assert u.contestant_color("step_2000") == (200, 200, 210)
+    assert u.contestant_color("fox") == COLORS["green"]
+
+
+def test_seat_rows_survive_a_game_that_was_never_recorded():
+    u = make_ui()
+    u.game = Game(random.Random(0))
+    u.game.setup_seats(["wolf"] * 4, ["blue", "green", "red", "yellow"],
+                       random.Random(0))
+    u.records.last = []
+    assert u.seat_rows() == []

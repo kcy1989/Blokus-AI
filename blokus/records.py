@@ -21,12 +21,16 @@ RECORDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 POINTS_FOR_RANK = (4, 3, 2, 1)
 
 
-def rank_by_remaining(standings):
-    """Competition ranking: equal remaining squares share a place, and the
-    following places skip accordingly.
+def rank_rows(standings):
+    """Competition ranking with every seat's own numbers kept attached.
 
-    `standings` is an iterable of (key, remaining). Returns (key, rank,
-    points) for each contestant, ordered by place then key.
+    `standings` is an iterable of `(key, remaining)` for the four seats - one
+    per **seat**, so the same key may appear twice when two seats play the same
+    contestant. Returns `[(key, rank, points, remaining)]`, ordered best first.
+
+    Carrying `remaining` out of here is what lets a caller fold a seat's own
+    score in: looking it up by key afterwards finds only one of the two seats
+    when a key repeats, which silently drops the other's result.
     """
     rows = sorted(standings, key=lambda t: (t[1], t[0]))
     out = []
@@ -36,8 +40,19 @@ def rank_by_remaining(standings):
         if rem != prev_rem:
             rank = i + 1
             prev_rem = rem
-        out.append((key, rank, POINTS_FOR_RANK[rank - 1]))
+        out.append((key, rank, POINTS_FOR_RANK[rank - 1], rem))
     return out
+
+
+def rank_by_remaining(standings):
+    """Competition ranking: equal remaining squares share a place, and the
+    following places skip accordingly.
+
+    `standings` is an iterable of (key, remaining). Returns (key, rank, points)
+    for each seat, ordered by place then key. This is `rank_rows` without the
+    remaining value.
+    """
+    return [(k, r, p) for k, r, p, _rem in rank_rows(standings)]
 
 
 class Records:
@@ -79,20 +94,25 @@ class Records:
     def record(self, standings):
         """Fold one finished game into the averages.
 
-        `standings` is an iterable of (key, remaining) for the four
-        contestants. Returns the (key, rank, points) rows for display.
+        `standings` is an iterable of (key, remaining) **per seat**, so a key
+        may appear twice when two seats play the same contestant. Each seat
+        contributes its own points and its own remaining squares, and
+        `games` counts seat appearances - which is what makes the averages
+        comparable between a contestant that played one seat and one that
+        played two.
+
+        Returns the `(key, rank, points)` rows for display, one per seat.
         """
-        rows = rank_by_remaining(standings)
-        self.last = rows
-        for key, _rank, points in rows:
-            remaining = dict(standings)[key]
+        rows = rank_rows(standings)
+        self.last = [(key, rank, points) for key, rank, points, _rem in rows]
+        for key, _rank, points, remaining in rows:
             rec = self.entries.setdefault(key, {"games": 0, "total_points": 0.0,
                                                 "total_remaining": 0.0})
             rec["games"] += 1
             rec["total_points"] += points
             rec["total_remaining"] += remaining
         self._save()
-        return rows
+        return self.last
 
     def reset(self):
         self.entries = {}

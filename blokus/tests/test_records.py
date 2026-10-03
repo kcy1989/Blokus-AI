@@ -112,3 +112,51 @@ def test_last_game_is_available_for_display(tmp_path):
     rows = r.record([("player", 0), ("wolf", 10), ("chess", 20), ("fox", 30)])
     assert r.last == rows
     assert {k: p for k, _rk, p in r.last}["player"] == 4
+
+
+# ------------------------------------------- two seats on the same contestant
+
+def test_rank_rows_keeps_each_seat_s_own_remaining():
+    from records import rank_rows
+    rows = rank_rows([("a", 10), ("a", 30), ("b", 20), ("c", 0)])
+    # best first: fewer squares left is better
+    assert rows == [("c", 1, 4, 0), ("a", 2, 3, 10), ("b", 3, 2, 20),
+                    ("a", 4, 1, 30)]
+    # the same key twice keeps two distinct rem values, which a lookup by key
+    # could not do
+    by_key = [r for r in rows if r[0] == "a"]
+    assert sorted(r[3] for r in by_key) == [10, 30]
+
+
+def test_a_repeated_key_is_recorded_as_two_appearances(tmp_path):
+    r = Records(str(tmp_path / "records.json"))
+    r.record([("wolf", 10), ("wolf", 30), ("fox", 20), ("human", 0)])
+    # human(0) 1st, wolf(10) 2nd, fox(20) 3rd, wolf(30) 4th
+    assert r.entries["wolf"] == {"games": 2, "total_points": 4.0,
+                                 "total_remaining": 40.0}
+    # both seats' squares, not one seat's - the bug was `dict(standings)[key]`,
+    # which kept only the last
+    assert r.entries["wolf"]["total_remaining"] == 40.0
+    assert r.entries["fox"]["games"] == 1
+    rows = {k: (g, ap, ar) for k, g, ap, ar in r.rows()}
+    # averages are per appearance, so they stay on the same scale as everyone
+    assert rows["wolf"] == (2, 2.0, 20.0)
+    assert rows["human"] == (1, 4.0, 0.0)
+    assert 0.0 <= rows["fox"][1] <= 4.0
+
+
+def test_the_returned_rows_are_one_per_seat_not_one_per_key(tmp_path):
+    r = Records(str(tmp_path / "records.json"))
+    out = r.record([("a", 10), ("a", 30), ("b", 20), ("c", 0)])
+    assert len(out) == 4
+    assert [p for _k, _r, p in out] == [4, 3, 2, 1]
+    assert r.last == out
+
+
+def test_a_repeated_key_still_ends_the_game_once(tmp_path):
+    r = Records(str(tmp_path / "records.json"))
+    r.record([("a", 5), ("a", 5), ("b", 5), ("c", 5)])
+    assert r.entries["a"]["games"] == 2
+    assert r.entries["a"]["total_points"] == 8.0
+    ranks = {k: rank for k, rank, _p in r.last}
+    assert set(ranks.values()) == {1}, ranks

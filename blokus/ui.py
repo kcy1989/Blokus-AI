@@ -692,7 +692,10 @@ class UI:
         self.flush_log()
         if not self.result_recorded:
             self.result_recorded = True
-            self.records.record(self.contestant_standings())
+            ranks = self.records.record(self.contestant_standings())
+            # Frozen with the game it belongs to, so a later game cannot change
+            # what this results screen says about this one.
+            self._seat_rows = self.build_seat_rows(ranks)
         self.announce_result()
 
     def flush_log(self):
@@ -715,22 +718,60 @@ class UI:
             self.label_color = COLORS[self.game.colors[win]]
 
     def contestant_standings(self):
-        """(key, remaining) per contestant.
+        """(key, remaining) per **seat**, best first.
 
         Keyed by the seat's option rather than by seat, so a leaderboard can
         tell two humans apart from a personality, and so the same personality
-        playing two seats counts once rather than twice.
+        playing two seats counts once rather than twice. Two seats may still
+        carry the same key - four wolves is a legal game - and `records.record`
+        reads that as two appearances, not one.
         """
         return [(self.game.owner_key[owner], rem)
                 for owner, rem in self.game.standings()]
+
+    def build_seat_rows(self, ranks):
+        """`[(owner, key, remaining, rank, points)]` for the four seats.
+
+        Per **seat**, paired with `records.record`'s ranking by position rather
+        than by key. Keying it by option was the bug this replaces: two seats
+        playing the same checkpoint came back as one dict entry, so both showed
+        the same rank and the same points, and both were drawn in the first
+        seat's colour.
+
+        Pairing by position is safe even when the two orderings disagree,
+        because `records.rank_rows` gives tied seats the same rank and the same
+        points - so the swap can only ever be between rows that are equal in
+        exactly the columns this table shows.
+        """
+        standing = self.game.standings()
+        if len(ranks) != len(standing):
+            return []
+        return [(owner, self.game.owner_key[owner], rem, rank, points)
+                for (owner, rem), (_key, rank, points) in zip(standing, ranks)]
+
+    def seat_rows(self):
+        """The cached per-seat rows, or empty when this game was not recorded."""
+        rows = getattr(self, "_seat_rows", None)
+        if rows is None:
+            rows = self.build_seat_rows(self.records.last)
+            self._seat_rows = rows
+        return rows
 
     def contestant_name(self, key):
         return seat_label(key)
 
     def contestant_color(self, key):
-        for o in range(4):
-            if self.game.owner_key[o] == key:
-                return COLORS[self.game.colors[o]]
+        """A leaderboard row's swatch.
+
+        A contestant has no single colour - it may hold two seats this game, and
+        a different one next time. Where it is unambiguous the seat's colour is
+        used, and where it is not a neutral grey says so rather than picking one
+        seat and pretending it speaks for both.
+        """
+        cols = {self.game.colors[o] for o in range(4)
+                if self.game.owner_key[o] == key}
+        if len(cols) == 1:
+            return COLORS[cols.pop()]
         return (200, 200, 210)
 
     def new_game_rect(self):
@@ -1533,11 +1574,11 @@ class UI:
 
         y = self._row(I["this_game"], x, y + int(round(6 * s)), 15, (200, 205, 215),
                       inner)
-        ranks = {key: (rank, points) for key, rank, points in self.records.last}
-        # contestant_standings() already comes best-first from game.standings()
-        for key, rem in self.contestant_standings():
-            col = self.contestant_color(key)
-            rank, points = ranks.get(key, (0, 0))
+        # One row per seat, carrying its own rank, points and colour. A dict
+        # keyed by option would collapse two seats on the same option into one
+        # row, and the second seat would be shown with the first seat's place.
+        for owner, key, rem, rank, points in self.seat_rows():
+            col = COLORS[self.game.colors[owner]]
             self.label(I["left_won_fmt"].format(rank, rem),
                        x + int(round(14 * s)), y, 14, col)
             self.label(I["points_fmt"].format(points), x + inner, y, 14, col,

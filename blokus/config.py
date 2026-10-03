@@ -60,7 +60,7 @@ I = {
     "this_game": "本局成績",
     "leaderboard": "排行榜",
     "avg_fmt": "平均 {0:.1f} 分 / 餘 {1:.1f} 格",
-    "games_fmt": "{0} 局",
+    "games_fmt": "{0} 席次",
     "rank_fmt": "第 {0} 名",
     "points_fmt": "{0} 分",
     "new_game_hint": "Enter 或點擊「{0}」開始新的一局",
