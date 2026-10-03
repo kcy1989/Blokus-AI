@@ -331,3 +331,129 @@ def test_every_owner_may_open_on_its_own_corner():
         # the opening piece covers this seat's own corner square
         assert (cx - x, cy - y) in set(MASTER[name]["orientations"][oi]), \
             (owner, move, (cx, cy))
+
+# ------------------------------------------------------- the deferred "random AI"
+
+def test_the_menu_offers_one_more_than_there_are_options():
+    """Fourteen things to pick from, thirteen things to be. The fourteenth is a
+    request rather than a setting."""
+    menu = seats.seat_menu_options()
+    assert len(menu) == 14
+    assert len(set(menu)) == 14
+    assert menu[-1] == seats.RANDOM_AI_KEY
+    assert set(menu) - set(seats.seat_options(True)) == {seats.RANDOM_AI_KEY}
+    assert seats.seat_options(True) == menu[:-1]
+    assert len(seats.seat_options(False)) == 11
+    assert seats.automated_options() == seats.seat_options(False)
+
+
+def test_random_ai_is_a_kind_of_request_not_of_contestant():
+    assert seats.kind_of(seats.RANDOM_AI_KEY) == seats.KIND_RANDOM_AI
+    assert not seats.is_human_kind(seats.KIND_RANDOM_AI)
+
+
+def test_random_ai_draws_from_the_eleven_automated_options():
+    assert len(seats.automated_options()) == 11
+    pool = seats.automated_options()
+    assert len(pool) == 11 and len(set(pool)) == 11
+    assert not any(k.startswith("human") for k in pool)
+    assert any(k.startswith("step_") for k in pool)
+    assert set(k for k in pool if not k.startswith("step_")) == \
+        set(ai.personality_keys())
+
+
+def test_random_ai_covers_all_eleven_and_never_a_human():
+    seen = set()
+    repeats = 0
+    for seed in range(400):
+        out = seats.resolve_random_ai([seats.RANDOM_AI_KEY] * 4,
+                                      random.Random(seed))
+        assert len(out) == 4
+        assert set(out) <= set(seats.automated_options())
+        seen |= set(out)
+        repeats += int(len(set(out)) < 4)
+    assert seen == set(seats.automated_options())
+    # 4 draws from 11 collide often; zero collisions in 400 games would mean the
+    # draws are not independent
+    assert repeats > 40, repeats
+
+
+def test_each_random_seat_draws_independently():
+    """The same option landing on two seats is legal, exactly as it is for a
+    colour - that is what "each draws separately, repeats allowed" means."""
+    both = 0
+    for seed in range(200):
+        out = seats.resolve_random_ai([seats.RANDOM_AI_KEY] * 4,
+                                      random.Random(seed))
+        if len(set(out)) == 1:
+            both += 1
+    # four independent draws from 11 all landing the same: 4 * (1/11)^3 ≈ 0.3%
+    assert both <= 3, both
+
+
+def test_resolution_leaves_the_other_seats_alone():
+    out = seats.resolve_random_ai(["wolf", seats.RANDOM_AI_KEY, "human",
+                                   seats.RANDOM_AI_KEY], random.Random(9))
+    assert out[0] == "wolf"
+    assert out[2] == "human"
+    assert out[1] in seats.automated_options()
+    assert out[3] in seats.automated_options()
+
+
+def test_resolution_is_deterministic_for_a_seed():
+    for seed in (0, 1, 42, 20260903):
+        keys = ["chess", seats.RANDOM_AI_KEY, seats.RANDOM_AI_KEY, "human"]
+        a = seats.resolve_random_ai(keys, random.Random(seed))
+        b = seats.resolve_random_ai(keys, random.Random(seed))
+        assert a == b, (seed, a, b)
+
+
+def test_a_game_never_contains_a_deferred_choice():
+    """Everything downstream of `setup_seats` - the seat kinds, the brains, the
+    log, the leaderboard - depends on every seat naming something specific."""
+    for seed in range(25):
+        rng = random.Random(seed)
+        g = Game(rng)
+        g.setup_seats([seats.RANDOM_AI_KEY] * 4, None, rng)
+        assert all(k in seats.seat_options(False) for k in g.owner_key.values())
+        assert all(k != seats.RANDOM_AI_KEY for k in g.owner_key.values())
+        assert set(g.seat_kinds.values()) <= {seats.KIND_AI,
+                                              seats.KIND_IMITATION}
+        for o in range(4):
+            brain = g.brains[o]
+            assert brain is not None
+            assert brain.key == g.owner_key[o]
+
+
+def test_four_random_seats_mix_ai_and_checkpoints():
+    kinds = set()
+    for seed in range(60):
+        rng = random.Random(seed)
+        g = Game(rng)
+        g.setup_seats([seats.RANDOM_AI_KEY] * 4, None, rng)
+        kinds |= set(g.seat_kinds.values())
+    assert kinds == {seats.KIND_AI, seats.KIND_IMITATION}, kinds
+
+
+def test_a_random_seat_beside_a_human_still_resolves():
+    rng = random.Random(11)
+    g = Game(rng)
+    g.setup_seats([seats.RANDOM_AI_KEY, "human", seats.RANDOM_AI_KEY,
+                   "human_log"],
+                  ["blue", "green", "red", "yellow"], rng)
+    assert g.owner_key[1] == "human" and g.owner_key[3] == "human_log"
+    assert g.owner_key[0] in seats.automated_options()
+    assert g.owner_key[2] in seats.automated_options()
+    assert g.humans() == [1, 3]
+    assert g.recording_seats() == [3]
+    assert g.brains[1] is None and g.brains[3] is None
+    assert sorted(g.brain_map()) == [0, 2]
+
+
+def test_setup_seats_refuses_an_option_that_was_never_resolved():
+    """`build_brain` is the backstop, for a caller that skips `setup_seats`."""
+    rng = random.Random(12)
+    with pytest.raises(ValueError):
+        seats.build_brain(seats.RANDOM_AI_KEY, rng)
+    with pytest.raises(ValueError):
+        seats.build_brain(seats.RANDOM_AI_KEY, rng, seats.KIND_RANDOM_AI)

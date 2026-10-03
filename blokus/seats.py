@@ -37,9 +37,16 @@ KIND_AI = "ai"
 KIND_IMITATION = "imitation"
 KIND_HUMAN = "human"
 KIND_HUMAN_LOG = "human_log"
+# Not a kind of contestant but a deferred choice: a seat left on this is dealt
+# one of the eleven automated options when the game starts, the same way a
+# "random" colour is dealt one of what is left. It is resolved before anything
+# looks at the seat, so a game in progress never contains one.
+KIND_RANDOM_AI = "random_ai"
 
 # The per-seat colour sentinel: "deal me one of what is left".
 RANDOM = "random"
+# The per-seat option sentinel: "deal me one of the automated options".
+RANDOM_AI_KEY = "random_ai"
 
 HUMAN_KEY = "human"
 HUMAN_LOG_KEY = "human_log"
@@ -65,21 +72,63 @@ def imitation_step(key):
     return int(key[len("step_"):])
 
 
-def seat_options(include_humans=True):
-    """Every option key, in menu order: the AI pool, then the imitation steps,
-    then (optionally) the two human seats.
-
-    11 without humans, 13 with them.
-    """
+def automated_options():
+    """The eleven options something can be played by: seven personalities and
+    four checkpoints. This is the pool `RANDOM_AI_KEY` draws from, and the same
+    pool the league draws its four seats from."""
     out = [k for k in personality_keys()]
     out += [imitation_key(s) for s in IMITATION_STEPS]
+    return tuple(out)
+
+
+def seat_options(include_humans=True):
+    """Every option a seat can be *set to*, in menu order: the AI pool, then
+    the imitation steps, then (optionally) the two human seats.
+
+    11 without humans, 13 with them. The deferred "random AI" is not here,
+    because it is not something a seat stays set to - `seat_menu_options` is
+    what the picker offers, and it is this plus that one.
+    """
+    out = list(automated_options())
     if include_humans:
         out += [HUMAN_KEY, HUMAN_LOG_KEY]
     return tuple(out)
 
 
+def seat_menu_options():
+    """What the seat screen offers: the thirteen, plus "random AI" at the end.
+
+    Fourteen entries, because the deferred choice is a fourth thing a seat can
+    say, sitting alongside the eleven automated options and the two human ones.
+    """
+    return seat_options(True) + (RANDOM_AI_KEY,)
+
+
+def resolve_random_ai(keys, rng):
+    """Deal any `RANDOM_AI_KEY` seat one of the eleven, one draw per seat.
+
+    Each draw is independent, so two "random AI" seats may land on the same
+    option - which is the same rule the colours follow. The result is a concrete
+    option for every seat: a game that has started never contains a deferred
+    choice, which is what keeps `owner_key`, the seat kinds, the log and the
+    leaderboard all talking about something specific.
+    """
+    pool = automated_options()
+    out = []
+    for k in keys:
+        out.append(rng.choice(pool) if k == RANDOM_AI_KEY else k)
+    return out
+
+
 def kind_of(key, include_humans=True):
-    """Which kind of contestant `key` names."""
+    """Which kind of contestant `key` names.
+
+    `RANDOM_AI_KEY` answers `KIND_RANDOM_AI`, which is a request rather than a
+    contestant - `resolve_random_ai` has to turn it into one before a game
+    starts.
+    """
+    if key == RANDOM_AI_KEY:
+        return KIND_RANDOM_AI
     if key in personality_keys():
         return KIND_AI
     if key in (imitation_key(s) for s in IMITATION_STEPS):
@@ -172,6 +221,10 @@ def build_brain(key, rng, kind=None, checkpoint_dir=IMITATION_CHECKPOINT_DIR,
     brains only after the seat kinds are known - hence `kind` being passed in.
     """
     kind = kind_of(key) if kind is None else kind
+    if kind == KIND_RANDOM_AI:
+        raise ValueError(
+            "seat option %r is a deferred choice; call resolve_random_ai "
+            "before building a game" % (key,))
     if kind == KIND_AI:
         return make_brain(key, rng)
     if kind == KIND_IMITATION:

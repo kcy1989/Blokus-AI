@@ -564,8 +564,8 @@ def test_the_seat_screen_starts_a_game_without_picking_anything():
 def test_every_seat_option_renders_on_the_seat_screen():
     """The screen looks each option up by key, so a new option with a missing
     name or description only blows up at runtime. Checked for all thirteen."""
-    options = seats_mod.seat_options(True)
-    assert len(options) == 13
+    options = seats_mod.seat_menu_options()
+    assert len(options) == 14
     for opt in options:
         u = make_ui()
         at_seat_screen(u)
@@ -623,7 +623,7 @@ def test_a_colour_another_seat_took_is_not_on_offer():
     u.seat_pick = (3, "option")
     keys = {k.split(":", 1)[1] for k in u.menu_rects()
             if k.startswith("option:")}
-    assert keys == set(seats_mod.seat_options(True))
+    assert keys == set(seats_mod.seat_menu_options())
 
 
 def test_picking_from_the_menu_assigns_to_that_seat_only():
@@ -1112,7 +1112,7 @@ def test_result_is_recorded_exactly_once():
     # point of the seat screen, and a person is named by its own key so two
     # humans are distinguishable from a personality.
     assert sorted(keys) == sorted(["human", "chess", "chess", "chess"]), keys
-    assert set(keys) <= set(seats_mod.seat_options(True))
+    assert set(keys) <= set(seats_mod.seat_menu_options())
     # starting a new game must arm it again
     u.new_game()
     u.game.state = "GAME_OVER"
@@ -1278,3 +1278,49 @@ def test_switch_then_place_places_the_new_piece():
     assert "O4" not in u.game.hands[0].names
     assert "L5" in u.game.hands[0].names
     assert u.game.placed[0] == 1
+
+
+def test_the_picker_offers_random_ai_and_it_resolves_at_start():
+    """The seat screen offers it as a fourteenth choice, shows a name and a
+    description for it, and turns it into a specific opponent when the game
+    starts."""
+    u = make_ui()
+    at_seat_screen(u)
+    click(u, u.seat_rects()["0:option"].center)
+    assert u.seat_pick == (0, "option")
+    menu = u.menu_rects()
+    assert "option:random_ai" in menu
+    assert len([k for k in menu if k.startswith("option:")]) == 14
+    # all fourteen fit on screen without overlapping
+    rects = [r for k, r in menu.items() if k.startswith("option:")]
+    assert all(r.bottom <= u.L.H for r in rects), rects
+    named = list(menu.items())
+    for i, (_ka, a) in enumerate(named):
+        for _kb, b in named[i + 1:]:
+            assert not a.colliderect(b), (_ka, _kb)
+
+    click(u, menu["option:random_ai"].center)
+    assert u.seat_keys[0] == seats_mod.RANDOM_AI_KEY
+    assert ui.seat_label(seats_mod.RANDOM_AI_KEY) == I["random_ai"]
+    assert ui.seat_desc(seats_mod.RANDOM_AI_KEY)
+
+    u.seat_keys = [seats_mod.RANDOM_AI_KEY] * 4
+    u.seat_colours = [seats_mod.RANDOM] * 4
+    click(u, u.seat_rects()["start_game"].center)
+    assert u.state == "PLAYING"
+    for o in range(4):
+        key = u.game.owner_key[o]
+        assert key != seats_mod.RANDOM_AI_KEY
+        assert key in seats_mod.automated_options(), key
+        assert u.game.brains[o].key == key
+    # the sidebar now names a concrete opponent, not "random AI"
+    assert I["random_ai"] not in [ui.seat_label(u.game.owner_key[o])
+                                  for o in range(4)]
+
+
+def test_the_league_pool_is_unchanged_by_the_new_option():
+    """`match.py` already draws every seat from the eleven, so it does not need
+    the deferred choice - adding it there would only draw twice."""
+    from match import league_options
+    assert len(league_options()) == 11
+    assert seats_mod.RANDOM_AI_KEY not in league_options()

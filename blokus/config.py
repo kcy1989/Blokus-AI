@@ -109,6 +109,8 @@ I = {
     "colour_random": "隨機",
     "colours_all_random": "顏色全部隨機",
     "start_game": "開始遊戲",
+    "random_ai": "隨機AI",
+    "random_ai_desc": "開局時從 11 個 AI 與模仿中隨機抽一個",
     "human": "人類（不記錄）",
     "human_log": "人類（記錄）",
     "imitation_fmt": "模仿 {0} 步",

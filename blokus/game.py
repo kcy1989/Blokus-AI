@@ -47,9 +47,11 @@ class Game:
         """Configure all four seats by hand: one option and one colour each.
 
         `option_keys` is four option keys from `seats.seat_options`, in seat
-        order, and may repeat freely. `colours` is four entries, each a colour
-        name or `None`/`"random"` to be dealt one of whatever is left; specified
-        colours must be distinct.
+        order, and may repeat freely. A seat left on `seats.RANDOM_AI_KEY` is
+        dealt one of the eleven automated options here, one draw per seat, so
+        by the time this returns every seat names a specific contestant.
+        `colours` is four entries, each a colour name or `None`/`"random"` to be
+        dealt one of whatever is left; specified colours must be distinct.
 
         Turn order is drawn here rather than passed in, and is independent of
         both: any owner may open the game.
@@ -59,6 +61,9 @@ class Game:
             raise ValueError("a game has %d seats, got %d options"
                              % (MATCH_SEATS, len(option_keys)))
         rng = self.rng if rng is None else rng
+        # Resolve the deferred choice before anything reads a seat, so the rest
+        # of this method only ever sees concrete options.
+        option_keys = seats_mod.resolve_random_ai(option_keys, rng)
         kinds = {o: seats_mod.kind_of(k, include_humans)
                  for o, k in enumerate(option_keys)}
         if colours is None:

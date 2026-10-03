@@ -49,6 +49,8 @@ def seat_label(key):
     """
     if key is None:
         return I["player"]
+    if key == seats_mod.RANDOM_AI_KEY:
+        return I["random_ai"]
     if key == seats_mod.HUMAN_KEY:
         return I["human"]
     if key == seats_mod.HUMAN_LOG_KEY:
@@ -61,6 +63,8 @@ def seat_label(key):
 def seat_desc(key):
     """The one-line description of a seat option, or "" when it has none."""
     kind = seats_mod.kind_of(key)
+    if kind == seats_mod.KIND_RANDOM_AI:
+        return I["random_ai_desc"]
     if kind == seats_mod.KIND_AI:
         return I[key + "_desc"]
     if kind == seats_mod.KIND_IMITATION:
@@ -997,7 +1001,7 @@ class UI:
         """
         s = self.L.scale
         seat, what = self.seat_pick
-        keys = (list(seats_mod.seat_options())
+        keys = (list(seats_mod.seat_menu_options())
                 if what == "option"
                 else seats_mod.colour_choices(self.colours_in_use(ignore=seat)))
         h = int(round(38 * s))
