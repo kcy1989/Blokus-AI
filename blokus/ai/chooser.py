@@ -215,7 +215,12 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
     top = cands[:F.SHORTLIST_CORE + F.CORNER_RESERVE]
 
     adj = top
-    opps = [o for o in range(4) if o != owner]
+    # Seats with no brain are people, not contestants. They are not opponents to
+    # model a reply for, and the `other_brains[o].profile` below would raise on
+    # them - which used to be impossible, because the one seat a person played
+    # still carried a chess brain it never used.
+    opps = [o for o in range(4)
+            if o != owner and (other_brains or {}).get(o) is not None]
     lookahead_used = False
     if other_brains and opps and brain.uses_lookahead \
             and (not F.USE_WALL_BUDGET

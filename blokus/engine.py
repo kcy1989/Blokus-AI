@@ -17,6 +17,11 @@ from dataclasses import dataclass, replace
 from config import B, N, OWNER_CORNER
 from pieces import MASTER
 
+# Bumped whenever a change can alter which moves are legal, what the position
+# looks like afterwards, or how a state is numbered. Recorded on every line of a
+# human game log, so a log can be read back knowing which rules produced it.
+ENGINE_VERSION = "engine-1"
+
 # --------------------------------------------------------------------------
 # E1: board algebra
 #

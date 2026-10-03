@@ -82,6 +82,13 @@ assert SCALAR_NAMES_V2[:12] == (
     "opened_me", "opened_next", "opened_opposite", "opened_previous",
 )
 
+# Bumped whenever the channel count, the channel order or any value changes.
+# Recorded on every line of a human game log alongside `engine.ENGINE_VERSION`,
+# so a log read by a file that no longer agrees with this one is recognisable
+# rather than silently misread. A log stores the position and never the features,
+# so this describes what a reader *produces* from a log, not what is inside one.
+FEATURE_VERSION = "features-v2-%dplane-%dscalar" % (PLANE_C_V2, SCALAR_C_V2)
+
 # In the view, seat 0 sits at the top-left corner. `engine.normalize` rotates
 # the board until that is true, so a player's opening square in view
 # coordinates is a function of their seat and nothing else. Written out so the

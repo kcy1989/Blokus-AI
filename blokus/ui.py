@@ -8,6 +8,7 @@ import pygame
 
 import ai
 import records as records_mod
+import seats as seats_mod
 from config import COLORS, HAND_CELLS_TOTAL, I, OWNER_CORNER, PERSONALITY_ORDER
 from pieces import MASTER
 
@@ -28,8 +29,43 @@ DESKTOP_MARGIN = 48
 AUTO_FIT_CAP = (1920, 1080)
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
 
+# A fresh seat screen: one person, three chess players, every colour random.
+# Chosen so that pressing start without touching anything still reproduces the
+# game this screen replaced - a human against three personalities.
+DEFAULT_SEAT_KEYS = ("human", "chess", "chess", "chess")
+IMITATION_MODES = ("argmax", "softmax")
+
 COLOR_LABELS = {"blue": "藍", "green": "綠", "red": "紅", "yellow": "黃"}
+COLOR_LABELS[seats_mod.RANDOM] = I["colour_random"]
 PERSONA_ZH = {k: I[k] for k in PERSONALITY_ORDER}
+
+
+def seat_label(key):
+    """The Chinese name of any of the thirteen seat options.
+
+    One lookup for the whole set, because the four seats are no longer all
+    personalities: a seat may be a personality, an H-B2 checkpoint, or one of
+    the two human seats, and every screen that names a seat goes through here.
+    """
+    if key is None:
+        return I["player"]
+    if key == seats_mod.HUMAN_KEY:
+        return I["human"]
+    if key == seats_mod.HUMAN_LOG_KEY:
+        return I["human_log"]
+    if key.startswith("step_"):
+        return I["imitation_fmt"].format(seats_mod.imitation_step(key))
+    return PERSONA_ZH.get(key, key)
+
+
+def seat_desc(key):
+    """The one-line description of a seat option, or "" when it has none."""
+    kind = seats_mod.kind_of(key)
+    if kind == seats_mod.KIND_AI:
+        return I[key + "_desc"]
+    if kind == seats_mod.KIND_IMITATION:
+        return I["imitation_desc_fmt"].format(seats_mod.imitation_step(key))
+    return ""
 
 # One background colour for the whole window; the sidebar, the hand band and the
 # board are deliberate blocks on top of it, so no accidental seams appear.
@@ -400,7 +436,15 @@ class UI:
         self.font_path = font_path
         self._fonts = {}
         self.game = None
-        self.state = "SETUP_COLOR"
+        self.state = "SETUP_SEATS"
+        # The four seat choices live on the UI, not on the Game, until the
+        # player presses start: the screen is edited repeatedly and each edit
+        # would otherwise have to rebuild four brains.
+        self.seat_keys = list(DEFAULT_SEAT_KEYS)
+        self.seat_colours = [seats_mod.RANDOM] * 4
+        # `(seat, "option"|"colour")` while a picker is open, else None.
+        self.seat_pick = None
+        self.imitation_mode = "argmax"
         self.running = True
         self.drag = None
         self.anim = None
@@ -533,8 +577,12 @@ class UI:
     # ---------- game flow ----------
 
     def new_game(self):
+        self.flush_log()
         self.game.reset()
-        self.state = "SETUP_COLOR"
+        self.state = "SETUP_SEATS"
+        self.seat_keys = list(DEFAULT_SEAT_KEYS)
+        self.seat_colours = [seats_mod.RANDOM] * 4
+        self.seat_pick = None
         self.drag = None
         self.anim = None
         self.ai_move = None
@@ -545,9 +593,18 @@ class UI:
         self.toasts = []
         self.result_recorded = False
 
-    def set_color(self, color):
-        self.game.set_player_color(color)
-        self.state = "SETUP_INFO"
+    def start_configured_game(self):
+        """Hand the four seat choices to the game and begin.
+
+        This is the only place the choices become real: colours are resolved,
+        the turn order is drawn, and the four contestants are built. Doing it
+        here rather than on every edit is why picking a colour four times does
+        not load the same checkpoint four times.
+        """
+        self.game.setup_seats(self.seat_keys, self.seat_colours,
+                              mode=self.imitation_mode)
+        self.game.start()
+        self.state = "PLAYING"
         self.drag = None
 
     def toast(self, text):
@@ -590,10 +647,8 @@ class UI:
                 if e.key == pygame.K_f:
                     self.fit_scale()
                     return
-        if self.state == "SETUP_COLOR":
-            self.handle_setup_color(events)
-        elif self.state == "SETUP_INFO":
-            self.handle_setup_info(events)
+        if self.state == "SETUP_SEATS":
+            self.handle_setup_seats(events)
         elif self.state == "PLAYING":
             self.handle_playing(events)
         elif self.state == "ANIM":
@@ -602,45 +657,6 @@ class UI:
             self.handle_game_over(events)
         self.draw_toasts()
         pygame.display.update()
-
-    def handle_setup_color(self, events):
-        s = self.L.scale
-        bw, bh = int(round(150 * s)), int(round(220 * s))
-        gap = int(round(20 * s))
-        total = 4 * bw + 3 * gap
-        x0 = (self.L.W - total) // 2
-        y0 = int(round(220 * s))
-        self.draw_setup_color()
-        for e in events:
-            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                for i, c in enumerate(["blue", "green", "red", "yellow"]):
-                    r = pygame.Rect(x0 + i * (bw + gap), y0, bw, bh)
-                    if r.collidepoint(e.pos):
-                        self.set_color(c)
-                        return
-
-    def handle_setup_info(self, events):
-        self.draw_setup_info()
-        buttons = self.setup_button_rects()
-        for e in events:
-            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                for bid, r in buttons.items():
-                    if not r.collidepoint(e.pos):
-                        continue
-                    if bid == "redraw":
-                        self.game.redraw_personalities()
-                    else:
-                        self.game.start()
-                        self.state = "PLAYING"
-                    return
-            # Enter and space are the keyboard version of the start button;
-            # clicking anywhere else deliberately does not start, or a stray
-            # click next to "redraw AI" would launch the game.
-            elif e.type == pygame.KEYDOWN and e.key in (
-                    pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
-                self.game.start()
-                self.state = "PLAYING"
-                return
 
     def handle_anim(self):
         self.draw_all()
@@ -669,43 +685,46 @@ class UI:
     def enter_game_over(self):
         """Switch to the results view and bank this game's outcome once."""
         self.state = "GAME_OVER"
+        self.flush_log()
         if not self.result_recorded:
             self.result_recorded = True
             self.records.record(self.contestant_standings())
         self.announce_result()
 
+    def flush_log(self):
+        """Write out a recording game's log, if it has anything in it.
+
+        Called when the game ends and again when a new game is started, so
+        abandoning one halfway still keeps what was played. Deliberately *not*
+        called at the start: that would leave a zero-byte file behind for every
+        game with a recording seat, including ones nobody moved in.
+        """
+        log = getattr(self.game, "log", None)
+        if log is not None and log.records and log.path is not None:
+            log.write()
+
     def announce_result(self):
-        win = self.game.winner()
-        if win == "player":
-            self.label_color = (120, 220, 140)
-        elif win == "draw":
+        win = self.game.winner_owner()
+        if win is None:
             self.label_color = (235, 220, 120)
         else:
-            self.label_color = COLORS[self.game.colors[int(win)]]
+            self.label_color = COLORS[self.game.colors[win]]
 
     def contestant_standings(self):
         """(key, remaining) per contestant.
 
-        Keyed by role rather than seat: the AI seats get a different
-        personality every game, so a record keyed by owner would blur three
-        different contestants together.
+        Keyed by the seat's option rather than by seat, so a leaderboard can
+        tell two humans apart from a personality, and so the same personality
+        playing two seats counts once rather than twice.
         """
-        out = []
-        for owner, rem in self.game.standings():
-            key = (records_mod.PLAYER_KEY if owner == 0
-                   else self.game.owner_key[owner])
-            out.append((key, rem))
-        return out
+        return [(self.game.owner_key[owner], rem)
+                for owner, rem in self.game.standings()]
 
     def contestant_name(self, key):
-        if key == records_mod.PLAYER_KEY:
-            return I["player"]
-        return PERSONA_ZH.get(key, key)
+        return seat_label(key)
 
     def contestant_color(self, key):
-        if key == records_mod.PLAYER_KEY:
-            return COLORS[self.game.colors[0]]
-        for o in (1, 2, 3):
+        for o in range(4):
             if self.game.owner_key[o] == key:
                 return COLORS[self.game.colors[o]]
         return (200, 200, 210)
@@ -718,14 +737,83 @@ class UI:
 
     # ---------- player turn ----------
 
+    # ---------- seat setup ----------
+
+    def colours_in_use(self, ignore=None):
+        """The colours already committed, by any seat except `ignore`.
+
+        This is the one thing the menus remove. An option never leaves the
+        menu no matter how many seats take it; a colour does.
+        """
+        return {c for i, c in enumerate(self.seat_colours)
+                if i != ignore and c != seats_mod.RANDOM}
+
+    def handle_setup_seats(self, events):
+        if self.seat_pick is not None:
+            self.draw_setup_menu()
+            self.handle_setup_menu(events)
+            return
+        self.draw_setup_seats()
+        rects = self.seat_rects()
+        for e in events:
+            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                for bid, r in rects.items():
+                    if not r.collidepoint(e.pos):
+                        continue
+                    if bid == "start_game":
+                        self.start_configured_game()
+                    elif bid == "imitation_mode":
+                        self.imitation_mode = IMITATION_MODES[
+                            (IMITATION_MODES.index(self.imitation_mode) + 1)
+                            % len(IMITATION_MODES)]
+                    elif bid == "randomise":
+                        self.seat_colours = [seats_mod.RANDOM] * 4
+                    else:
+                        seat, what = bid.split(":")
+                        self.seat_pick = (int(seat), what)
+                    return
+            elif e.type == pygame.KEYDOWN and e.key in (
+                    pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+                self.start_configured_game()
+                return
+
+    def handle_setup_menu(self, events):
+        """A picker is open: one click picks, one click closes."""
+        rects = self.menu_rects()
+        for e in events:
+            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                for bid, r in rects.items():
+                    if not r.collidepoint(e.pos):
+                        continue
+                    if bid == "menu_cancel":
+                        self.seat_pick = None
+                    else:
+                        seat, what = self.seat_pick
+                        key = bid.split(":", 1)[1]
+                        if what == "option":
+                            self.seat_keys[seat] = key
+                        else:
+                            self.seat_colours[seat] = key
+                        self.seat_pick = None
+                    return
+            elif e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                # ESC is "close the picker", not "quit", while one is open.
+                self.seat_pick = None
+                return
+
+    # ---------- player turn ----------
+
     def handle_playing(self, events):
         owner = self.game.current_owner()
-        if owner != 0:
+        # Which seat is a person is a choice now, so it is asked rather than
+        # assumed. Every seat here has a brain except the human ones, and the
+        # AI path indexes `brains[owner]`, so this test has to be right.
+        if not self.game.is_human(owner):
             self.draw_all()
             self.handle_ai_turn(owner)
             return
 
-        if not self.game.has_legal(0):
+        if not self.game.has_legal(owner):
             self.toast(I["auto_pass"])
             self.game.act_pass()
             if self.game.state == "GAME_OVER":
@@ -809,7 +897,7 @@ class UI:
             self.ai_pending = False
             self.ai_move = None
             if mv is None:
-                self.toast("%s %s" % (PERSONA_ZH[self.game.owner_key[owner]],
+                self.toast("%s %s" % (seat_label(self.game.owner_key[owner]),
                                        I["auto_pass"]))
                 self.game.act_pass()
             else:
@@ -856,25 +944,74 @@ class UI:
         w = int(round(620 * s))
         return pygame.Rect((self.L.W - w) // 2, 0, w, self.L.H)
 
-    def setup_button_rects(self):
-        """Redraw AI (left) and Start (right), side by side under the panel."""
-        L = self.L
-        panel = self.setup_panel_rect()
-        y = self.setup_content_bottom()
-        bh = L.BTN_H
-        bw = int(round(112 * L.scale))
-        sw = int(round(128 * L.scale))
-        pad = int(round(18 * L.scale))
-        return {
-            "redraw": pygame.Rect(panel.x, y, bw, bh),
-            "start_game": pygame.Rect(panel.right - sw, y, sw, bh),
-        }
+    def seat_row_h(self):
+        return int(round(88 * self.L.scale))
 
-    def setup_content_bottom(self):
-        """Y where the setup screen's text ends (the buttons sit right below)."""
+    def seat_row_y(self, seat):
+        """Top of one seat row. Three hint lines, then four rows."""
+        return int(round(184 * self.L.scale)) + seat * self.seat_row_h()
+
+    def seat_buttons_y(self):
+        """Where the button row under the four seat rows starts."""
+        return (self.seat_row_y(0) + 4 * self.seat_row_h()
+                + int(round(12 * self.L.scale)))
+
+    def seat_rects(self):
+        """Every hit box on the seat screen, keyed the way the handler expects.
+
+        `"<seat>:colour"` and `"<seat>:option"` are the two cells of a row; the
+        rest are the buttons under them. One dict for both drawing and clicking
+        is what keeps the two from drifting apart.
+        """
         s = self.L.scale
-        rows = int(round(132 * s)) + 4 * int(round(74 * s))
-        return rows + int(round((30 + 20 * len(I["turn_note"])) * s)) + int(round(6 * s))
+        panel = self.setup_panel_rect()
+        # Three columns: the seat's name, its colour swatch, then its option.
+        # The label gets a fixed width so the swatch lands in the same place on
+        # every row regardless of how long the corner name is.
+        lw = int(round(126 * s))
+        sw = int(round(40 * s))
+        cx = panel.x + lw
+        ox = cx + sw + int(round(14 * s))
+        ow = int(round(250 * s))
+        out = {}
+        for seat in range(4):
+            y = self.seat_row_y(seat)
+            out["%d:colour" % seat] = pygame.Rect(cx, y, sw, sw)
+            out["%d:option" % seat] = pygame.Rect(ox, y, ow, int(round(40 * s)))
+        y = self.seat_buttons_y()
+        bh = self.L.BTN_H
+        bw = int(round(150 * s))
+        gap = int(round(16 * s))
+        mw = int(round(210 * s))
+        out["randomise"] = pygame.Rect(panel.x, y, bw, bh)
+        out["imitation_mode"] = pygame.Rect(panel.x + bw + gap, y, mw, bh)
+        out["start_game"] = pygame.Rect(panel.right - int(round(170 * s)), y,
+                                        int(round(170 * s)), bh)
+        return out
+
+    def menu_rects(self):
+        """The open picker's choices, keyed `"<kind>:<key>"`.
+
+        A colour another seat has taken is simply not here, which is the whole
+        of the "taken colours leave the menu" rule. Options are never removed.
+        """
+        s = self.L.scale
+        seat, what = self.seat_pick
+        keys = (list(seats_mod.seat_options())
+                if what == "option"
+                else seats_mod.colour_choices(self.colours_in_use(ignore=seat)))
+        h = int(round(38 * s))
+        gap = int(round(6 * s))
+        w = int(round(360 * s))
+        total = len(keys) * h + (len(keys) - 1) * gap
+        x = (self.L.W - w) // 2
+        y0 = max(0, (self.L.H - total) // 2)
+        out = {}
+        for i, k in enumerate(keys):
+            out["%s:%s" % (what, k)] = pygame.Rect(x, y0 + i * (h + gap), w, h)
+        out["menu_cancel"] = pygame.Rect(x, y0 + total + int(round(14 * s)),
+                                        w, int(round(30 * s)))
+        return out
 
     # ---------- hand ----------
 
@@ -926,9 +1063,10 @@ class UI:
         d = self.drag
         if not d or d["x"] is None or not d["valid"]:
             if d and d["x"] is not None and not d["valid"]:
-                if self.game.must_cover(0) is not None:
-                    self.toast(I["open_rule_toast"].format(corner_zh(0)))
-                elif self.game.placed[0] > 0:
+                owner = self.game.current_owner()
+                if self.game.must_cover(owner) is not None:
+                    self.toast(I["open_rule_toast"].format(corner_zh(owner)))
+                elif self.game.placed[owner] > 0:
                     self.toast(I["touch_rule_toast"])
             return False
         self.place_drag()
@@ -938,11 +1076,14 @@ class UI:
     def place_drag(self):
         n, oi = self.drag["name"], self.drag["oi"]
         x, y = self.drag["x"], self.drag["y"]
+        # Which seat is placing, not "seat 0": a person may be playing any of
+        # the four, and `Game.act` moves whoever is to move.
+        owner = self.game.current_owner()
         self.game.act(n, oi, x, y)
         if self.game.state == "GAME_OVER":
             self.enter_game_over()
         else:
-            self.anim = {"name": n, "oi": oi, "x": x, "y": y, "owner": 0,
+            self.anim = {"name": n, "oi": oi, "x": x, "y": y, "owner": owner,
                          "t": time.time()}
             self.state = "ANIM"
 
@@ -1051,7 +1192,7 @@ class UI:
                                     pygame.SRCALPHA)
                 hl.fill((255, 255, 255, 22))
                 surf.blit(hl, (0, y - int(round(5 * s))))
-            name = I["player"] if i == 0 else PERSONA_ZH[self.game.owner_key[i]]
+            name = seat_label(self.game.owner_key[i])
             pygame.draw.rect(self.screen, color,
                              pygame.Rect(x0, y + int(round(8 * s)), sw, sw))
             self.label(name, name_x, y, 22,
@@ -1074,12 +1215,11 @@ class UI:
             pygame.draw.rect(surf, (70, 76, 88), bar, 1)
 
         ty = base_y + 4 * row_h + int(round(10 * s))
-        self.label("%s：%s" % (I["turn"], I["player"] if owner == 0
-                               else PERSONA_ZH[self.game.owner_key[owner]]),
+        self.label("%s：%s" % (I["turn"], seat_label(self.game.owner_key[owner])),
                    x0, ty, 20, (225, 225, 232))
-        if owner != 0 and self.ai_pending and not self.ai_ready:
+        if not self.game.is_human(owner) and self.ai_pending and not self.ai_ready:
             oc = self.game.colors[owner]
-            self.label("%s %s %s…" % (PERSONA_ZH[self.game.owner_key[owner]],
+            self.label("%s %s %s…" % (seat_label(self.game.owner_key[owner]),
                                       COLOR_LABELS[oc], I["thinking"]),
                        x0, ty + int(round(34 * s)), 17, COLORS[oc])
         # The sidebar is only as tall as the board, so secondary rows are
@@ -1108,9 +1248,12 @@ class UI:
             hint(line, 14, (120, 126, 136))
         if self.drag and self.drag["locked"]:
             hint(I["locked"], 16, (120, 220, 150))
-        if self.game.must_cover(0) is not None:
-            hint(I["open_rule_hint"].format(corner_zh(0)), 15, (235, 200, 120))
-        elif self.game.placed[0] > 0:
+        # The rules hint follows the seat being shown, which is the one to move
+        # - so it names that seat's corner rather than a fixed one.
+        me = self.game.current_owner()
+        if self.game.must_cover(me) is not None:
+            hint(I["open_rule_hint"].format(corner_zh(me)), 15, (235, 200, 120))
+        elif self.game.placed[me] > 0:
             hint(I["touch_rule_hint"], 15, (235, 200, 120))
         hy = y + int(round(6 * s))
         hstep = int(round(18 * s))
@@ -1129,7 +1272,7 @@ class UI:
         """Own corner per player; greyed out once that player has played."""
         marks = {}
         for owner, (cx, cy) in OWNER_CORNER.items():
-            if owner == 0 or self.game.owner_key.get(owner):
+            if self.game.seats_configured() or self.game.owner_key.get(owner):
                 if self.game.placed[owner] == 0:
                     marks[(cx, cy)] = (COLORS[self.game.colors[owner]], owner)
         return marks
@@ -1252,64 +1395,108 @@ class UI:
         surf.blit(plate, (x, y))
         surf.blit(img, img.get_rect(center=(x + w // 2, y + h // 2)))
 
-    def draw_setup_color(self):
-        s = self.L.scale
-        surf = self.screen
-        surf.fill((12, 15, 20))
-        self.label(I["title"], self.L.W // 2, int(round(30 * s)), 30,
-                   (235, 235, 235), center=True)
-        self.label(I["choose_color"], self.L.W // 2, int(round(110 * s)), 22,
-                   (200, 200, 210), center=True)
-        bw, bh = int(round(150 * s)), int(round(220 * s))
-        gap = int(round(20 * s))
-        x0 = (self.L.W - (4 * bw + 3 * gap)) // 2
-        y0 = int(round(220 * s))
-        for i, col in enumerate(["blue", "green", "red", "yellow"]):
-            r = pygame.Rect(x0 + i * (bw + gap), y0, bw, bh)
-            surf.fill(COLORS[col], r)
-            pygame.draw.rect(surf, (110, 118, 132), r, 2)
-            self.label(COLOR_LABELS[col], r.centerx, r.bottom + int(round(12 * s)),
-                       20, (235, 235, 235), center=True)
-        self.label(I["scale_hint"].format(int(self.scale * s * 100)),
-                   self.L.W // 2, y0 + bh + int(round(48 * s)), 15,
-                   (130, 136, 146), center=True)
+    # ---------- seat setup drawing ----------
 
-    def draw_setup_info(self):
+    def draw_setup_seats(self):
+        """Four rows, one per seat: a colour, an option, and its description.
+
+        Drawn from the same `seat_rects` the click handler uses, so a hit box
+        can never drift away from what is on screen.
+        """
         s = self.L.scale
         surf = self.screen
         surf.fill((12, 15, 20))
         panel = self.setup_panel_rect()
-        cx, sw = panel.x, int(round(22 * s))
-        self.label(I["title"], cx, int(round(26 * s)), 30, (235, 235, 235))
-        pcol = COLORS[self.game.colors[0]]
-        pygame.draw.rect(surf, pcol, pygame.Rect(cx, int(round(84 * s)), sw, sw))
-        self.label("%s（%s）：%s" % (I["player"], I["corner_br"],
-                                    COLOR_LABELS[self.game.colors[0]]),
-                   cx + sw + int(round(12 * s)), int(round(84 * s)), 22, pcol)
-        y = int(round(132 * s))
-        for o in range(1, 4):
-            key = self.game.owner_key[o]
-            color = COLORS[self.game.colors[o]]
-            pygame.draw.rect(surf, color, pygame.Rect(cx, y, sw, sw))
-            self.label("%s（%s）：%s" % (PERSONA_ZH[key], corner_zh(o),
-                                        COLOR_LABELS[self.game.colors[o]]),
-                       cx + sw + int(round(12 * s)), y, 22, color)
-            self.label(I[key + "_desc"], cx + sw + int(round(12 * s)),
-                       y + int(round(30 * s)), 16, (165, 170, 180))
-            y += int(round(74 * s))
-        # The rotation is clockwise with a random starting point, so who moves
-        # first differs every game; spelled out so the player does not assume
-        # they always go first.
-        order = " → ".join(
-            (I["player"] if o == 0 else PERSONA_ZH[self.game.owner_key[o]])
-            + (I["turn_first"] if i == 0 else "")
-            for i, o in enumerate(self.game.turn_order))
-        self.label(I["turn_order_fmt"].format(order), cx, y, 17, (185, 190, 200))
-        for i, line in enumerate(I["turn_note"]):
-            self.label(line, cx, y + int(round((30 + 20 * i) * s)), 16,
-                       (150, 155, 165))
-        for bid, r in self.setup_button_rects().items():
-            self.draw_button(bid, r, size=20)
+        cx = panel.x
+        self.label(I["title"], cx, int(round(20 * s)), 28, (235, 235, 235))
+        self.label(I["seats_title"], cx, int(round(56 * s)), 22, (200, 200, 210))
+        for line_i, line in enumerate(I["seats_hint"]):
+            self.label(line, cx, int(round((88 + 20 * line_i) * s)), 15,
+                       (140, 146, 156))
+
+        rows = self.seat_rects()
+        for seat in range(4):
+            key = self.seat_keys[seat]
+            colour = self.seat_colours[seat]
+            row_h = self.seat_row_h()
+            y = self.seat_row_y(seat)
+            swatch = rows["%d:colour" % seat]
+            # A "random" seat has no colour yet; show it as an outline rather
+            # than inventing one, so the screen never lies about what is set.
+            if colour == seats_mod.RANDOM:
+                pygame.draw.rect(surf, (44, 56, 76), swatch,
+                                 border_radius=max(3, int(round(6 * s))))
+                pygame.draw.rect(surf, (120, 128, 142), swatch, 2,
+                                 border_radius=max(3, int(round(6 * s))))
+            else:
+                pygame.draw.rect(surf, COLORS[colour], swatch,
+                                 border_radius=max(3, int(round(6 * s))))
+            self.label(I["seat_fmt"].format(seat + 1, corner_zh(seat)),
+                       panel.x, y + int(round(6 * s)), 18, (210, 214, 222))
+            opt = rows["%d:option" % seat]
+            self.draw_choice(opt, seat_label(key))
+            desc = seat_desc(key)
+            if desc:
+                self.label(desc, opt.x, y + int(round(50 * s)), 14,
+                           (150, 156, 166))
+
+        y = self.seat_buttons_y()
+        for bid, r in rows.items():
+            if bid.endswith(":option") or bid.endswith(":colour"):
+                continue
+            if bid == "start_game":
+                self.draw_button(bid, r, size=20)
+            else:
+                self.draw_choice(r, self._aux_caption(bid))
+        y += self.L.BTN_H + int(round(10 * s))
+        self.label(I["scale_hint"].format(int(self.scale * s * 100)),
+                   self.L.W // 2, y, 15, (130, 136, 146), center=True)
+
+    def _aux_caption(self, bid):
+        if bid == "randomise":
+            return I["colours_all_random"]
+        if bid == "imitation_mode":
+            return I["imitation_mode_fmt"].format(self.imitation_mode)
+        return bid
+
+    def draw_choice(self, r, caption, selected=False, enabled=True):
+        """A picker row. `draw_button` looks its caption up in `I`, and these
+        captions are data rather than fixed strings, so this is its own
+        two-line version rather than a new key per option."""
+        s = self.L.scale
+        surf = self.screen
+        fill, edge, ink = ((52, 66, 92), (96, 126, 168), (232, 238, 248)) \
+            if selected else ((38, 46, 62), (72, 86, 110), (206, 214, 226))
+        if not enabled:
+            fill, edge, ink = (44, 48, 58), (62, 68, 80), (124, 130, 140)
+        radius = max(4, int(round(7 * s)))
+        pygame.draw.rect(surf, fill, r, border_radius=radius)
+        pygame.draw.rect(surf, edge, r, max(1, int(round(2 * s))),
+                         border_radius=radius)
+        img = self.font_of(17).render(str(caption), True, ink)
+        surf.blit(img, img.get_rect(center=r.center))
+
+    def draw_setup_menu(self):
+        """The open picker: a flat list of the choices still on offer."""
+        s = self.L.scale
+        surf = self.screen
+        self.draw_setup_seats()
+        seat, what = self.seat_pick
+        rects = self.menu_rects()
+        shade = pygame.Surface((self.L.W, self.L.H), pygame.SRCALPHA)
+        shade.fill((8, 10, 14, 205))
+        surf.blit(shade, (0, 0))
+        for bid, r in rects.items():
+            if bid == "menu_cancel":
+                self.draw_choice(r, I["cancel"])
+                continue
+            key = bid.split(":", 1)[1]
+            if what == "option":
+                caption, chosen = seat_label(key), key == self.seat_keys[seat]
+            else:
+                caption = COLOR_LABELS.get(key, key)
+                chosen = key == self.seat_colours[seat]
+            self.draw_choice(r, caption, selected=chosen)
 
     def draw_results(self):
         """Draw the finished board, then a results panel in the sidebar.
@@ -1331,15 +1518,12 @@ class UI:
         inner = L.PANEL_W - 2 * x
         y = top + int(round(14 * s))
         y = self._row(I["game_over"], x, y, 24, (240, 240, 245), inner)
-        win = self.game.winner()
-        if win == "player":
-            msg, wcol = I["win_player"], (120, 220, 140)
-        elif win == "draw":
-            msg, wcol = I["draw"], (235, 220, 120)
+        win = self.game.winner_owner()
+        if win is None:
+            msg, wcol = I["win_draw"], (235, 220, 120)
         else:
-            o = int(win)
-            msg = I["win_ai"].format(PERSONA_ZH[self.game.owner_key[o]])
-            wcol = COLORS[self.game.colors[o]]
+            msg = I["win_any"].format(seat_label(self.game.owner_key[win]))
+            wcol = COLORS[self.game.colors[win]]
         y = self._row(msg, x, y, 20, wcol, inner)
         y = self._row(I["less_is_better"], x, y, 12, (120, 126, 136), inner)
 
@@ -1384,7 +1568,7 @@ class UI:
             return
         mv = ai.choose_move(self.game.board, self.game.hands[owner].names, owner,
                             self.game.brains[owner], self.game.rng,
-                            other_brains=self.game.brains,
+                            other_brains=self.game.brain_map(),
                             must_cover=self.game.must_cover(owner),
                             reach=self.game.reach(owner),
                             other_must_cover={o: self.game.must_cover(o)

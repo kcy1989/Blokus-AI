@@ -2,9 +2,10 @@
 into the leaderboard."""
 import random
 
+import seats as seats_mod
 from config import PERSONALITY_ORDER
 from game import Game
-from match import play_match, run_league
+from match import league_options, play_match, run_league
 from records import Records
 
 
@@ -46,8 +47,11 @@ def test_play_match_ends_and_scores_by_personality():
     standings = play_match(g, random.Random(4))
     assert g.state == "GAME_OVER"
     assert len(standings) == 4
-    assert sorted(k for k, _ in standings) == sorted(g.owner_key[o] for o in range(4))
-    assert all(isinstance(r, int) and 0 <= r <= 89 for _, r in standings)
+    assert sorted(k for k, _c, _r in standings) == sorted(
+        g.owner_key[o] for o in range(4))
+    assert sorted(c for _k, c, _r in standings) == ["blue", "green", "red",
+                                                    "yellow"]
+    assert all(isinstance(r, int) and 0 <= r <= 89 for _k, _c, r in standings)
     # every move is legal: check the corner-contact rule move by move
     rng = random.Random(9)
     g = Game(rng)
@@ -59,7 +63,7 @@ def test_play_match_ends_and_scores_by_personality():
         owner = g.current_owner()
         before = {i for i in range(400) if g.board.grid[i] == owner}
         move = ai.choose_move(g.board, g.hands[owner].names, owner,
-                              g.brains[owner], rng, other_brains=g.brains,
+                              g.brains[owner], rng, other_brains=g.brain_map(),
                               must_cover=g.must_cover(owner), reach=g.reach(owner))
         if move is None:
             g.act_pass()
@@ -80,12 +84,15 @@ def test_play_match_ends_and_scores_by_personality():
 
 
 def test_league_records_only_personality_keys(tmp_path):
-    """The leaderboard only gains personality entries - there is no player in an
-    all-AI match."""
+    """A league of the seven personalities, with no player in it.
+
+    Run without the imitation options on purpose: the default eleven would load
+    four checkpoints, and this test is about the leaderboard, not about torch.
+    """
     rec = Records(str(tmp_path / "records.json"))
-    rows = run_league(6, seed=3, records=rec)
+    rows = run_league(6, seed=3, records=rec, options=PERSONALITY_ORDER)
     assert len(rows) == 6
-    keys = {k for row in rows for k, _ in row}
+    keys = {k for row in rows for k, _c, _r in row}
     assert keys <= set(PERSONALITY_ORDER), keys
     assert "player" not in rec.entries
     assert set(rec.entries) == keys
@@ -103,3 +110,83 @@ def test_run_league_without_records_touches_no_file(tmp_path):
     rows = run_league(2, seed=1)
     assert len(rows) == 2
     assert not list(tmp_path.iterdir())
+
+
+# ------------------------------------------------- the eleven-seat league
+
+def test_the_league_offers_eleven_options_and_no_humans():
+    from match import league_options
+    opts = league_options()
+    assert len(opts) == 11
+    assert len(set(opts)) == 11
+    kinds = [seats_mod.kind_of(k, include_humans=False) for k in opts]
+    assert kinds.count(seats_mod.KIND_AI) == 7
+    assert kinds.count(seats_mod.KIND_IMITATION) == 4
+    assert not any(seats_mod.is_human_kind(k) for k in kinds)
+
+
+def test_every_league_seat_is_drawn_independently_so_options_repeat():
+    """The old league drew four *distinct* personalities, which meant the three
+    seats always showed a personality nobody else had. Drawing independently is
+    what lets a league answer "is the imitation stronger"."""
+    from match import league_options
+    opts = [k for k in league_options() if not k.startswith("step_")]
+    seen_repeat = 0
+    for seed in range(20):
+        rows = run_league(1, seed=seed, options=opts)
+        keys = [k for k, _c, _r in rows[0]]
+        assert set(keys) <= set(opts)
+        assert len(keys) == 4
+        if len(set(keys)) < 4:
+            seen_repeat += 1
+    assert seen_repeat > 0, "40 draws with 7 options and never a repeat"
+
+
+def test_a_league_row_names_both_the_option_and_the_colour():
+    """Needed to tell two seats apart when the same option is drawn twice, and
+    to work out who played what later."""
+    from match import league_options
+    opts = [k for k in league_options() if not k.startswith("step_")]
+    rows = run_league(3, seed=11, options=opts)
+    for row in rows:
+        assert len(row) == 4
+        keys = [k for k, _c, _r in row]
+        colours = [c for _k, c, _r in row]
+        assert set(keys) <= set(opts)
+        # four seats, four distinct colours, every pair identified
+        assert sorted(colours) == ["blue", "green", "red", "yellow"]
+        assert len(set(zip(keys, colours))) == 4
+
+
+def test_every_league_game_deals_four_distinct_colours():
+    """Colours come from the same `setup_seats` the UI uses, left on "random",
+    so a league game is laid out exactly like a played one."""
+    from match import league_options
+    opts = [k for k in league_options() if not k.startswith("step_")]
+    for seed in range(25):
+        rows = run_league(1, seed=seed, options=opts)
+        assert sorted(c for _k, c, _r in rows[0]) == \
+            ["blue", "green", "red", "yellow"], seed
+
+
+def test_the_league_draws_its_seats_through_setup_seats():
+    """The opening player is drawn inside `setup_seats`, so a league game and a
+    game a person set up go first the same way."""
+    import random as _r
+
+    from game import Game
+    from match import league_options
+    opts = [k for k in league_options() if not k.startswith("step_")]
+    firsts = set()
+    for seed in range(40):
+        rng = _r.Random(seed)
+        g = Game(rng)
+        keys = [rng.choice(opts) for _ in range(4)]
+        g.setup_seats(keys, [None] * 4, rng)
+        firsts.add(g.turn_order[0])
+    assert firsts == {0, 1, 2, 3}, firsts
+
+
+def test_only_imitation_options_can_be_asked_for():
+    steps = [k for k in league_options() if k.startswith("step_")]
+    assert steps == ["step_%d" % s for s in seats_mod.IMITATION_STEPS]

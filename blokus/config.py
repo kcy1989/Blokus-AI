@@ -41,9 +41,10 @@ I = {
     "confirm": "確認",
     "cancel": "取消",
     "redraw": "重抽 AI",
-    "start_game": "開始",
     "new_game": "新遊戲",
     "game_over": "遊戲結束",
+    "win_any": "{0} 獲勝",
+    "win_draw": "平手",
     "turn_note": ["每位玩家每輪各放 1 件。第一塊之後，每塊都必須以「角對角」碰到自己的棋，",
                   "且不可與自己的棋共邊；四位玩家都無合法放置時結束。"],
     "thinking": "正在思考…",
@@ -94,6 +95,31 @@ I = {
     "builder_desc": "築城 — 圍住一整塊放得下大棋的地",
     "hunter": "獵手",
     "hunter_desc": "攻勢 — 開局定式，其後搶對手的可放空間",
+
+    # -- seat setup --------------------------------------------------------
+    # One row per seat: who or what plays it, and which colour. The two are
+    # separate choices because only the colour is exclusive.
+    "seats_title": "座位設定",
+    "seats_hint": ["每個座位各選一個選項與一種顏色。選項可以重複，顏色不可重複。",
+                   "顏色留「隨機」者，開局時會拿到剩下的顏色之一。",
+                   "先手與各座位的顏色在開局時隨機決定。"],
+    "seat_fmt": "座位 {0}（{1}）",
+    "seat_colour": "顏色",
+    "seat_option": "選項",
+    "colour_random": "隨機",
+    "colours_all_random": "顏色全部隨機",
+    "start_game": "開始遊戲",
+    "human": "人類（不記錄）",
+    "human_log": "人類（記錄）",
+    "imitation_fmt": "模仿 {0} 步",
+    "imitation_mode_fmt": "模仿選步：{0}",
+    "imitation_desc_fmt": "H-B2 第 {0} 步的檢查點",
+    "ai_pool": "AI",
+    "human_pool": "人類",
+    "imitation_pool": "模仿",
+    "turn_order_first": "先手",
+    "turn_order_fmt2": "行棋順序（順時針，先手為 {0}）",
+    "no_human_note": "本局沒有真人：四個座位都由 AI 或模仿模型下。",
 }
 
 PERSONALITY_ORDER = ("wolf", "chess", "fox", "intruder", "optimizer", "builder",

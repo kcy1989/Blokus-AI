@@ -15,8 +15,10 @@ from config import HAND_CELLS_TOTAL
 from game import Game
 from pieces import MASTER
 from config import I
+import seats as seats_mod
+import ui
 from ui import (DEFAULT_HAND_ZOOM, HAND_ITEMS, HAND_ZOOMS, PERSONA_ZH, SCALES,
-                 Layout, UI, best_scale, load_cjk_font_path)
+                Layout, UI, best_scale, load_cjk_font_path)
 
 
 def make_ui(seed=7, scale=1.0, hand_zoom=2.0):
@@ -56,28 +58,55 @@ def wait_for_player_turn(u, limit=400):
 
 
 def start_game(u):
-    key(u)
-    at_setup_info(u)
+    """The seat screen with its defaults, then straight into play."""
+    u.tick([])
+    assert u.state == "SETUP_SEATS"
     key(u)
     assert u.state == "PLAYING"
     return u
 
 
-def at_setup_info(u):
-    """The setup screen, reached by picking a colour."""
+def at_seat_screen(u):
+    """The seat screen, with the four seats still at their defaults."""
     u.tick([])
-    s = u.L.scale
-    bw, gap = int(150 * s), int(20 * s)
-    x0 = (u.L.W - (4 * bw + 3 * gap)) // 2
-    click(u, (x0 + bw // 2, int(220 * s) + int(220 * s) // 2))
-    assert u.state == "SETUP_INFO"
+    assert u.state == "SETUP_SEATS"
     return u
 
 
+def start_game_human_at(u, seat):
+    """A game whose human plays `seat`, not necessarily seat 0.
+
+    The seat screen lets any of the four be a person, so the tests that drive a
+    human's moves have to be able to say which one.
+    """
+    at_seat_screen(u)
+    u.seat_keys = ["chess"] * 4
+    u.seat_keys[seat] = "human"
+    u.seat_colours = ["blue", "green", "red", "yellow"]
+    key(u)
+    assert u.state == "PLAYING"
+    return u
+
+
+def brain_for(u, owner):
+    """Any brain, used only to find a legal move for a test to play.
+
+    A human seat has no brain at all now - that is what makes "is this seat a
+    person" answerable - so the helper borrows one from a seat that does.
+    """
+    for o in range(4):
+        if u.game.brains.get(o) is not None:
+            return u.game.brains[o]
+    raise AssertionError("no AI seat to borrow a brain from")
+
+
 def best_player_move(u, seed=0):
-    return ai.choose_move(u.game.board, u.game.hands[0].names, 0, u.game.brains[0],
+    owner = u.game.current_owner()
+    return ai.choose_move(u.game.board, u.game.hands[owner].names, owner,
+                          brain_for(u, owner),
                           random.Random(seed), other_brains=None,
-                          must_cover=u.game.must_cover(0), reach=u.game.reach(0))
+                          must_cover=u.game.must_cover(owner),
+                          reach=u.game.reach(owner))
 
 
 # ---------------------------------------------------------------- fonts
@@ -516,117 +545,138 @@ def test_hand_reflows_without_leaving_holes():
 
 # ---------------------------------------------------------------- setup flow
 
-def test_setup_color_then_info():
+def test_the_seat_screen_starts_a_game_without_picking_anything():
+    """Pressing start with the defaults gives the game this screen replaced:
+    one person against three chess players, every colour dealt at random."""
     u = make_ui()
     u.tick([])
-    assert u.state == "SETUP_COLOR"
-    s = u.L.scale
-    bw, bh, gap = int(150 * s), int(220 * s), int(20 * s)
-    x0 = (u.L.W - (4 * bw + 3 * gap)) // 2
-    click(u, (x0 + bw // 2, int(220 * s) + bh // 2))
-    assert u.state == "SETUP_INFO"
-    assert u.game.colors[0] == "blue"
-    assert len(set(u.game.owner_key[o] for o in (1, 2, 3))) == 3
-    key(u)
+    assert u.state == "SETUP_SEATS"
+    assert u.seat_keys == ["human", "chess", "chess", "chess"]
+    assert u.seat_colours == [seats_mod.RANDOM] * 4
+    click(u, u.seat_rects()["start_game"].center)
     assert u.state == "PLAYING"
+    assert len(set(u.game.colors.values())) == 4
+    assert u.game.seat_kinds[0] == seats_mod.KIND_HUMAN
+    assert [u.game.seat_kinds[o] for o in (1, 2, 3)] == [seats_mod.KIND_AI] * 3
     assert len(u.game.hands[0].names) == 21
 
 
-def test_every_personality_renders_on_the_setup_panel():
-    """The panel looks each personality up by key, so a new personality with a
-    missing name or one-line description only blows up at runtime."""
-    for key in ai.personality_keys():
+def test_every_seat_option_renders_on_the_seat_screen():
+    """The screen looks each option up by key, so a new option with a missing
+    name or description only blows up at runtime. Checked for all thirteen."""
+    options = seats_mod.seat_options(True)
+    assert len(options) == 13
+    for opt in options:
         u = make_ui()
-        u.game.set_player_color("blue")
-        u.game.owner_key[1], u.game.owner_key[2], u.game.owner_key[3] = key, "fox", "wolf"
-        u.state = "SETUP_INFO"
-        u.game.state = "SETUP_INFO"
-        u.draw_setup_info()
-        assert I[key] and I[key + "_desc"]
+        at_seat_screen(u)
+        for seat in range(4):
+            u.seat_keys[seat] = opt
+            u.draw_setup_seats()
+        assert ui.seat_label(opt)
+        if seats_mod.kind_of(opt) in (seats_mod.KIND_AI, seats_mod.KIND_IMITATION):
+            assert ui.seat_desc(opt), opt
+    for opt in options:
+        if seats_mod.kind_of(opt) == seats_mod.KIND_AI:
+            assert I[opt] and I[opt + "_desc"]
 
 
-def test_setup_panel_shows_the_clockwise_turn_order():
-    """Rotation is clockwise and the start is random, so the panel has to state
-    who moves first."""
-    u = at_setup_info(make_ui())
-    real = u.label
-    texts = []
+def test_an_option_may_be_repeated_and_a_colour_may_not():
+    """The two rules the screen exists to express."""
+    u = make_ui()
+    at_seat_screen(u)
+    u.seat_keys = ["wolf"] * 4
+    u.seat_colours = ["blue", "green", "red", "yellow"]
+    click(u, u.seat_rects()["start_game"].center)
+    assert u.state == "PLAYING"
+    assert [u.game.owner_key[o] for o in range(4)] == ["wolf"] * 4
+    assert sorted(u.game.colors.values()) == ["blue", "green", "red", "yellow"]
 
-    def spy(text, *a, **kw):
-        texts.append(text)
-        return real(text, *a, **kw)
+    # four humans, and two recording humans, are both legal
+    u = make_ui()
+    at_seat_screen(u)
+    u.seat_keys = ["human"] * 4
+    u.seat_colours = [seats_mod.RANDOM] * 4
+    click(u, u.seat_rects()["start_game"].center)
+    assert u.state == "PLAYING"
+    assert u.game.humans() == [0, 1, 2, 3]
 
-    u.label = spy
-    u.draw_setup_info()
-    u.label = real
-    line = [t for t in texts if I["turn_order_fmt"].split("{")[0] in str(t)]
-    assert len(line) == 1, texts
-    shown = str(line[0])
-    first = u.game.turn_order[0]
-    want = I["player"] if first == 0 else PERSONA_ZH[u.game.owner_key[first]]
-    assert want + I["turn_first"] in shown, shown
-    names = [I["player"] if o == 0 else PERSONA_ZH[u.game.owner_key[o]]
-             for o in u.game.turn_order]
-    for i in range(3):
-        assert names[i] in shown and names[i + 1] in shown
-        assert shown.index(names[i]) < shown.index(names[i + 1]), shown
+    u = make_ui()
+    at_seat_screen(u)
+    u.seat_keys = ["human_log", "chess", "human_log", "chess"]
+    u.seat_colours = [seats_mod.RANDOM] * 4
+    click(u, u.seat_rects()["start_game"].center)
+    assert u.state == "PLAYING"
+    assert u.game.recording_seats() == [0, 2]
+
+
+def test_a_colour_another_seat_took_is_not_on_offer():
+    """Options stay in the menu however many seats take them; colours do not."""
+    u = make_ui()
+    at_seat_screen(u)
+    u.seat_colours = ["blue", "green", "red", seats_mod.RANDOM]
+    u.seat_pick = (3, "colour")
+    keys = {k.split(":", 1)[1] for k in u.menu_rects()
+            if k.startswith("colour:")}
+    assert keys == {"random", "yellow"}, keys
+    # and the option list is untouched by repetition
+    u.seat_keys = ["fox"] * 4
+    u.seat_pick = (3, "option")
+    keys = {k.split(":", 1)[1] for k in u.menu_rects()
+            if k.startswith("option:")}
+    assert keys == set(seats_mod.seat_options(True))
+
+
+def test_picking_from_the_menu_assigns_to_that_seat_only():
+    u = make_ui()
+    at_seat_screen(u)
+    click(u, u.seat_rects()["2:option"].center)
+    assert u.seat_pick == (2, "option")
+    click(u, u.menu_rects()["option:wolf"].center)
+    assert u.seat_pick is None
+    assert u.seat_keys == ["human", "chess", "wolf", "chess"]
+    assert u.state == "SETUP_SEATS"
 
 
 def test_setup_starts_only_from_the_start_button():
-    """Clicking anywhere on the screen does not start; only the "start" button
-    (or Enter) does."""
-    u = at_setup_info(make_ui())
-    buttons = u.setup_button_rects()
-    for pos in ((5, 5), (u.L.W - 5, 5), (u.L.W // 2, u.L.H - 5),
-                (u.L.W // 2, u.L.H // 2)):
+    """Clicking anywhere else does not start; only the start button (or Enter)."""
+    u = at_seat_screen(make_ui())
+    rects = u.seat_rects()
+    # Points that are genuinely on nothing. The seat screen is mostly buttons,
+    # so these are the four window corners, and each is checked to be empty so
+    # a future layout change cannot quietly turn this into a different test.
+    empty = ((5, 5), (u.L.W - 5, 5), (5, u.L.H - 5), (u.L.W - 5, u.L.H - 5))
+    for pos in empty:
+        assert not any(r.collidepoint(pos) for r in rects.values()), pos
         click(u, pos)
-        assert u.state == "SETUP_INFO", pos
-        assert u.game.state == "SETUP_INFO", pos
-    click(u, buttons["start_game"].center)
+        assert u.state == "SETUP_SEATS", pos
+        assert u.seat_pick is None, pos
+    click(u, rects["start_game"].center)
     assert u.state == "PLAYING"
-    assert u.game.state == "PLAYING"
-    # the keyboard equivalent of the "start" button still works
-    u2 = at_setup_info(make_ui())
+    u2 = at_seat_screen(make_ui())
     key(u2, pygame.K_RETURN)
     assert u2.state == "PLAYING"
 
 
-def test_redraw_button_changes_only_the_personalities():
-    """"Redraw AI" swaps the personalities but does not touch the colour the
-    player just chose or the turn order."""
-    u = at_setup_info(make_ui())
-    colors = list(u.game.colors)
-    order = list(u.game.turn_order)
-    brains = {o: u.game.brains[o] for o in (1, 2, 3)}
-    seen = set()
-    for _ in range(8):
-        click(u, u.setup_button_rects()["redraw"].center)
-        assert u.state == "SETUP_INFO"
-        assert u.game.state == "SETUP_INFO"
-        keys = [u.game.owner_key[o] for o in (1, 2, 3)]
-        seen.add(tuple(keys))
-        assert len(set(keys)) == 3, keys
-        assert all(k in ai.personality_keys() for k in keys), keys
-        # each seat's brain is swapped to the matching personality
-        for o in (1, 2, 3):
-            assert u.game.brains[o].key == u.game.owner_key[o]
-    assert len(seen) > 1, "8 redraws all produced the same set, which is an rng bug"
-    assert list(u.game.colors) == colors
-    assert list(u.game.turn_order) == order
-    assert u.game.brains[0] is not None
+def test_the_imitation_mode_button_toggles():
+    u = at_seat_screen(make_ui())
+    assert u.imitation_mode == "argmax"
+    click(u, u.seat_rects()["imitation_mode"].center)
+    assert u.imitation_mode == "softmax"
+    click(u, u.seat_rects()["imitation_mode"].center)
+    assert u.imitation_mode == "argmax"
 
 
-def test_setup_buttons_fit_on_screen_and_do_not_overlap():
-    u = at_setup_info(make_ui())
-    rects = u.setup_button_rects()
-    assert set(rects) == {"redraw", "start_game"}
+def test_seat_buttons_fit_on_screen_and_do_not_overlap():
+    u = at_seat_screen(make_ui())
+    rects = u.seat_rects()
     panel = u.setup_panel_rect()
     for r in rects.values():
         assert r.bottom <= u.L.H, r
         assert panel.x <= r.x and r.right <= panel.right, r
-        assert r.top >= u.setup_content_bottom(), r
-    a, b = rects["redraw"], rects["start_game"]
-    assert not a.colliderect(b)
+    named = list(rects.items())
+    for i, (_ka, a) in enumerate(named):
+        for _kb, b in named[i + 1:]:
+            assert not a.colliderect(b), (_ka, _kb)
 
 
 # ---------------------------------------------------------------- placement flow
@@ -958,8 +1008,8 @@ def test_game_over_screen_renders():
     r = u.new_game_rect()
     assert r.bottom <= u.L.H
     click(u, r.center)
-    assert u.state == "SETUP_COLOR"
-    assert u.game.state == "SETUP_COLOR"
+    assert u.state == "SETUP_SEATS"
+    assert u.game.state == "SETUP_SEATS"
 
 
 def test_pass_draws_no_board_change():
@@ -1034,8 +1084,8 @@ def test_game_over_only_restarts_on_an_explicit_choice():
     assert u.state == "GAME_OVER"
     # Enter is the explicit choice
     key(u, pygame.K_RETURN)
-    assert u.state == "SETUP_COLOR"
-    assert u.game.state == "SETUP_COLOR"
+    assert u.state == "SETUP_SEATS"
+    assert u.game.state == "SETUP_SEATS"
 
 
 def test_game_over_restart_button_starts_a_new_game():
@@ -1045,7 +1095,7 @@ def test_game_over_restart_button_starts_a_new_game():
     assert r.bottom <= u.L.H
     assert r.right <= u.L.W
     click(u, r.center)
-    assert u.state == "SETUP_COLOR"
+    assert u.state == "SETUP_SEATS"
     assert len(u.game.hands[0].names) == 21
 
 
@@ -1057,12 +1107,12 @@ def test_result_is_recorded_exactly_once():
         u.tick([])
     assert len(rec.calls) == 1, "the result was banked %d times" % len(rec.calls)
     keys = [k for k, _ in rec.calls[0]]
-    assert keys[0] == "player"
-    # 3-of-4 sampling: the other three seats are three **distinct**
-    # personalities, not necessarily any fixed three
-    drawn = keys[1:]
-    assert len(drawn) == 3 and len(set(drawn)) == 3, drawn
-    assert set(drawn) <= set(ai.personality_keys())
+    # The four keys are the four seat *options*, not "one player and three
+    # distinct personalities": a seat may repeat an option, which is the whole
+    # point of the seat screen, and a person is named by its own key so two
+    # humans are distinguishable from a personality.
+    assert sorted(keys) == sorted(["human", "chess", "chess", "chess"]), keys
+    assert set(keys) <= set(seats_mod.seat_options(True))
     # starting a new game must arm it again
     u.new_game()
     u.game.state = "GAME_OVER"
@@ -1114,11 +1164,10 @@ def test_sidebar_rows_follow_the_turn_order():
     u.label = real
     # The name column of each row carries either the player name or a
     # personality name.
-    names = {I["player"]} | set(PERSONA_ZH.values())
+    names = {ui.seat_label(k) for k in u.game.owner_key.values()}
     named = sorted(((r.top, t) for t, r in rects if t in names))
     assert len(named) == 4, named
-    expected = [I["player"] if o == 0 else PERSONA_ZH[u.game.owner_key[o]]
-                for o in order]
+    expected = [ui.seat_label(u.game.owner_key[o]) for o in order]
     assert [n for _top, n in named] == expected, (expected, named)
 
 
