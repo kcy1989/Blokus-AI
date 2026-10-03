@@ -47,11 +47,15 @@ def test_play_match_ends_and_scores_by_personality():
     standings = play_match(g, random.Random(4))
     assert g.state == "GAME_OVER"
     assert len(standings) == 4
-    assert sorted(k for k, _c, _r in standings) == sorted(
+    assert sorted(k for k, _c, _r, _rk, _p in standings) == sorted(
         g.owner_key[o] for o in range(4))
-    assert sorted(c for _k, c, _r in standings) == ["blue", "green", "red",
-                                                    "yellow"]
-    assert all(isinstance(r, int) and 0 <= r <= 89 for _k, _c, r in standings)
+    assert sorted(c for _k, c, _r, _rk, _p in standings) == [
+        "blue", "green", "red", "yellow"]
+    assert all(isinstance(r, int) and 0 <= r <= 89
+               for _k, _c, r, _rk, _p in standings)
+    # rank and points, per seat
+    assert sorted(rk for _k, _c, _r, rk, _p in standings) == [1, 2, 3, 4]
+    assert sorted(p for _k, _c, _r, _rk, p in standings) == [1, 2, 3, 4]
     # every move is legal: check the corner-contact rule move by move
     rng = random.Random(9)
     g = Game(rng)
@@ -92,7 +96,7 @@ def test_league_records_only_personality_keys(tmp_path):
     rec = Records(str(tmp_path / "records.json"))
     rows = run_league(6, seed=3, records=rec, options=PERSONALITY_ORDER)
     assert len(rows) == 6
-    keys = {k for row in rows for k, _c, _r in row}
+    keys = {k for game in rows for k, _c, _r, _rk, _p in game}
     assert keys <= set(PERSONALITY_ORDER), keys
     assert "player" not in rec.entries
     assert set(rec.entries) == keys
@@ -134,7 +138,7 @@ def test_every_league_seat_is_drawn_independently_so_options_repeat():
     seen_repeat = 0
     for seed in range(20):
         rows = run_league(1, seed=seed, options=opts)
-        keys = [k for k, _c, _r in rows[0]]
+        keys = [k for k, _c, _r, _rk, _p in rows[0]]
         assert set(keys) <= set(opts)
         assert len(keys) == 4
         if len(set(keys)) < 4:
@@ -150,8 +154,10 @@ def test_a_league_row_names_both_the_option_and_the_colour():
     rows = run_league(3, seed=11, options=opts)
     for row in rows:
         assert len(row) == 4
-        keys = [k for k, _c, _r in row]
-        colours = [c for _k, c, _r in row]
+        # rows come back in seat order, each carrying its own rank
+        assert sorted(rk for _k, _c, _r, rk, _p in row) == [1, 2, 3, 4]
+        keys = [k for k, _c, _r, _rk, _p in row]
+        colours = [c for _k, c, _r, _rk, _p in row]
         assert set(keys) <= set(opts)
         # four seats, four distinct colours, every pair identified
         assert sorted(colours) == ["blue", "green", "red", "yellow"]
@@ -165,7 +171,7 @@ def test_every_league_game_deals_four_distinct_colours():
     opts = [k for k in league_options() if not k.startswith("step_")]
     for seed in range(25):
         rows = run_league(1, seed=seed, options=opts)
-        assert sorted(c for _k, c, _r in rows[0]) == \
+        assert sorted(c for _k, c, _r, _rk, _p in rows[0]) == \
             ["blue", "green", "red", "yellow"], seed
 
 
