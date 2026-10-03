@@ -385,16 +385,45 @@ def test_the_default_output_path_is_the_same_for_the_same_run(tmp_path, monkeypa
     assert a == b
 
 
-def test_the_steps_flag_is_the_imitation_preset(tmp_path):
-    a = tmp_path / "a.json"
-    b = tmp_path / "b.json"
-    main(["--games", "2", "--seed", "5", "--steps", "--dry", "--out", str(a)])
+def test_the_steps_flag_is_now_an_unknown_argument(tmp_path):
+    """`--steps` was a second spelling of `--pool imitation_only` and it had to
+    go, so a script still passing it fails loudly instead of quietly running the
+    full eleven-option pool."""
+    with pytest.raises(SystemExit) as exc:
+        main(["--games", "1", "--steps", "--dry",
+              "--out", str(tmp_path / "o.json")])
+    assert exc.value.code == 2
+    assert not (tmp_path / "o.json").exists()
+
+
+def test_the_steps_flag_says_it_is_unrecognised():
+    err = subprocess.run([sys.executable, "match.py", "--steps", "--dry"],
+                         capture_output=True, text=True)
+    assert err.returncode == 2
+    assert "unrecognized arguments: --steps" in err.stderr
+
+
+def test_the_imitation_preset_on_its_own(tmp_path):
+    """What `--steps` used to do, now said the one way."""
+    out = tmp_path / "imitation.json"
+    assert main(["--games", "2", "--seed", "5", "--pool", "imitation_only",
+                 "--dry", "--out", str(out)]) == 0
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["pool"] == STEPS
+    assert data["pool_size"] == 4
+    assert all(k.startswith("step_") for k in data["pool"])
+    assert set(data["appearances"]) == set(STEPS)
+    assert sum(data["appearances"].values()) == 8
+    # and nothing outside the four ever appears
+    for game in data["games_detail"]:
+        for row in game:
+            assert row[0] in STEPS, row
+    # the same seed replays it
+    again = tmp_path / "again.json"
     main(["--games", "2", "--seed", "5", "--pool", "imitation_only",
-          "--dry", "--out", str(b)])
-    ja, jb = json.loads(a.read_text(encoding="utf-8")), \
-        json.loads(b.read_text(encoding="utf-8"))
-    assert ja["games_detail"] == jb["games_detail"]
-    assert ja["pool"] == STEPS
+          "--dry", "--out", str(again)])
+    assert json.loads(again.read_text(encoding="utf-8"))["games_detail"] == \
+        data["games_detail"]
 
 
 def test_the_help_says_how_the_union_weights():
@@ -407,6 +436,104 @@ def test_the_help_says_how_the_union_weights():
     assert "去重" in out
 
 
-def test_nothing_is_written_into_the_gitignored_data_directory_by_the_tests(tmp_path):
-    """The pool tests themselves leave no files in the repository."""
-    assert not (tmp_path / "records.json").exists()
+SEED_RECORD = ('{"wolf": {"games": 9, "total_points": 20.0, '
+               '"total_remaining": 300.0}}')
+
+
+def _seeded_leaderboard(tmp_path, monkeypatch):
+    """A records.json of known content inside tmp_path, with **every** way of
+    constructing `Records` redirected to it.
+
+    Two things make the obvious version of this not work. `RECORDS_PATH` is
+    bound as a default argument when `Records.__init__` is defined, so patching
+    the module constant does not move the file. And patching only the name
+    `match` uses misses any code that reaches `records.Records` directly - which
+    is exactly the shape of bug this test exists to catch, as the mutation check
+    showed. So the class's own initialiser is redirected, and every route lands
+    in tmp_path. The class itself is untouched, so the real write path still
+    runs.
+    """
+    import records as records_mod
+    rec = tmp_path / "records.json"
+    rec.write_text(SEED_RECORD, encoding="utf-8")
+    real_init = records_mod.Records.__init__
+
+    def redirected(self, path=None, *_a, **_k):
+        real_init(self, str(rec))
+
+    monkeypatch.setattr(records_mod.Records, "__init__", redirected)
+    # And the constant itself, so code that opens the path directly lands in
+    # tmp_path too. The second mutation check is what asked for this: a batch
+    # path that rewrote the leaderboard byte-for-byte with a bare `open` slipped
+    # past a sandbox that only redirected the class.
+    monkeypatch.setattr(records_mod, "RECORDS_PATH", str(rec))
+    return rec
+
+
+def test_a_batch_run_does_not_touch_the_leaderboard(tmp_path, monkeypatch):
+    """The batch output goes to its own file and to nothing else.
+
+    This is the test that replaced one which asserted a `tmp_path` was empty,
+    which is true by construction and verified nothing.
+    """
+    rec = _seeded_leaderboard(tmp_path, monkeypatch)
+    before_bytes = rec.read_bytes()
+    before_mtime = rec.stat().st_mtime_ns
+
+    out = tmp_path / "batch.json"
+    assert main(["--games", "2", "--seed", "7", "--pool", "no_imitation",
+                 "--dry", "--out", str(out)]) == 0
+
+    # the batch write path really ran, so this is not a test of a branch that
+    # was never reached
+    assert out.exists()
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["pool"] == PERSONALITIES and data["games"] == 2
+    assert len(data["games_detail"]) == 2
+
+    # and the leaderboard is untouched, byte for byte and to the nanosecond
+    assert rec.read_bytes() == before_bytes
+    assert rec.stat().st_mtime_ns == before_mtime
+
+
+def test_the_same_run_without_dry_does_write_the_leaderboard(tmp_path, monkeypatch):
+    """The guard above only means something if something would have written.
+
+    Without this the first test would also pass if `Records` were never
+    constructed at all, and it would be the second invalid test in a row.
+    """
+    rec = _seeded_leaderboard(tmp_path, monkeypatch)
+    before_bytes = rec.read_bytes()
+    out = tmp_path / "batch.json"
+    assert main(["--games", "2", "--seed", "7", "--pool", "no_imitation",
+                 "--out", str(out)]) == 0
+    assert out.exists()
+    # the league rows landed in the leaderboard, and the old entry survived
+    assert rec.read_bytes() != before_bytes
+    data = json.loads(out.read_text(encoding="utf-8"))
+    written = json.loads(rec.read_text(encoding="utf-8"))
+    # `wolf` was already in the file and is in this pool, so it is folded into
+    # rather than replaced - and by exactly what the batch output says it did.
+    seeded = json.loads(SEED_RECORD)["wolf"]
+    assert written["wolf"]["games"] == seeded["games"] + data["appearances"]["wolf"]
+    assert written["wolf"]["total_points"] > seeded["total_points"]
+    assert written["wolf"]["total_remaining"] > seeded["total_remaining"]
+    # only the options that were actually drawn have an entry; with 8 seats out
+    # of 7 options some go unmentioned, which is the point of counting seats
+    drawn = {k for k, n in data["appearances"].items() if n}
+    assert set(written) == drawn | {"wolf"}
+    # every option this run drew, bar the seeded one, is a fresh entry holding
+    # exactly its own appearance count
+    for key in drawn - {"wolf"}:
+        assert written[key]["games"] == data["appearances"][key], key
+
+
+def test_the_batch_output_goes_under_data_by_default(tmp_path, monkeypatch):
+    """Where it lands when `--out` is not given: `data/match/`, never the
+    leaderboard's file name."""
+    monkeypatch.setattr(match, "DEFAULT_OUT_DIR",
+                        str(tmp_path / "m"), raising=False)
+    path = match.default_out_path(1, 1, "all")
+    assert os.path.dirname(path) == str(tmp_path / "m")
+    assert os.path.basename(path).endswith(".json")
+    assert "records" not in os.path.basename(path)

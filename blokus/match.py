@@ -11,7 +11,8 @@ seed, and a seat with no brain would have nothing to choose with.
     python3 match.py --games 100            # record into records.json
     python3 match.py --games 20 --dry       # run only, write nothing
     python3 match.py --games 100 --reset    # clear the leaderboard first
-    python3 match.py --games 5 --steps      # only the imitation options
+    python3 match.py --games 5 --pool imitation_only   # only the checkpoints
+    python3 match.py --games 5 --pool no_imitation,hunter
 """
 import argparse
 import json
@@ -248,8 +249,6 @@ def main(argv=None):
     ap.add_argument("--reset", action="store_true",
                     help="先清空排行榜再開始")
     ap.add_argument("--dry", action="store_true", help="不寫 records.json")
-    ap.add_argument("--steps", action="store_true",
-                    help="只讓四個模仿選項上場（等同 --pool imitation_only）")
     ap.add_argument("--pool", default=None,
                     help="逗號分隔,無空白。項目可為 preset 或單一 AI 名稱:"
                          " preset 有 all(11 個)、no_imitation(7 個人格)、"
@@ -267,8 +266,6 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     pool_raw = args.pool
-    if args.steps:
-        pool_raw = "imitation_only"
     try:
         pool = expand_pool(pool_raw)
     except ValueError as exc:
