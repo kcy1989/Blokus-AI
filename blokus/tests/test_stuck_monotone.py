@@ -85,14 +85,23 @@ def test_a_stuck_player_never_regains_a_legal_move():
 
 
 def test_stuck_flag_matches_recomputation_exactly():
-    """The cached flag must never disagree with a fresh `has_legal`.
+    """The cached flag must agree with a fresh `has_legal` in both directions.
 
     C1 trades a repeated scan for a remembered answer, so the memory has to be
     right. This replays real games and checks, at every turn, that
-    `stuck[o] == has_legal(o)` for every seat: a flag set too early would
-    silently skip a player who still had a move.
+    `stuck[o] == not has_legal(o)` for every seat.
+
+Both directions matter now. A flag set too early would silently skip a
+    player who still had a move. A flag left unset when the seat had no move
+    used to be harmless - `Game._all_stuck` used to return at the first seat
+    that could still move, so seats later in the loop were never tested that
+    pass - but `stuck` feeds four network feature channels, so "I can still
+    move" for a seat that cannot is a lie the model is trained on. plan7-A
+    removed the short-circuit, which is what makes the exact equivalence hold:
+    `stuck[o]` must equal `not has_legal(o)`, with no third state.
     """
     keys = list(ai.personality_keys())
+    checked = 0
     for seed in range(25):
         g = Game(random.Random(seed))
         g.setup_match(random.Random(seed).sample(keys, 4))
@@ -101,14 +110,12 @@ def test_stuck_flag_matches_recomputation_exactly():
         while g.state == "PLAYING" and guard < 600:
             guard += 1
             for o in range(4):
-                # One-directional, and that is the direction that matters: a
-                # set flag must never hide a player who still has a move. The
-                # converse does not hold - a seat can have no legal move while
-                # `_all_stuck` has not reached it yet, because an earlier seat
-                # returned False first and the sweep stopped there.
-                if g.stuck[o]:
-                    assert not g.has_legal(o), \
-                        (seed, g.turn_count, o, "flagged stuck but can still move")
+                can = g.has_legal(o)
+                assert bool(g.stuck[o]) == (not can), (
+                    seed, g.turn_count, o,
+                    "stuck=%s but has_legal=%s; the latch must be exact"
+                    % (g.stuck[o], can))
+                checked += 1
             owner = g.current_owner()
             mv = ai.choose_move(g.board, g.hands[owner].names, owner,
                                 g.brains[owner], g.rng, other_brains=g.brains,
@@ -121,6 +128,9 @@ def test_stuck_flag_matches_recomputation_exactly():
                 g.act_pass()
             else:
                 g.act(*mv)
+    # A vacuous pass would be an equality checked zero times, so say how many
+    # comparisons actually ran.
+    assert checked > 0, "no seat was ever checked"
 
 
 def test_stuck_flag_is_cleared_on_reset_and_start():

@@ -320,8 +320,13 @@ def _advance(state):
     The latch is a one-way door: a player's contact rule depends only on their
     own stones, which only ever grow, and on the empty squares, which only ever
     shrink. So a player who cannot move now can never move later, and one test
-    per seat is enough. The scan stops at the first player who can still move,
-    which keeps the latched set identical to the game's.
+    per seat is enough.
+
+    The scan deliberately runs to completion instead of stopping at the first
+    seat that can still move. Stopping there left every later seat untested, so
+    a stuck seat could keep reporting `False`; `engine._advance` must keep the
+    same latched set as `Game._all_stuck`, which the cross-checks in
+    `rl.collect` and `tools.cross_check_engine` compare at every ply.
     """
     to_move = state.turn_order[(state.turn_pos + 1) % 4]
     stuck = list(state.stuck)
@@ -329,7 +334,7 @@ def _advance(state):
         if stuck[o]:
             continue
         if has_any_legal(state, o):
-            break
+            continue
         stuck[o] = True
     return replace(state, to_move=to_move, stuck=tuple(stuck))
 

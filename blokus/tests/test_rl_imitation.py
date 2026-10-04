@@ -316,21 +316,25 @@ def test_stuck_from_state_never_contradicts_the_game_latch():
     """The features need the four stuck latches, and they are derived here
     rather than read off the `Game`.
 
-    Two things are checked, and the asymmetry between them is the point:
+    Two things are checked, and the asymmetry used to be the point:
 
       * `Game.stuck` claiming stuck while the engine still finds a legal move
         would be a real contradiction, and there is none - 0 across 10 games.
-      * the other direction happens, and often. `Game._all_stuck` returns as
-        soon as it meets a seat that can still move, so seats later in the loop
-        are not tested that pass and are not latched until every earlier seat is
-        stuck. That is sound for the game-over test it was written for, but it
-        means the latch under-reports: measured over 10 games it missed 246
-        seat-turns that the engine says were stuck.
+      * the other direction used to happen, and often. `Game._all_stuck`
+        returned as soon as it met a seat that can still move, so seats later in
+        the loop were not tested that pass and were not latched until every
+        earlier seat was stuck. That was sound for the game-over test it was
+        written for, but it meant the latch under-reported: measured over 10
+        games it missed 246 seat-turns that the engine says were stuck.
 
-        It is not fixed here. It is a property of the `stuck_*` feature
-        channels in the H-B1 data H-B2 trained on, so changing it would silently
-        change what those channels mean, and that is a decision for the training
-        pipeline rather than for a seat-setting change.
+        The latch no longer short-circuits (plan7-A). `Game._all_stuck` and
+        `engine._advance` both scan every unlatched seat, so the two agree at
+        every ply and the second assertion is now an equality.
+
+    The cost of the fix is that the latch is no longer cheap: it calls
+        `has_legal` once per unlatched seat instead of stopping early. That is
+        a deliberate trade of a few percent of game time for four feature
+        channels that no longer lie.
     """
     import rl.imitation as I
     under_reported = 0
@@ -347,9 +351,10 @@ def test_stuck_from_state_never_contradicts_the_game_latch():
         # by the end the sweep has seen everyone, so the two must agree
         assert tuple(bool(x) for x in g.stuck) == \
             I.stuck_from_state(I.state_from_game(g)), seed
-    assert under_reported > 0, (
-        "the latch never under-reported, so this run did not exercise the "
-        "difference the docstring describes")
+    assert under_reported == 0, (
+        "the latch under-reported %d seat-turns; the non-short-circuit scan in "
+        "_all_stuck should have latched every stuck seat on the same move"
+        % under_reported)
 
 
 def test_the_features_carry_no_absolute_colour_or_seat():

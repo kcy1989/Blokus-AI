@@ -107,10 +107,16 @@ def state_from_game(game):
 def stuck_from_state(state):
     """The four stuck latches, recomputed.
 
-    A seat is stuck exactly when it has no legal placement, which is what
-    `Game._all_stuck` latches. Deriving it here rather than reading `Game.stuck`
-    keeps this function usable from a bare `State`, which is what the log
-    round-trip test has.
+    A seat is stuck exactly when it has no legal placement. Deriving it here
+    rather than reading `Game.stuck` keeps this function usable from a bare
+    `State`, which is what the log round-trip test has.
+
+    Until plan7-A this was a strictly stronger statement than the latched one:
+    `Game._all_stuck` stopped scanning at the first seat that could still move,
+    so seats after it could be stuck while `Game.stuck` still said False. The
+    latch no longer short-circuits, so the two now agree on every seat of every
+    position, and this function is an independent check of that rather than a
+    second, different definition.
     """
     return tuple(engine.legal_move_mask(state, o) == 0 for o in range(4))
 

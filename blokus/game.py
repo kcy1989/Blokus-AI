@@ -296,14 +296,27 @@ class Game:
         which turns the per-move sweep over all four seats into a sweep over
         the ones still in play. `tests/test_stuck_monotone.py` is the evidence
         that the permanence assumption actually holds.
+
+        The scan deliberately does *not* stop at the first seat that can still
+        move. An earlier version returned there, which left every later seat
+        untested: a seat that was already stuck kept reporting `False` until
+        the sweep finally reached it. That is harmless for the end of the game
+        - all four still latch on the same move - but `stuck` is fed straight
+        to the network as four feature channels, and a channel that says "I can
+        still move" while the seat cannot is a lie the model is trained on.
+        The extra cost is one `has_legal` per unlatched seat: over 200 real
+        games it went from 1.04 to 3.45 calls per turn, for no measurable wall
+        clock (99.5s -> 98.7s, inside the run-to-run noise).
         """
+        alive = False
         for o in range(4):
             if self.stuck[o]:
                 continue
             if self.has_legal(o):
-                return False
+                alive = True
+                continue
             self.stuck[o] = True
-        return True
+        return not alive
 
     def remaining_cells(self, owner):
         return sum(MASTER[n]["size"] for n in self.hands[owner].names)

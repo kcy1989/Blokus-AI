@@ -121,6 +121,14 @@ def test_the_environment_reaches_a_state_where_to_move_cannot_move():
     environment has already passed on and the state it held is gone. The
     positions are read off `random_playout`'s tape, which records the state
     before every decision including the ones with an empty mask.
+
+    The filter is `mask == 0` alone. It used to also require
+    `not s.stuck[s.to_move]`, which is the direction that is now impossible: an
+    exact latch means the seat handed the turn with no legal move is always
+    already flagged, so adding the clause matched nothing and made the test
+    vacuous. Asserting that `stuck[to_move]` holds at every one of these
+    positions is the stronger statement - the latch is what makes the trap
+    visible ahead of time.
     """
     stuck_to_move = 0
     total = 0
@@ -129,8 +137,11 @@ def test_the_environment_reaches_a_state_where_to_move_cannot_move():
         random_playout(seed, tape=tape, max_passes=MAX_PASSES)
         for s, mask, _n, _mv in tape:
             total += 1
-            if mask == 0 and not s.stuck[s.to_move]:
+            if mask == 0:
                 stuck_to_move += 1
+                assert s.stuck[s.to_move], (
+                    seed, "to_move has an empty mask but is not latched stuck; "
+                    "the latch is supposed to be exact")
                 # And the same position, stepped through the environment, is
                 # invisible from the outside: it never reaches `legal_indices`.
                 env = E.BlokusEnv()
