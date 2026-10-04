@@ -30,12 +30,15 @@ never loads it.
 import os
 import random
 
+import numpy as np
+
 import engine
 from ai.base import Profile
 from ai.formulas import B
-from rl.actions import (index_to_move, legal_mask_view, move_to_index,
-                        seat_of_mover, view_to_real)
-from rl.caches import features_27
+from rl.actions import (index_to_move, legal_indices, legal_mask_view,
+                        move_to_index, real_to_view, seat_of_mover,
+                        view_to_real)
+from rl.caches import features_27, mask_from_cache
 
 # The value the loss filled illegal slots with. Same constant as `rl.train`, and
 # duplicated rather than imported so that a module which must not pull torch at
@@ -141,6 +144,55 @@ def stuck_from_state(state):
     return tuple(engine.legal_move_mask(state, o) == 0 for o in range(4))
 
 
+def legal_indices_view(state):
+    """The legal action indices in the mover's frame, ascending.
+
+    The same thing `legal_mask_view` sets bits for, without building the
+    36,400-slot array. `rl.policy` needs the sparse form because it masks a
+    whole batch at once, and it has to rotate through `real_to_view` rather
+    than reusing the dense mask - a dense `(N, 36400)` bool is 123 MB at the
+    batch size a PPO update works with, while the sparse indices are two orders
+    of magnitude smaller.
+    """
+    idx = legal_indices(state)
+    if idx.size == 0:
+        return idx
+    return real_to_view(idx, seat_of_mover(state))
+
+
+def mask_from_states(states):
+    """`(N, 36400)` bool legal mask, one row per state, in each mover's frame.
+
+    Built from `legal_indices_view` and filled through `rl.caches.mask_from_cache`
+    - the same function the imitation trainer fills its masks with, so a batch
+    built here and a batch built there are the same array rather than two
+    constructions that happen to agree today.
+    """
+    states = list(states)
+    per = [legal_indices_view(s) for s in states]
+    offsets = np.zeros(len(per) + 1, dtype=np.int64)
+    if per:
+        np.cumsum([int(p.size) for p in per], out=offsets[1:])
+        flat = np.concatenate(per) if per else np.empty(0, dtype=np.int32)
+    else:
+        flat = np.empty(0, dtype=np.int32)
+    return mask_from_cache(flat, offsets, list(range(len(per))))
+
+
+def apply_legal_mask(logits, mask_np):
+    """Fill a `(..., 36400)` logit tensor's illegal slots with `MASK_FILL`.
+
+    The one place a mask meets a logit, for the single-position path and the
+    batched one alike. `mask_np` is a numpy bool array because both
+    `legal_mask_view` and `mask_from_states` produce one, so it is carried onto
+    the logits' device here rather than at each call site. On CPU that is a
+    no-op and the result is bit-for-bit what it always was.
+    """
+    import torch
+    mask = torch.from_numpy(np.ascontiguousarray(mask_np)).to(logits.device)
+    return logits.masked_fill(~mask, MASK_FILL)
+
+
 def logits_from_state(net, state, device=None):
     """The policy logits for one position: `(36400,)`, illegal slots at -1e9.
 
@@ -163,8 +215,7 @@ def logits_from_state(net, state, device=None):
     mask = legal_mask_view(state)
     if not mask.any():
         return flat
-    fill = torch.from_numpy(~mask).to(flat.device)
-    return flat.masked_fill(fill, MASK_FILL)
+    return apply_legal_mask(flat, mask)
 
 
 def pick_action(logits, mode=DEFAULT_MODE, rng=None,
