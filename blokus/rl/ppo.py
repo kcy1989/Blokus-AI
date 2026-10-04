@@ -317,7 +317,8 @@ def _rescore(net, states, actions, device, chunk):
     return lp, vv
 
 
-def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None):
+def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None,
+               optimizer=None):
     """One PPO update over `batch`, in place. Returns a dict of statistics.
 
     `net` is modified. `anchor_net` is read-only and is only used when
@@ -330,8 +331,11 @@ def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None):
     batch size, never taken from the batch. `batch["rollout_*"]` is reported but
     not used as the baseline - see the module docstring.
 
-    `rng` decides the minibatch order and nothing else. Same rng, same batch,
-    same thread count gives bit-identical parameters.
+    `optimizer` may be supplied by a caller running many updates over one
+    parameter set - the training loop does, because Adam's first and second
+    moments are state and a fresh optimiser per round throws them away on every
+    call. Left as `None`, one is built here and the behaviour is unchanged, which
+    is what a one-shot update wants.
     """
     import numpy as np
     import torch
@@ -394,14 +398,16 @@ def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None):
     t_adv_all = torch.from_numpy(advantage.astype(np.float32)).to(dev)
     t_actions = torch.from_numpy(actions)
 
-    actor, critic = [], []
-    critic_ids = {id(q) for q in net.rl_value.parameters()}
-    for name, q in net.named_parameters():
-        if name.startswith("value."):        # the checkpoint's dead head
-            continue
-        (critic if id(q) in critic_ids else actor).append(q)
-    optimizer = torch.optim.AdamW([{"params": actor, "lr": cfg.actor_lr},
-                                   {"params": critic, "lr": cfg.value_lr}])
+    if optimizer is None:
+        actor, critic = [], []
+        critic_ids = {id(q) for q in net.rl_value.parameters()}
+        for name, q in net.named_parameters():
+            if name.startswith("value."):    # the checkpoint's dead head
+                continue
+            (critic if id(q) in critic_ids else actor).append(q)
+        optimizer = torch.optim.AdamW([{"params": actor, "lr": cfg.actor_lr},
+                                       {"params": critic,
+                                        "lr": cfg.value_lr}])
 
     keys = ("policy_loss", "value_loss", "entropy", "approx_kl_old",
             "clip_fraction", "kl_anchor", "grad_norm", "ratio_mean")

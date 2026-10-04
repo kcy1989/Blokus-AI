@@ -70,6 +70,15 @@ PERSONALITY_POOL = ("hunter", "optimizer", "builder", "intruder", "fox",
 RL_SEED_BASE = 7_000_000
 RL_SEED_VALID_BASE = 7_100_000
 RL_SEED_SPAN = 20_000
+RL_SEED_VALID_SPAN = 1_000
+
+# The reserved block a call is allowed to claim. Train by default; the
+# in-training evaluation claims the validation block instead, because
+# `plan8.md` puts its fixed evaluation seeds at 7,100,000 and they have to come
+# from somewhere reserved rather than from the training stream.
+RL_TRAIN_BLOCK = ("stage RL train", RL_SEED_BASE, RL_SEED_BASE + RL_SEED_SPAN - 1)
+RL_VALID_BLOCK = ("stage RL validation", RL_SEED_VALID_BASE,
+                  RL_SEED_VALID_BASE + RL_SEED_VALID_SPAN - 1)
 
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
@@ -231,7 +240,8 @@ class Episode:
 
 
 def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
-                 mode=LEARNER_MODE, checkpoint_dir=None, record_moves=False):
+                 mode=LEARNER_MODE, checkpoint_dir=None, record_moves=False,
+                 learner_key=None):
     """Play one episode. Returns an `Episode`.
 
     `spec.seed` fixes everything: the seat keys, the colours, who opens, and
@@ -269,14 +279,19 @@ def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
             raise ValueError("%r is not in the personality pool" % (n,))
 
     game_rng, learner_rng = episode_streams(spec.seed)
+    seat_key, needs_swap = seat_for(net, learner_key)
     keys = list(names)
-    keys.insert(spec.learner_seat, seats_imitation_key(net))
+    keys.insert(spec.learner_seat, seat_key)
 
     ep = Episode(spec, names, spec.learner_seat, spec.seed)
     with _Budget(False), _ThreadBudget(1):
         game = Game(game_rng)
         game.setup_seats(keys, None, game_rng, checkpoint_dir=checkpoint_dir,
                          device=device, mode="argmax")
+        if needs_swap:
+            # the whole point of the stand-in: this seat plays `net`, not
+            # whatever its key named
+            game.brains[spec.learner_seat] = as_brain(net, key=seat_key)
         game.start()
         ply = 0
         while game.state == "PLAYING":
@@ -364,20 +379,70 @@ def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
     return ep
 
 
-def seats_imitation_key(net):
-    """The seat key this network plays under.
+def as_brain(net, key=None):
+    """Give a bare network the attributes a seated brain must expose.
 
-    Read off the network rather than hard-coded, so a rollout against the
-    next round's weights is labelled with those weights' key and cannot be
-    mistaken for an hc_* checkpoint in a log.
+    `ai.chooser.choose_move` reads `other_brains[o].profile` when *another* seat
+    runs its opponent lookahead - `ai/chooser.py:242` - so every brain in a game
+    needs a `profile` whether or not it ever picks a move itself. A bare
+    `TwinHead` from `rl.policy.load_policy` has none, and the result is an
+    `AttributeError` raised by a **personality** on the turn after the learner
+    moves: nothing about the learner's own code is involved, which is what makes
+    it confusing to debug.
+
+    The profile is chess's, because that is what `rl.imitation._chess_profile`
+    hands an `ImitationBrain` - so an opponent's lookahead scores the RL learner
+    with exactly the weights it would score `hc_1000` with. The RL seat is an
+    imitation seat as far as the opponents are concerned, which is what it is.
     """
-    key = getattr(net, "key", None)
-    if key:
-        return key
-    return "hc_1000"
+    from rl.imitation import _chess_profile
+    if not hasattr(net, "profile"):
+        net.profile = _chess_profile()
+    if not hasattr(net, "mistake_rate"):
+        net.mistake_rate = 0.0
+    if not hasattr(net, "uses_lookahead"):
+        net.uses_lookahead = False
+    if key is not None and getattr(net, "key", None) is None:
+        net.key = key
+    return net
 
 
-def make_specs(start_seed, n, rng_seed=None):
+def seat_for(net, learner_key=None):
+    """`(seat_key, needs_swap)` for the learner.
+
+    `Game.setup_seats` validates every seat key against `seats`, so a network
+    with no registered name - which is what a training checkpoint is, since
+    `rl_1000_20k` is not in the pool - cannot simply be named. So the learner
+    stands in under the first H-C2 seat key and the brain is replaced
+    immediately afterwards with `needs_swap` saying so.
+
+    `hc_1000`'s weights are loaded in passing. That is nearly free -
+    `rl.imitation._BLOB_CACHE` reads the file once per process, not once per
+    game - and it buys not touching `Game.setup_seats`, which is the seat-layout
+    code `plan8-A` found should stay the single definition.
+
+    The stand-in is `hc_1000` rather than a personality on purpose: if the swap
+    were ever missed, a personality would silently play the learner's moves and
+    the run would look fine. A wrong `hc_1000` moves are at least a different
+    policy from round one.
+    """
+    import seats
+    candidates = []
+    if learner_key is not None:
+        candidates.append((learner_key, True))
+    net_key = getattr(net, "key", None)
+    if net_key:
+        candidates.append((net_key, net_key != learner_key))
+    for key, swap in candidates:
+        try:
+            seats.kind_of(key)
+        except ValueError:
+            continue
+        return key, swap
+    return seats.imitation_key(seats.IMITATION_STEPS[0]), True
+
+
+def make_specs(start_seed, n, rng_seed=None, own=None):
     """`(specs, manifest)` for `n` episodes from `start_seed` upwards.
 
     Each seed contributes one episode. The three opponents are drawn **without
@@ -396,6 +461,12 @@ def make_specs(start_seed, n, rng_seed=None):
     run and the wrong one for a second: two runs over the same seed block with
     the same opponents would be two copies of one experiment. Pass it
     explicitly when generating more than one.
+
+    `own` names the reserved block the caller is claiming, as
+    `(label, lo, hi)`; it defaults to the training block. A caller working inside
+    the validation block must say so, because `reject_reserved_seeds` cannot tell
+    "this run owns these seeds" from "this run is about to walk into the
+    imitation data" - it only sees a range and a claim.
     """
     from rl.paired3 import reject_reserved_seeds
 
@@ -406,8 +477,7 @@ def make_specs(start_seed, n, rng_seed=None):
     if rng_seed is None:
         rng_seed = start_seed
     reject_reserved_seeds(start_seed, end,
-                          own=("stage RL train", RL_SEED_BASE,
-                               RL_SEED_BASE + RL_SEED_SPAN - 1))
+                          own=RL_TRAIN_BLOCK if own is None else own)
     rng = random.Random(int(rng_seed))
     pool = list(PERSONALITY_POOL)
     specs = []
@@ -517,7 +587,9 @@ def _worker(job):
         import torch
         from rl.policy import load_policy
         net, meta = load_policy(weights_path, device=device)
-        net.key = _key_for(weights_path, meta)
+        key = _key_for(weights_path, meta)
+        if key:
+            net.key = key
         _WORKER["path"] = weights_path
         _WORKER["net"] = net
         _WORKER["meta"] = meta
@@ -528,20 +600,21 @@ def _worker(job):
 
 
 def _key_for(weights_path, meta):
-    """The seat key for a checkpoint file.
+    """The seat key for a checkpoint file, or `None` when it has no name yet.
 
-    `hc_1000` when the file is one of the pool's, and otherwise
-    `rl_<step>_<games>` is the *caller's* naming decision - the rollout does not
-    invent a name for a set of weights it was merely handed. So an unrecognised
-    path is labelled by its step, which is at least true.
+    `hc_1000` when the file is one of the pool's. A training checkpoint has no
+    registered seat name, and that is not this module's to invent - so it returns
+    `None` and `seat_for` substitutes the stand-in. Inventing `rl_<step>` here
+    would put a name in the logs and in `Game.owner_key` that no seat registry
+    knows about, which is how a rollout ends up asking for a seat that does not
+    exist.
     """
     base = os.path.basename(weights_path)
-    step = meta.get("step")
     import seats
     for s in seats.IMITATION_STEPS:
         if base == "step_%06d.pt" % s:
             return seats.imitation_key(s)
-    return "rl_%s" % (step if step is not None else "unknown")
+    return None
 
 
 def play_batch(specs, weights_path, n_procs=1, device=None,
@@ -576,7 +649,9 @@ def play_batch(specs, weights_path, n_procs=1, device=None,
         if n_procs <= 1:
             from rl.policy import load_policy
             net, meta = load_policy(weights_path, device=device)
-            net.key = _key_for(weights_path, meta)
+            key = _key_for(weights_path, meta)
+            if key:
+                net.key = key
             return [play_episode(s, net, device=device,
                                  temperature=temperature, mode=mode,
                                  checkpoint_dir=checkpoint_dir)
