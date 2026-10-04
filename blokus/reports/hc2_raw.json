@@ -1,0 +1,704 @@
+{
+ "code_commit": "51d26d7ee00d6b7e30727ac4f6ced785bf8c907d",
+ "column_diff": {
+  "identical_columns": [
+   "action",
+   "game_id",
+   "hand_bits",
+   "in_prefix",
+   "n_candidates",
+   "n_legal",
+   "outcome_remaining",
+   "outcome_util",
+   "own_bits",
+   "own_move_count",
+   "ply",
+   "shortlist_idx",
+   "shortlist_score",
+   "to_move"
+  ],
+  "mover_seat_mismatches": 0,
+  "naive_nan_artifact_cells": 31428818,
+  "only_column_that_differs": "stuck",
+  "rows_compared": 1191605,
+  "shards_compared": 72,
+  "stuck_cell_diffs_by_seat_id": {
+   "0": 0,
+   "1": 63367,
+   "2": 94863,
+   "3": 111362
+  },
+  "stuck_diffs_first_ply": 29,
+  "stuck_diffs_ply_ge_10": 190349,
+  "stuck_false_to_true_cells": 269592,
+  "stuck_rows_differing": 190349
+ },
+ "dataset_comparison": {
+  "book": {
+   "hb1": {
+    "all_three": {
+     "agrees": 198045,
+     "retained": 198045,
+     "retained_share": 1.0,
+     "rows": 198045
+    },
+    "index0_equals_action_share": 1.0,
+    "index0_present_share": 1.0,
+    "steps": {
+     "step0": {
+      "agrees": 66015,
+      "agrees_share_of_retained": 1.0,
+      "retained": 66015,
+      "retained_share": 1.0,
+      "rows": 66015
+     },
+     "step1": {
+      "agrees": 66015,
+      "agrees_share_of_retained": 1.0,
+      "retained": 66015,
+      "retained_share": 1.0,
+      "rows": 66015
+     },
+     "step2": {
+      "agrees": 66015,
+      "agrees_share_of_retained": 1.0,
+      "retained": 66015,
+      "retained_share": 1.0,
+      "rows": 66015
+     }
+    }
+   },
+   "hc1": {
+    "all_three": {
+     "agrees": 198045,
+     "retained": 198045,
+     "retained_share": 1.0,
+     "rows": 198045
+    },
+    "index0_equals_action_share": 1.0,
+    "index0_present_share": 1.0,
+    "steps": {
+     "step0": {
+      "agrees": 66015,
+      "agrees_share_of_retained": 1.0,
+      "retained": 66015,
+      "retained_share": 1.0,
+      "rows": 66015
+     },
+     "step1": {
+      "agrees": 66015,
+      "agrees_share_of_retained": 1.0,
+      "retained": 66015,
+      "retained_share": 1.0,
+      "rows": 66015
+     },
+     "step2": {
+      "agrees": 66015,
+      "agrees_share_of_retained": 1.0,
+      "retained": 66015,
+      "retained_share": 1.0,
+      "rows": 66015
+     }
+    }
+   }
+  },
+  "counts": {
+   "hb1": {
+    "games": 30925,
+    "samples": 1191605,
+    "shards": 72
+   },
+   "hc1": {
+    "games": 30925,
+    "samples": 1191605,
+    "shards": 72
+   }
+  },
+  "spec": {
+   "action_table_hash": {
+    "hb1": "91252a354b090d43",
+    "hc1": "91252a354b090d43"
+   },
+   "code": {
+    "hb1": {
+     "commit": "1b273d4576c2509ec35588a9abe980141a6ed7b6",
+     "dirty": false,
+     "note": null
+    },
+    "hc1": {
+     "commit": "51d26d7ee00d6b7e30727ac4f6ced785bf8c907d",
+     "dirty": false,
+     "note": null
+    }
+   },
+   "controller_weights": {
+    "hb1": {
+     "builder": 0.08333333333333333,
+     "chess": 0.08333333333333333,
+     "fox": 0.08333333333333333,
+     "hunter": 0.5,
+     "intruder": 0.08333333333333333,
+     "optimizer": 0.08333333333333333,
+     "wolf": 0.08333333333333333
+    },
+    "hc1": {
+     "builder": 0.08333333333333333,
+     "chess": 0.08333333333333333,
+     "fox": 0.08333333333333333,
+     "hunter": 0.5,
+     "intruder": 0.08333333333333333,
+     "optimizer": 0.08333333333333333,
+     "wolf": 0.08333333333333333
+    }
+   },
+   "max_samples_per_shard": {
+    "hb1": 20000,
+    "hc1": 20000
+   },
+   "prefix_choices": {
+    "hb1": [
+     0,
+     2,
+     4,
+     6,
+     8,
+     10,
+     12
+    ],
+    "hc1": [
+     0,
+     2,
+     4,
+     6,
+     8,
+     10,
+     12
+    ]
+   },
+   "shortlist_pad": {
+    "hb1": 40,
+    "hc1": 40
+   },
+   "teacher": {
+    "hb1": "hunter",
+    "hc1": "hunter"
+   },
+   "wall_seconds": {
+    "hb1": 1712.922475581,
+    "hc1": 1063.6172796040046
+   },
+   "workers": {
+    "hb1": 12,
+    "hc1": 12
+   }
+  },
+  "stuck_check": {
+   "hb1": {
+    "rows_checked": 1191605,
+    "rows_with_any_stuck_mismatch": 190349,
+    "rows_with_mover_seat_mismatch": 0,
+    "seat_turns_stuck_but_said_movable": 269592
+   },
+   "hc1": {
+    "rows_checked": 1191605,
+    "rows_with_any_stuck_mismatch": 0,
+    "rows_with_mover_seat_mismatch": 0,
+    "seat_turns_stuck_but_said_movable": 0
+   }
+  }
+ },
+ "evaluation": {
+  "caveat": "groups use different seeds, so cross-group differences are independent samples; match.py's points_stderr is within-group across seats",
+  "groups": {
+   "hb2_step_002000": {
+    "appearances": {
+     "builder": 2481,
+     "chess": 2385,
+     "fox": 2491,
+     "hunter": 2505,
+     "intruder": 2562,
+     "optimizer": 2507,
+     "step_2000": 2656,
+     "wolf": 2413
+    },
+    "games": 5000,
+    "mode": "argmax",
+    "pool": [
+     "wolf",
+     "chess",
+     "fox",
+     "intruder",
+     "optimizer",
+     "builder",
+     "hunter",
+     "step_2000"
+    ],
+    "seed": 910004,
+    "summary": [
+     {
+      "appearances": 2656,
+      "avg_points": 3.1570030120481927,
+      "avg_remaining": 10.772590361445783,
+      "option": "step_2000",
+      "points_stderr": 0.018128687399490067
+     },
+     {
+      "appearances": 2505,
+      "avg_points": 3.0810379241516967,
+      "avg_remaining": 11.198802395209581,
+      "option": "hunter",
+      "points_stderr": 0.0198059194420136
+     },
+     {
+      "appearances": 2507,
+      "avg_points": 3.0135620263262863,
+      "avg_remaining": 11.172317510969286,
+      "option": "optimizer",
+      "points_stderr": 0.020388278088177142
+     },
+     {
+      "appearances": 2481,
+      "avg_points": 2.9850866586054012,
+      "avg_remaining": 11.444578798871422,
+      "option": "builder",
+      "points_stderr": 0.02031163720294318
+     },
+     {
+      "appearances": 2562,
+      "avg_points": 2.69672131147541,
+      "avg_remaining": 13.562060889929743,
+      "option": "intruder",
+      "points_stderr": 0.01896278234003735
+     },
+     {
+      "appearances": 2413,
+      "avg_points": 1.8259428097803565,
+      "avg_remaining": 24.99917115623705,
+      "option": "wolf",
+      "points_stderr": 0.01876258369358651
+     },
+     {
+      "appearances": 2385,
+      "avg_points": 1.758490566037736,
+      "avg_remaining": 25.742138364779873,
+      "option": "chess",
+      "points_stderr": 0.018284422180833603
+     },
+     {
+      "appearances": 2491,
+      "avg_points": 1.7474909674829386,
+      "avg_remaining": 26.00240867121638,
+      "option": "fox",
+      "points_stderr": 0.01799342743471981
+     }
+    ]
+   },
+   "hc2_step_002000": {
+    "appearances": {
+     "builder": 2426,
+     "chess": 2485,
+     "fox": 2574,
+     "hunter": 2493,
+     "intruder": 2541,
+     "optimizer": 2545,
+     "step_2000": 2511,
+     "wolf": 2425
+    },
+    "games": 5000,
+    "mode": "argmax",
+    "pool": [
+     "wolf",
+     "chess",
+     "fox",
+     "intruder",
+     "optimizer",
+     "builder",
+     "hunter",
+     "step_2000"
+    ],
+    "seed": 910001,
+    "summary": [
+     {
+      "appearances": 2493,
+      "avg_points": 3.125952667468913,
+      "avg_remaining": 10.880465302847975,
+      "option": "hunter",
+      "points_stderr": 0.019409511516707334
+     },
+     {
+      "appearances": 2511,
+      "avg_points": 3.1250497809637596,
+      "avg_remaining": 10.886499402628434,
+      "option": "step_2000",
+      "points_stderr": 0.019097836785760526
+     },
+     {
+      "appearances": 2545,
+      "avg_points": 3.045972495088409,
+      "avg_remaining": 11.216110019646365,
+      "option": "optimizer",
+      "points_stderr": 0.019781917981504936
+     },
+     {
+      "appearances": 2426,
+      "avg_points": 2.9509480626545757,
+      "avg_remaining": 11.650041220115416,
+      "option": "builder",
+      "points_stderr": 0.020320156240065477
+     },
+     {
+      "appearances": 2541,
+      "avg_points": 2.719401810310901,
+      "avg_remaining": 13.537190082644628,
+      "option": "intruder",
+      "points_stderr": 0.019287275055497315
+     },
+     {
+      "appearances": 2425,
+      "avg_points": 1.8564948453608248,
+      "avg_remaining": 25.037525773195878,
+      "option": "wolf",
+      "points_stderr": 0.019372537093992823
+     },
+     {
+      "appearances": 2485,
+      "avg_points": 1.7641851106639839,
+      "avg_remaining": 26.154124748490947,
+      "option": "chess",
+      "points_stderr": 0.017918113639369272
+     },
+     {
+      "appearances": 2574,
+      "avg_points": 1.757964257964258,
+      "avg_remaining": 25.937451437451436,
+      "option": "fox",
+      "points_stderr": 0.017473871936749805
+     }
+    ]
+   },
+   "hc2_step_005000": {
+    "appearances": {
+     "builder": 2466,
+     "chess": 2472,
+     "fox": 2412,
+     "hunter": 2524,
+     "intruder": 2525,
+     "optimizer": 2530,
+     "step_5000": 2568,
+     "wolf": 2503
+    },
+    "games": 5000,
+    "mode": "argmax",
+    "pool": [
+     "wolf",
+     "chess",
+     "fox",
+     "intruder",
+     "optimizer",
+     "builder",
+     "hunter",
+     "step_5000"
+    ],
+    "seed": 910002,
+    "summary": [
+     {
+      "appearances": 2524,
+      "avg_points": 3.1362916006339145,
+      "avg_remaining": 10.80190174326466,
+      "option": "hunter",
+      "points_stderr": 0.0194017630651256
+     },
+     {
+      "appearances": 2568,
+      "avg_points": 3.0883956386292835,
+      "avg_remaining": 10.919003115264797,
+      "option": "step_5000",
+      "points_stderr": 0.018916791124688238
+     },
+     {
+      "appearances": 2466,
+      "avg_points": 3.0158150851581507,
+      "avg_remaining": 11.237226277372264,
+      "option": "builder",
+      "points_stderr": 0.020305736139860166
+     },
+     {
+      "appearances": 2530,
+      "avg_points": 2.9901185770750986,
+      "avg_remaining": 11.362450592885375,
+      "option": "optimizer",
+      "points_stderr": 0.0198643688204343
+     },
+     {
+      "appearances": 2525,
+      "avg_points": 2.718811881188119,
+      "avg_remaining": 13.461386138613861,
+      "option": "intruder",
+      "points_stderr": 0.019727937389654237
+     },
+     {
+      "appearances": 2503,
+      "avg_points": 1.8337994406711946,
+      "avg_remaining": 25.125449460647225,
+      "option": "wolf",
+      "points_stderr": 0.01847200404228146
+     },
+     {
+      "appearances": 2472,
+      "avg_points": 1.7657766990291262,
+      "avg_remaining": 25.926779935275082,
+      "option": "chess",
+      "points_stderr": 0.018010418216223636
+     },
+     {
+      "appearances": 2412,
+      "avg_points": 1.7620232172470978,
+      "avg_remaining": 26.023217247097843,
+      "option": "fox",
+      "points_stderr": 0.018365213244188397
+     }
+    ]
+   },
+   "hc2_step_010000": {
+    "appearances": {
+     "builder": 2467,
+     "chess": 2474,
+     "fox": 2519,
+     "hunter": 2448,
+     "intruder": 2493,
+     "optimizer": 2583,
+     "step_10000": 2495,
+     "wolf": 2521
+    },
+    "games": 5000,
+    "mode": "argmax",
+    "pool": [
+     "wolf",
+     "chess",
+     "fox",
+     "intruder",
+     "optimizer",
+     "builder",
+     "hunter",
+     "step_10000"
+    ],
+    "seed": 910003,
+    "summary": [
+     {
+      "appearances": 2495,
+      "avg_points": 3.1286573146292587,
+      "avg_remaining": 10.846492985971944,
+      "option": "step_10000",
+      "points_stderr": 0.019490041780102493
+     },
+     {
+      "appearances": 2448,
+      "avg_points": 3.113562091503268,
+      "avg_remaining": 10.944035947712418,
+      "option": "hunter",
+      "points_stderr": 0.01974093470955441
+     },
+     {
+      "appearances": 2583,
+      "avg_points": 3.050329074719319,
+      "avg_remaining": 11.250871080139373,
+      "option": "optimizer",
+      "points_stderr": 0.01957464909704136
+     },
+     {
+      "appearances": 2467,
+      "avg_points": 2.936765301986218,
+      "avg_remaining": 11.664775030401296,
+      "option": "builder",
+      "points_stderr": 0.02033695332975384
+     },
+     {
+      "appearances": 2493,
+      "avg_points": 2.7272362615322905,
+      "avg_remaining": 13.534697152025672,
+      "option": "intruder",
+      "points_stderr": 0.019359979332800595
+     },
+     {
+      "appearances": 2474,
+      "avg_points": 1.8520614389652386,
+      "avg_remaining": 25.002425222312045,
+      "option": "chess",
+      "points_stderr": 0.01896204057143345
+     },
+     {
+      "appearances": 2521,
+      "avg_points": 1.8437128123760413,
+      "avg_remaining": 24.84926616422055,
+      "option": "wolf",
+      "points_stderr": 0.018796009131590023
+     },
+     {
+      "appearances": 2519,
+      "avg_points": 1.7383882493052798,
+      "avg_remaining": 26.075426756649463,
+      "option": "fox",
+      "points_stderr": 0.017635075843081337
+     }
+    ]
+   }
+  },
+  "protocol": "match.py, 8 options = 7 personalities + the checkpoint under test, argmax, --dry, --out outside data/, 5000 games, a different seed per group"
+ },
+ "stage": "plan7-B / H-C2",
+ "training": {
+  "checkpoints": [
+   "step_001000.pt",
+   "step_002000.pt",
+   "step_003000.pt",
+   "step_004000.pt",
+   "step_005000.pt",
+   "step_006000.pt",
+   "step_007000.pt",
+   "step_008000.pt",
+   "step_009000.pt",
+   "step_010000.pt"
+  ],
+  "curve": [
+   {
+    "lr": 0.0009932488451843476,
+    "step": 1000,
+    "train_loss": 1.2587851285934448,
+    "val_loss": 1.3812724393844604
+   },
+   {
+    "lr": 0.0009403395068472121,
+    "step": 2000,
+    "train_loss": 1.3525928258895874,
+    "val_loss": 1.3428224731445313
+   },
+   {
+    "lr": 0.000840254377954742,
+    "step": 3000,
+    "train_loss": 1.2035963535308838,
+    "val_loss": 1.1898551624298095
+   },
+   {
+    "lr": 0.00070383923520322,
+    "step": 4000,
+    "train_loss": 1.1109788417816162,
+    "val_loss": 1.1544652084350586
+   },
+   {
+    "lr": 0.0005458767760088046,
+    "step": 5000,
+    "train_loss": 1.0380737781524658,
+    "val_loss": 1.1190429028511046
+   },
+   {
+    "lr": 0.00038348468386530446,
+    "step": 6000,
+    "train_loss": 0.836715817451477,
+    "val_loss": 1.0672245250701904
+   },
+   {
+    "lr": 0.00023426066172939879,
+    "step": 7000,
+    "train_loss": 1.0722994804382324,
+    "val_loss": 1.0329277717590333
+   },
+   {
+    "lr": 0.00011437544784878524,
+    "step": 8000,
+    "train_loss": 1.023038387298584,
+    "val_loss": 0.9999823393821716
+   },
+   {
+    "lr": 3.6820465358185854e-05,
+    "step": 9000,
+    "train_loss": 0.868975818157196,
+    "val_loss": 0.9819231558799744
+   },
+   {
+    "lr": 1e-05,
+    "step": 10000,
+    "train_loss": 0.9558415412902832,
+    "val_loss": 0.9767681570053101
+   }
+  ],
+  "data_dir": "data/hc1",
+  "hb2_reference": {
+   "steps": 50000,
+   "val_at_10000": 1.0498538757324218,
+   "val_final": 0.9069505109786987,
+   "wall_seconds": 3817.4896373409997
+  },
+  "loss": {
+   "final": 0.9558415412902832,
+   "first50_mean": 4.173284530639648,
+   "last50_mean": 0.9282559156417847,
+   "nonfinite": 0
+  },
+  "lr_at_reported_steps": {
+   "1000": {
+    "new_hc2": 0.0009932488451843476,
+    "old_hb2": 0.0009997507884796767
+   },
+   "10000": {
+    "new_hc2": 1e-05,
+    "old_hb2": 0.0009127199078077672
+   },
+   "2000": {
+    "new_hc2": 0.0009403395068472121,
+    "old_hb2": 0.0009977586016736769
+   },
+   "5000": {
+    "new_hc2": 0.0005458767760088046,
+    "old_hb2": 0.0009799490219391763
+   }
+  },
+  "lr_final_actual": 1e-05,
+  "out_dir": "data/hc2",
+  "samples_per_second": 2868.327349226433,
+  "settings": {
+   "batch": 256,
+   "blocks": 6,
+   "channels": 64,
+   "checkpoint_every": 1000,
+   "dtype": "fp32",
+   "in_ch": 27,
+   "lr_final": 1e-05,
+   "lr_peak": 0.001,
+   "lr_schedule_end_step": 10000,
+   "lr_warmup_steps": 500,
+   "optimizer": "AdamW",
+   "rotation_augmentation": false,
+   "seed": 20260903,
+   "total_steps": 10000,
+   "validation_chunk": 512,
+   "validation_rows": 20000,
+   "value_aux": false,
+   "weight_decay": 0.0001
+  },
+  "settings_changed_vs_hb2": {
+   "checkpoint_every": [
+    2000,
+    1000
+   ],
+   "lr_schedule_end_step": [
+    50000,
+    10000
+   ],
+   "total_steps": [
+    50000,
+    10000
+   ]
+  },
+  "steps": 10000,
+  "time_ms": {
+   "max": 669.0687619993696,
+   "mean": 84.34781138785475,
+   "median": 84.19327400042675,
+   "min": 74.77026799460873,
+   "p95": 92.28944534734183,
+   "trimmed_mean_ex_first20": 84.2857031881304
+  },
+  "wall_seconds": 892.5062199370004
+ },
+ "what_it_answers": "regenerate the imitation dataset with the exact-latch engine and retrain on it, to see whether the stuck-feature fix costs or buys strength"
+}
