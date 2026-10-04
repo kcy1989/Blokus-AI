@@ -179,6 +179,134 @@ def test_the_plan_reserved_ranges_are_the_ones_written_down():
 
 
 # --------------------------------------------------------------------------
+# 4b. the blocks plan8-B0b added, and the block-level guard
+# --------------------------------------------------------------------------
+
+# The six entries plan8-B0b added, each read off a file. Kept as literals on
+# purpose: deriving them from the manifests would make this test agree with
+# whatever the manifests say, which is the failure mode RESERVED_RANGES'
+# own comment warns about - a guard that imports the thing it polices.
+EXPECTED_ADDED = (
+    # data/hb1/manifest.json and data/hc1/manifest.json: 60 train shards
+    # 6,000,000..6,029,378, 12 valid shards 6,100,000..6,101,545, identical in
+    # both runs, so one entry covers both.
+    ("H-B1/H-C1 imitation train", 6_000_000, 6_029_378),
+    ("H-B1/H-C1 imitation valid", 6_100_000, 6_101_545),
+    # reports/hc2_report.md lines 141-144. Single seeds, not spans:
+    # match.run_league draws every seat from one random.Random(seed).
+    ("stage H-C2 evaluation", 910_001, 910_004),
+    ("pool league 920001", 920_001, 920_001),
+    # plan8.md's RL blocks.
+    ("stage RL train", 7_000_000, 7_019_999),
+    ("stage RL validation", 7_100_000, 7_100_999),
+)
+
+
+def test_the_added_reserved_ranges_are_registered_exactly():
+    got = {label: (lo, hi) for label, lo, hi in P.RESERVED_RANGES}
+    for label, lo, hi in EXPECTED_ADDED:
+        assert got.get(label) == (lo, hi), (label, got.get(label))
+
+
+def test_every_registered_range_is_pairwise_disjoint():
+    """Two blocks that overlap would make the guard's own message ambiguous:
+    the same seed would be reported as two different blocks, and a caller
+    reading the label could not tell which history it had hit."""
+    ranges = list(P.RESERVED_RANGES) + list(P.OWN_RANGES)
+    overlaps = []
+    for i, (la, alo, ahi) in enumerate(ranges):
+        for lb, blo, bhi in ranges[i + 1:]:
+            if not (ahi < blo or bhi < alo):
+                overlaps.append((la, alo, ahi, lb, blo, bhi))
+    assert not overlaps, overlaps
+
+
+def test_the_rl_blocks_clear_every_block_already_registered():
+    for label, lo, hi in (("stage RL train", 7_000_000, 7_019_999),
+                          ("stage RL validation", 7_100_000, 7_100_999)):
+        for other, olo, ohi in list(P.RESERVED_RANGES) + list(P.OWN_RANGES):
+            if other == label:
+                continue
+            assert hi < olo or ohi < lo, (label, (lo, hi), other, (olo, ohi))
+
+
+def test_the_rl_blocks_are_accepted_by_the_block_guard_when_claimed():
+    """The point of reserving them: the stage they were reserved for may take
+    them, and nobody else may."""
+    train = ("stage RL train", 7_000_000, 7_019_999)
+    valid = ("stage RL validation", 7_100_000, 7_100_999)
+    assert P.reject_reserved_seeds(7_000_000, 7_019_999, own=train) == []
+    assert P.reject_reserved_seeds(7_100_000, 7_100_999, own=valid) == []
+    # ...but only by claiming them, and only the right one
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_000_000, 7_019_999)
+    assert "stage RL train" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_000_000, 7_019_999, own=valid)
+    assert "stage RL train" in str(exc.value)
+
+
+def test_claiming_your_own_block_does_not_excuse_overlapping_someone_elses():
+    """The exemption is by exact triple, so a block that reaches into the
+    imitation data still fails even when the caller has claimed a block."""
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(6_000_000, 7_019_999,
+                                own=("stage RL train", 6_000_000, 7_019_999))
+    assert "H-B1/H-C1 imitation train" in str(exc.value)
+
+
+def test_the_block_guard_refuses_the_imitation_data_seeds():
+    """6,000,000-6,000,010 is eleven seeds inside H-B1/H-C1's train block.
+
+    This is the failure the whole exercise exists to stop: RL rollouts landing
+    on the seeds the imitation set was generated from would report a number
+    about memorisation. Before plan8-B0b nothing consulted this, because the
+    range was in no table at all.
+    """
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(6_000_000, 6_000_010)
+    assert "H-B1/H-C1 imitation train" in str(exc.value)
+
+
+def test_the_block_guard_refuses_h1s_own_blocks_too():
+    """Why this function reads OWN_RANGES and `check_seed_ranges` cannot."""
+    for label, lo, hi in P.OWN_RANGES:
+        with pytest.raises(ValueError) as exc:
+            P.reject_reserved_seeds(lo, hi)
+        assert label in str(exc.value)
+
+
+def test_the_block_guard_takes_an_extra_range_for_the_callers_own_block():
+    assert P.reject_reserved_seeds(8_000_000, 8_000_999) == []
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(8_000_000, 8_000_999,
+                                extra_ranges=(("stage RL phase 2", 8_000_000,
+                                               8_000_999),))
+    assert "stage RL phase 2" in str(exc.value)
+    # claiming it through `own` works too, and needs no registration
+    assert P.reject_reserved_seeds(
+        8_000_000, 8_000_999, own=("stage RL phase 2", 8_000_000, 8_000_999),
+        extra_ranges=(("stage RL phase 2", 8_000_000, 8_000_999),)) == []
+
+
+def test_the_block_guard_rejects_a_range_that_ends_before_it_starts():
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_000_010, 7_000_000)
+    assert "ends before it starts" in str(exc.value)
+
+
+def test_the_block_guard_catches_a_block_swallowed_whole():
+    """Overlap, not containment: asking for one seed inside a reserved block,
+    and asking for a block that covers a reserved one, are the same mistake."""
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(6_029_000, 6_031_000)
+    assert "H-B1/H-C1 imitation train" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(5_999_000, 6_500_000)
+    assert "H-B1/H-C1 imitation train" in str(exc.value)
+
+
+# --------------------------------------------------------------------------
 # 5. the worker count does not change the result
 # --------------------------------------------------------------------------
 

@@ -76,6 +76,30 @@ SEED_BASE_B_EXPAND = 4_300_000
 # asks for an assertion, so they are written out rather than derived from the
 # other modules: a guard that imported the ranges it is meant to police would
 # agree with any change to them.
+#
+# plan8-B0b added the six blocks below, each read off a file rather than taken
+# from the plan text:
+#
+#   * H-B1 and H-C1 are two runs over the *same* seeds - `data/hb1/manifest.json`
+#     and `data/hc1/manifest.json` both report 60 train shards spanning
+#     6,000,000..6,029,378 and 12 valid shards spanning 6,100,000..6,101,545 -
+#     so one entry covers both and re-collecting one of them cannot silently
+#     reuse the other.
+#   * the evaluation seeds are single values, not spans. `match.run_league`
+#     builds one `random.Random(seed)` and draws every seat, colour and opening
+#     player from it, so `--seed 910001` *is* one run rather than the first of
+#     910001 consecutive ones. 910001-910004 are the four H-C2 league seeds
+#     (reports/hc2_report.md) and 920001 is the pool league; the span is written
+#     for the four because all four were used.
+#   * match.py's own default seed, 20260928, needs no entry: it already falls
+#     inside the tools/benchmark.py range below.
+#
+# `OWN_RANGES` is deliberately *not* merged in here. `check_seed_ranges` below
+# consults both tuples, so putting H1's own blocks into this one would make that
+# guard reject H1's own seeds - which is exactly what
+# `tests/test_rl_paired3.py::test_the_seed_guard_accepts_this_stages_four_blocks`
+# asserts must not happen. `reject_reserved_seeds` reads both tuples instead, so
+# the history is policed without the two lists being confused for each other.
 RESERVED_RANGES = (
     ("bench_engine.py", 0, 199),
     ("tools/benchmark.py", 20_240_101, 20_240_101 + 1009 * 96),
@@ -85,6 +109,12 @@ RESERVED_RANGES = (
     ("stage H0 phase 1 B", 3_100_000, 3_100_999),
     ("stage H0 expansion A", 3_200_000, 3_202_999),
     ("stage H0 expansion B", 3_300_000, 3_301_499),
+    ("H-B1/H-C1 imitation train", 6_000_000, 6_029_378),
+    ("H-B1/H-C1 imitation valid", 6_100_000, 6_101_545),
+    ("stage H-C2 evaluation", 910_001, 910_004),
+    ("pool league 920001", 920_001, 920_001),
+    ("stage RL train", 7_000_000, 7_019_999),
+    ("stage RL validation", 7_100_000, 7_100_999),
 )
 
 PAIRS_A = 2_000
@@ -406,6 +436,57 @@ def check_seeds_for_run(group, pairs, seed_base):
     """The seeds one `run_group` call would use, checked before it runs."""
     seeds = [seed_base + i for i in range(pairs)]
     return check_seed_ranges(seeds, own_base=seed_base)
+
+
+def reject_reserved_seeds(lo, hi, own=None, extra_ranges=()):
+    """Refuse a seed *block* that touches anything a published number used.
+
+    `check_seed_ranges` takes the individual seeds a caller has already decided
+    on, which is the right shape when the list is in hand. A stage that is
+    choosing its own block knows only `lo` and `hi`, and asking it to
+    materialise twenty thousand integers to find out that its base is taken is
+    the wrong interface. This is that interface.
+
+    Unlike `check_seed_ranges` it also reads `OWN_RANGES`. That is the whole
+    reason it exists as a separate function: H1's four blocks are history like
+    any other, but they cannot live in `RESERVED_RANGES` because the guard
+    above consults both and would then reject H1's own seeds. Reading both
+    tuples here keeps the history policed without the two lists colliding.
+
+    `own` is `(label, lo, hi)`: the block the caller is claiming, exempt from
+    the check. It is needed because plan8-B0b put RL's own train and validation
+    blocks into `RESERVED_RANGES` - they are reserved *for* the coming run, and
+    a guard that rejected them would stop the stage they were reserved for. The
+    exemption is by exact triple rather than a blanket skip, so claiming RL's
+    block while overlapping the imitation data still raises, and claiming a
+    range that is not registered at all is allowed (that is a brand-new block).
+
+    `extra_ranges` is for a block that is neither history nor registered yet -
+    the caller polices itself, this way, without editing the table every other
+    stage reads.
+
+    Returns an empty list on success and raises `ValueError` naming every block
+    it touched, so a caller can put the message straight in front of whoever
+    picked the base.
+    """
+    lo, hi = int(lo), int(hi)
+    if hi < lo:
+        raise ValueError("seed range %d..%d ends before it starts" % (lo, hi))
+    own_t = tuple(own) if own is not None else None
+    problems = []
+    blocks = tuple(RESERVED_RANGES) + tuple(OWN_RANGES) + tuple(extra_ranges)
+    for block in blocks:
+        # overlap, not containment: a block that starts inside the request or
+        # ends inside it counts, and so does one that swallows it whole
+        label, block_lo, block_hi = block
+        if own_t is not None and tuple(block) == own_t:
+            continue
+        if block_lo <= hi and lo <= block_hi:
+            problems.append("seeds %d..%d overlap %s's %d..%d"
+                            % (lo, hi, label, block_lo, block_hi))
+    if problems:
+        raise ValueError("; ".join(problems))
+    return []
 
 
 # --------------------------------------------------------------------------
