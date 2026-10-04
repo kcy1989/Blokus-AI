@@ -1,4 +1,4 @@
-"""An H-B2 checkpoint as a seat that plays: read-only inference.
+"""An H-C2 checkpoint as a seat that plays: read-only inference.
 
 This is the counterpart of `rl/train.py`. Training wrote 25 checkpoints; this
 turns one of them into something `ai.choose_move` can drive, which is why it is
@@ -142,7 +142,16 @@ def stuck_from_state(state):
 
 
 def logits_from_state(net, state, device=None):
-    """The policy logits for one position: `(36400,)`, illegal slots at -1e9."""
+    """The policy logits for one position: `(36400,)`, illegal slots at -1e9.
+
+    The legal mask is built on the numpy side (`legal_mask_view` works on real
+    coordinates and returns a plain bool array), so it has to be carried onto
+    whatever device the logits are on before it can mask them. On CPU that is a
+    no-op and the result is bit-for-bit what it always was; without it a CUDA
+    seat raised "expected self and mask to be on the same device" from inside
+    `choose_move`, which is why every test here passed `device="cpu"` and the
+    failure only ever appeared once someone actually passed `--device cuda`.
+    """
     import torch
     x = features_27([state])
     t = torch.from_numpy(x)
@@ -154,7 +163,8 @@ def logits_from_state(net, state, device=None):
     mask = legal_mask_view(state)
     if not mask.any():
         return flat
-    return flat.masked_fill(torch.from_numpy(~mask), MASK_FILL)
+    fill = torch.from_numpy(~mask).to(flat.device)
+    return flat.masked_fill(fill, MASK_FILL)
 
 
 def pick_action(logits, mode=DEFAULT_MODE, rng=None,

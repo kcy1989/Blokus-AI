@@ -432,7 +432,7 @@ def test_the_default_output_path_is_the_same_for_the_same_run(tmp_path, monkeypa
 def test_the_steps_flag_is_now_an_unknown_argument(tmp_path):
     """`--steps` was a second spelling of `--pool imitation_only` and it had to
     go, so a script still passing it fails loudly instead of quietly running the
-    full eleven-option pool."""
+    full ten-option pool."""
     with pytest.raises(SystemExit) as exc:
         main(["--games", "1", "--steps", "--dry",
               "--out", str(tmp_path / "o.json")])

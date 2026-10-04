@@ -59,7 +59,7 @@ POOL_PRESETS = {
 
 
 def league_options():
-    """The eleven options a league seat can be drawn from."""
+    """The ten options a league seat can be drawn from."""
     return seats_mod.seat_options(include_humans=False)
 
 

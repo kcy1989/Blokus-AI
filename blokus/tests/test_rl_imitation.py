@@ -192,6 +192,134 @@ def test_the_mask_agrees_with_the_enumerated_candidates():
         assert int(real_to_view(real, p)) in view_legal
 
 
+# ------------------------------------------------------- the device the mask lives on
+
+def _positions_from_real_games(n=24, seed=7_770_001):
+    """Real positions to compare devices on, reached by random legal play.
+
+    Taken from engine states rather than from one opening position so the
+    comparison covers early boards (where the corner rule restricts the legal set
+    to a handful of slots) and crowded ones (where thousands are legal).
+    """
+    out = []
+    i = 0
+    from rl.actions import index_to_move, legal_indices
+    while len(out) < n:
+        s = engine.initial_state()
+        rng = random.Random(seed + i)
+        i += 1
+        for _ in range(400):
+            if engine.is_over(s):
+                break
+            legal = legal_indices(s)
+            if legal.size == 0:
+                s = engine.pass_turn(s)
+                continue
+            out.append(s)
+            if len(out) == n:
+                break
+            s = engine.apply_move(s, index_to_move(int(legal[rng.randrange(legal.size)])))
+    return out
+
+
+@needs_checkpoint
+def test_the_cpu_logits_are_unchanged_by_the_mask_device_fix():
+    """The fix may only move the mask; every CPU number must be identical.
+
+    `logits_from_state` is re-derived here from the documented formula rather
+    than compared against a stored value, because a stored value cannot say
+    *which* step broke it. This reference is the pre-fix body verbatim, and
+    `assert array_equal` rather than `allclose`: a float32 convolution
+    reassociation would slip past `allclose` and is exactly what this is
+    supposed to catch.
+    """
+    import torch
+
+    import rl.imitation as I
+    from rl.actions import legal_mask_view
+    from rl.caches import features_27
+
+    brain = I.load_brain(STEP, checkpoint_dir=CHECKPOINT_DIR, device="cpu")
+    positions = _positions_from_real_games()
+    assert positions
+    for state in positions:
+        x = features_27([state])
+        with torch.no_grad():
+            policy, _value = brain.net(torch.from_numpy(x))
+        reference = policy.reshape(-1).float().masked_fill(
+            torch.from_numpy(~legal_mask_view(state)), I.MASK_FILL)
+        got = I.logits_from_state(brain.net, state, None)
+        assert torch.equal(got, reference)
+        # and the pick is the same, which is what a caller can actually observe
+        assert (I.action_to_move(I.pick_action(reference, "argmax"), state)
+                == I.action_to_move(I.pick_action(got, "argmax"), state))
+
+
+@needs_checkpoint
+def test_a_cuda_seat_masks_the_same_slots_as_a_cpu_seat():
+    """A CUDA checkpoint seat must agree with a CPU one.
+
+    Before plan8-B0a this combination raised "expected self and mask to be on
+    the same device" out of `choose_move`: the mask is built by
+    `rl.actions.legal_mask_view`, which is numpy, and it was handed to
+    `masked_fill` without being carried onto the logits' device. Every test in
+    this file passed `device="cpu"`, so nothing here could have caught it.
+
+    Two exact assertions and one bounded one, because they answer different
+    questions. The mask positions and the argmax are decisions about *which*
+    slot, and must match exactly. The logit values are a float32 convolution
+    computed by two different libraries, and cannot match exactly - measured
+    over 40 real positions the worst legal-slot difference is 1.8e-2 on logits of
+    scale 23 (relative 7.9e-4), and re-running both sides in float64 collapses
+    it to 1.6e-14, so it is rounding and nothing else. Hence a *relative*
+    bound: fp32 epsilon is 1.2e-7 and six 64-channel residual blocks accumulate
+    about a thousand times that. 2e-3 leaves roughly 2.5x over the measured
+    worst case while still failing if the mask really is on the wrong slots.
+    """
+    import torch
+
+    import rl.imitation as I
+    from rl.actions import legal_mask_view
+
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device; the cross-device check needs one")
+
+    cpu = I.load_brain(STEP, checkpoint_dir=CHECKPOINT_DIR, device="cpu")
+    gpu = I.load_brain(STEP, checkpoint_dir=CHECKPOINT_DIR, device="cuda")
+    assert gpu.device.type == "cuda"
+
+    positions = _positions_from_real_games()
+    worst_rel = 0.0
+    worst_abs = 0.0
+    n_legal_total = 0
+    for state in positions:
+        mask = legal_mask_view(state)
+        assert mask.any()
+        n_legal_total += int(mask.sum())
+        a = I.logits_from_state(cpu.net, state, None).detach().cpu().numpy()
+        b = (I.logits_from_state(gpu.net, state, "cuda")
+             .detach().cpu().numpy())
+        # exactly the same illegal slots, on both sides
+        assert np.array_equal(a[~mask], np.full(int((~mask).sum()),
+                                                np.float32(I.MASK_FILL)))
+        assert np.array_equal(b[~mask], np.full(int((~mask).sum()),
+                                                np.float32(I.MASK_FILL)))
+        # the same decision
+        assert int(a.argmax()) == int(b.argmax())
+        scale = float(np.abs(a[mask]).max())
+        worst_abs = max(worst_abs, float(np.abs(a[mask] - b[mask]).max()))
+        if scale:
+            worst_rel = max(worst_rel, worst_abs / scale)
+
+    assert n_legal_total > 0
+    assert worst_rel < 2e-3, (
+        "CPU and CUDA logits differ by %.3e absolute (%.3e relative) over %d "
+        "legal slots, past the 2e-3 relative bound. Two float32 convolutions "
+        "measured 7.9e-4, so a jump this size means the mask is landing on the "
+        "wrong slots rather than that the arithmetic rounded differently."
+        % (worst_abs, worst_rel, n_legal_total))
+
+
 # --------------------------------------------------------- it plays legally
 
 @pytest.mark.parametrize("seed", [5, 9, 14, 22])

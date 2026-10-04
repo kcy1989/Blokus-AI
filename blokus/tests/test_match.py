@@ -90,7 +90,7 @@ def test_play_match_ends_and_scores_by_personality():
 def test_league_records_only_personality_keys(tmp_path):
     """A league of the seven personalities, with no player in it.
 
-    Run without the imitation options on purpose: the default eleven would load
+    Run without the imitation options on purpose: the default ten would load
     four checkpoints, and this test is about the leaderboard, not about torch.
     """
     rec = Records(str(tmp_path / "records.json"))

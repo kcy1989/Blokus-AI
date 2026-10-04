@@ -12,7 +12,7 @@ personality itself does only three things:
 """
 from dataclasses import dataclass
 
-# The full personality table: three weighted ones plus three rule-based ones.
+# The full personality table: three weighted ones plus four rule-based ones.
 INTRUDER_KEY = "intruder"
 OPTIMIZER_KEY = "optimizer"
 BUILDER_KEY = "builder"
