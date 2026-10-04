@@ -13,6 +13,7 @@ opening rule is "cover your own corner", so a seat's corner follows from its
 colour assignment and nothing else. The tests below check that under all four
 openers rather than taking it on trust.
 """
+import os
 import random
 
 import pytest
@@ -27,26 +28,44 @@ from game import Game
 
 # ------------------------------------------------------------------ options
 
-def test_there_are_thirteen_options_and_eleven_without_humans():
-    thirteen = seats.seat_options(True)
-    assert len(thirteen) == 13
-    assert len(set(thirteen)) == 13
-    eleven = seats.seat_options(False)
-    assert len(eleven) == 11
-    assert not any(seats.is_human_kind(seats.kind_of(k, False)) for k in eleven)
+def test_there_are_twelve_options_and_ten_without_humans():
+    twelve = seats.seat_options(True)
+    assert len(twelve) == 12
+    assert len(set(twelve)) == 12
+    ten = seats.seat_options(False)
+    assert len(ten) == 10
+    assert not any(seats.is_human_kind(seats.kind_of(k, False)) for k in ten)
     # the two human seats are exactly what the league leaves out
-    assert set(thirteen) - set(eleven) == {"human", "human_log"}
+    assert set(twelve) - set(ten) == {"human", "human_log"}
 
 
-def test_the_option_pool_is_seven_ai_and_four_checkpoints():
+def test_the_option_pool_is_seven_ai_and_three_checkpoints():
     options = seats.seat_options(False)
-    assert len(options) == 11
+    assert len(options) == 10
     ai_only = [k for k in options if seats.kind_of(k) == seats.KIND_AI]
     imitating = [k for k in options if seats.kind_of(k) == seats.KIND_IMITATION]
     assert len(ai_only) == 7
     assert set(ai_only) == set(ai.personality_keys())
-    assert [seats.imitation_step(k) for k in imitating] == \
-        [2000, 10000, 22000, 38000]
+    assert [seats.imitation_step(k) for k in imitating] == [1000, 2000, 10000]
+
+
+def test_the_checkpoint_seats_are_the_hc2_run():
+    """The pool names H-C2, and only H-C2.
+
+    H-B2's four checkpoints are still on disk and `load_brain` would still open
+    one, so this pins the *directory* as well as the steps: a pool that pointed
+    at `data/hb2` with the new key names would pass every key-shape test above
+    and quietly serve networks trained on the old `stuck` column.
+    """
+    assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
+    assert seats.IMITATION_STEPS == (1000, 2000, 10000)
+    assert seats.IMITATION_KEY_PREFIX == "hc_"
+    for step in seats.IMITATION_STEPS:
+        key = seats.imitation_key(step)
+        assert key == "hc_%d" % step
+        assert seats.imitation_step(key) == step
+        assert os.path.exists(os.path.join(
+            seats.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step))
 
 
 def test_an_unknown_option_is_refused():
@@ -338,12 +357,12 @@ def test_the_menu_offers_one_more_than_there_are_options():
     """Fourteen things to pick from, thirteen things to be. The fourteenth is a
     request rather than a setting."""
     menu = seats.seat_menu_options()
-    assert len(menu) == 14
-    assert len(set(menu)) == 14
+    assert len(menu) == 13
+    assert len(set(menu)) == 13
     assert menu[-1] == seats.RANDOM_AI_KEY
     assert set(menu) - set(seats.seat_options(True)) == {seats.RANDOM_AI_KEY}
     assert seats.seat_options(True) == menu[:-1]
-    assert len(seats.seat_options(False)) == 11
+    assert len(seats.seat_options(False)) == 10
     assert seats.automated_options() == seats.seat_options(False)
 
 
@@ -352,17 +371,17 @@ def test_random_ai_is_a_kind_of_request_not_of_contestant():
     assert not seats.is_human_kind(seats.KIND_RANDOM_AI)
 
 
-def test_random_ai_draws_from_the_eleven_automated_options():
-    assert len(seats.automated_options()) == 11
+def test_random_ai_draws_from_the_ten_automated_options():
+    assert len(seats.automated_options()) == 10
     pool = seats.automated_options()
-    assert len(pool) == 11 and len(set(pool)) == 11
+    assert len(pool) == 10 and len(set(pool)) == 10
     assert not any(k.startswith("human") for k in pool)
-    assert any(k.startswith("step_") for k in pool)
-    assert set(k for k in pool if not k.startswith("step_")) == \
+    assert any(seats.is_imitation_key(k) for k in pool)
+    assert set(k for k in pool if not seats.is_imitation_key(k)) == \
         set(ai.personality_keys())
 
 
-def test_random_ai_covers_all_eleven_and_never_a_human():
+def test_random_ai_covers_all_ten_and_never_a_human():
     seen = set()
     repeats = 0
     for seed in range(400):

@@ -116,16 +116,16 @@ def test_run_league_without_records_touches_no_file(tmp_path):
     assert not list(tmp_path.iterdir())
 
 
-# ------------------------------------------------- the eleven-seat league
+# ---------------------------------------------------- the ten-seat league
 
-def test_the_league_offers_eleven_options_and_no_humans():
+def test_the_league_offers_ten_options_and_no_humans():
     from match import league_options
     opts = league_options()
-    assert len(opts) == 11
-    assert len(set(opts)) == 11
+    assert len(opts) == 10
+    assert len(set(opts)) == 10
     kinds = [seats_mod.kind_of(k, include_humans=False) for k in opts]
     assert kinds.count(seats_mod.KIND_AI) == 7
-    assert kinds.count(seats_mod.KIND_IMITATION) == 4
+    assert kinds.count(seats_mod.KIND_IMITATION) == 3
     assert not any(seats_mod.is_human_kind(k) for k in kinds)
 
 
@@ -134,7 +134,7 @@ def test_every_league_seat_is_drawn_independently_so_options_repeat():
     seats always showed a personality nobody else had. Drawing independently is
     what lets a league answer "is the imitation stronger"."""
     from match import league_options
-    opts = [k for k in league_options() if not k.startswith("step_")]
+    opts = [k for k in league_options() if not seats_mod.is_imitation_key(k)]
     seen_repeat = 0
     for seed in range(20):
         rows = run_league(1, seed=seed, options=opts)
@@ -150,7 +150,7 @@ def test_a_league_row_names_both_the_option_and_the_colour():
     """Needed to tell two seats apart when the same option is drawn twice, and
     to work out who played what later."""
     from match import league_options
-    opts = [k for k in league_options() if not k.startswith("step_")]
+    opts = [k for k in league_options() if not seats_mod.is_imitation_key(k)]
     rows = run_league(3, seed=11, options=opts)
     for row in rows:
         assert len(row) == 4
@@ -168,7 +168,7 @@ def test_every_league_game_deals_four_distinct_colours():
     """Colours come from the same `setup_seats` the UI uses, left on "random",
     so a league game is laid out exactly like a played one."""
     from match import league_options
-    opts = [k for k in league_options() if not k.startswith("step_")]
+    opts = [k for k in league_options() if not seats_mod.is_imitation_key(k)]
     for seed in range(25):
         rows = run_league(1, seed=seed, options=opts)
         assert sorted(c for _k, c, _r, _rk, _p in rows[0]) == \
@@ -182,7 +182,7 @@ def test_the_league_draws_its_seats_through_setup_seats():
 
     from game import Game
     from match import league_options
-    opts = [k for k in league_options() if not k.startswith("step_")]
+    opts = [k for k in league_options() if not seats_mod.is_imitation_key(k)]
     firsts = set()
     for seed in range(40):
         rng = _r.Random(seed)
@@ -194,5 +194,6 @@ def test_the_league_draws_its_seats_through_setup_seats():
 
 
 def test_only_imitation_options_can_be_asked_for():
-    steps = [k for k in league_options() if k.startswith("step_")]
-    assert steps == ["step_%d" % s for s in seats_mod.IMITATION_STEPS]
+    steps = [k for k in league_options() if seats_mod.is_imitation_key(k)]
+    assert steps == [seats_mod.imitation_key(s)
+                     for s in seats_mod.IMITATION_STEPS]

@@ -33,7 +33,6 @@ import random
 import engine
 from ai.base import Profile
 from ai.formulas import B
-from config import PROJECT_DIR
 from rl.actions import (index_to_move, legal_mask_view, move_to_index,
                         seat_of_mover, view_to_real)
 from rl.caches import features_27
@@ -47,7 +46,22 @@ MASK_FILL = -1e9
 # orientations between them. See `rl.actions.ORIENT_OFFSET`.
 N_ORIENT = 91
 
-DEFAULT_CHECKPOINT_DIR = os.path.join(PROJECT_DIR, "data", "hb2")
+
+def default_checkpoint_dir():
+    """The directory the seat pool points at, asked of `seats`.
+
+    Not a module constant, and not a second hard-coded path. A game set up
+    through `Game.setup_seats` passes `checkpoint_dir=None` down here, so
+    whatever this resolves to is the directory the product actually reads - and
+    when it was a constant of its own it said `data/hb2` while the pool said
+    something else. `seats` owns which checkpoints are playable, so it owns the
+    directory; the import is inside the function so `rl` still does not depend
+    on the game layer at import time.
+    """
+    import seats
+    return seats.IMITATION_CHECKPOINT_DIR
+
+
 DEFAULT_MODE = "argmax"
 DEFAULT_TEMPERATURE = 1.0
 DEFAULT_SEED = 20_260_903
@@ -56,8 +70,14 @@ _BLOB_CACHE = {}
 
 
 def checkpoint_path(step, checkpoint_dir=None):
-    """Where the checkpoint for `step` is expected."""
-    d = DEFAULT_CHECKPOINT_DIR if checkpoint_dir is None else checkpoint_dir
+    """Where the checkpoint for `step` is expected.
+
+    The filename is `step_%06d.pt` whatever the run is called: that is the
+    training loop's own naming, and the option key (`hc_2000`) deliberately does
+    not match it so a retired key cannot be turned back into a path by string
+    surgery.
+    """
+    d = default_checkpoint_dir() if checkpoint_dir is None else checkpoint_dir
     return os.path.join(d, "step_%06d.pt" % int(step))
 
 
@@ -193,11 +213,16 @@ class ImitationBrain:
 
     def __init__(self, step, checkpoint_dir=None, device=None,
                  mode=DEFAULT_MODE, temperature=DEFAULT_TEMPERATURE,
-                 seed=DEFAULT_SEED, state_dict=None, profile=None):
+                 seed=DEFAULT_SEED, state_dict=None, profile=None, key=None):
         import torch
         from rl.smoke_gpu import build_model
 
-        self.key = "step_%d" % int(step)
+        if key is None:
+            # `seats` owns option naming; ask it rather than format a name here,
+            # so an old key can never be rebuilt into a current one.
+            import seats
+            key = seats.imitation_key(step)
+        self.key = key
         self.step = int(step)
         self.mode = mode
         self.temperature = temperature
@@ -348,7 +373,8 @@ def _shape_settings(blob):
 
 
 def load_brain(step, checkpoint_dir=None, device=None, mode=DEFAULT_MODE,
-               temperature=DEFAULT_TEMPERATURE, seed=DEFAULT_SEED):
+               temperature=DEFAULT_TEMPERATURE, seed=DEFAULT_SEED, key=None):
     """One seat's imitation player for the checkpoint saved at `step`."""
     return ImitationBrain(step, checkpoint_dir=checkpoint_dir, device=device,
-                          mode=mode, temperature=temperature, seed=seed)
+                          mode=mode, temperature=temperature, seed=seed,
+                          key=key)

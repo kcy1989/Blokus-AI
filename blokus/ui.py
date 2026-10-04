@@ -41,10 +41,10 @@ PERSONA_ZH = {k: I[k] for k in PERSONALITY_ORDER}
 
 
 def seat_label(key):
-    """The Chinese name of any of the thirteen seat options.
+    """The Chinese name of any of the twelve seat options.
 
     One lookup for the whole set, because the four seats are no longer all
-    personalities: a seat may be a personality, an H-B2 checkpoint, or one of
+    personalities: a seat may be a personality, an H-C2 checkpoint, or one of
     the two human seats, and every screen that names a seat goes through here.
     """
     if key is None:
@@ -55,7 +55,7 @@ def seat_label(key):
         return I["human"]
     if key == seats_mod.HUMAN_LOG_KEY:
         return I["human_log"]
-    if key.startswith("step_"):
+    if seats_mod.is_imitation_key(key):
         return I["imitation_fmt"].format(seats_mod.imitation_step(key))
     return PERSONA_ZH.get(key, key)
 

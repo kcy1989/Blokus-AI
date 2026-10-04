@@ -566,7 +566,7 @@ def test_every_seat_option_renders_on_the_seat_screen():
     """The screen looks each option up by key, so a new option with a missing
     name or description only blows up at runtime. Checked for all thirteen."""
     options = seats_mod.seat_menu_options()
-    assert len(options) == 14
+    assert len(options) == 13
     for opt in options:
         u = make_ui()
         at_seat_screen(u)
@@ -1291,8 +1291,8 @@ def test_the_picker_offers_random_ai_and_it_resolves_at_start():
     assert u.seat_pick == (0, "option")
     menu = u.menu_rects()
     assert "option:random_ai" in menu
-    assert len([k for k in menu if k.startswith("option:")]) == 14
-    # all fourteen fit on screen without overlapping
+    assert len([k for k in menu if k.startswith("option:")]) == 13
+    # all thirteen fit on screen without overlapping
     rects = [r for k, r in menu.items() if k.startswith("option:")]
     assert all(r.bottom <= u.L.H for r in rects), rects
     named = list(menu.items())
@@ -1320,10 +1320,10 @@ def test_the_picker_offers_random_ai_and_it_resolves_at_start():
 
 
 def test_the_league_pool_is_unchanged_by_the_new_option():
-    """`match.py` already draws every seat from the eleven, so it does not need
+    """`match.py` already draws every seat from the ten, so it does not need
     the deferred choice - adding it there would only draw twice."""
     from match import league_options
-    assert len(league_options()) == 11
+    assert len(league_options()) == 10
     assert seats_mod.RANDOM_AI_KEY not in league_options()
 
 
@@ -1359,17 +1359,17 @@ def test_two_seats_on_the_same_option_each_get_their_own_place(tmp_path):
     u.game = Game(random.Random(0))
     u.records = Records(str(tmp_path / "records.json"))
     _finish_with_remaining(u, [7, 15, 16, 17],
-                           ["step_38000", "human", "step_38000", "human_log"],
+                           ["hc_10000", "human", "hc_10000", "human_log"],
                            ["yellow", "blue", "green", "red"])
     rows = u.seat_rows()
     assert len(rows) == 4, rows
     assert [r[2] for r in rows] == [7, 15, 16, 17], rows
     assert [r[3] for r in rows] == [1, 2, 3, 4], rows
     assert [r[4] for r in rows] == [4, 3, 2, 1], rows
-    assert [r[1] for r in rows] == ["step_38000", "human", "step_38000",
+    assert [r[1] for r in rows] == ["hc_10000", "human", "hc_10000",
                                     "human_log"]
     # the two matching seats must not carry the same place
-    twins = [r[3] for r in rows if r[1] == "step_38000"]
+    twins = [r[3] for r in rows if r[1] == "hc_10000"]
     assert twins == [1, 3], twins
     # and each row takes its colour from its own seat, not from the option
     assert [u.game.colors[r[0]] for r in rows] == ["yellow", "blue", "green",
@@ -1381,7 +1381,7 @@ def test_the_results_screen_renders_four_distinct_rows(tmp_path):
     u.game = Game(random.Random(0))
     u.records = Records(str(tmp_path / "records.json"))
     _finish_with_remaining(u, [7, 15, 16, 17],
-                           ["step_38000", "human", "step_38000", "human_log"],
+                           ["hc_10000", "human", "hc_10000", "human_log"],
                            ["yellow", "blue", "green", "red"])
     real = u.label
     texts = []
@@ -1402,9 +1402,9 @@ def test_a_leaderboard_row_for_a_repeated_contestant_is_neutral():
     swatch says so rather than borrowing one seat's."""
     u = make_ui()
     u.game = Game(random.Random(0))
-    u.game.setup_seats(["step_2000", "fox", "step_2000", "wolf"],
+    u.game.setup_seats(["hc_2000", "fox", "hc_2000", "wolf"],
                        ["blue", "green", "red", "yellow"], random.Random(0))
-    assert u.contestant_color("step_2000") == (200, 200, 210)
+    assert u.contestant_color("hc_2000") == (200, 200, 210)
     assert u.contestant_color("fox") == COLORS["green"]
 
 

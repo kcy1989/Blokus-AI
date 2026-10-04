@@ -1,10 +1,10 @@
-"""All-AI league: each game draws four seats from the eleven automated options,
+"""All-AI league: each game draws four seats from the ten automated options,
 and the results feed the leaderboard.
 
 This is a tool for answering "which option is actually strongest"; it does not
 affect the flow of a normal player game.
 
-The eleven are the seven personalities plus the four H-B2 imitation steps. The
+The ten are the seven personalities plus the three H-C2 imitation steps. The
 two human seats are excluded: a league of people cannot be replayed from a
 seed, and a seat with no brain would have nothing to choose with.
 
@@ -39,11 +39,22 @@ DEFAULT_OUT_DIR = os.path.join(PROJECT_DIR, "data", "match")
 # same length in the same order, which is what makes `rng.choice` consume the
 # random stream identically and keeps a default run bit-for-bit identical to one
 # that was given `--pool all`.
+#
+# Which entries are the imitation seats is asked of `seats.kind_of` rather than
+# tested against a string prefix. A prefix test is exactly what goes stale the
+# moment the key naming changes, and it fails *silently*: a prefix that matches
+# nothing turns `imitation_only` into an empty pool and `no_imitation` into the
+# whole pool. That is not hypothetical - the pool moved from `step_*` to `hc_*`
+# when H-B2's checkpoints were replaced by H-C2's.
+def _is_imitation(key):
+    return seats_mod.kind_of(key) == seats_mod.KIND_IMITATION
+
+
 _ORDER = seats_mod.automated_options()
 POOL_PRESETS = {
     "all": _ORDER,
-    "no_imitation": tuple(k for k in _ORDER if not k.startswith("step_")),
-    "imitation_only": tuple(k for k in _ORDER if k.startswith("step_")),
+    "no_imitation": tuple(k for k in _ORDER if not _is_imitation(k)),
+    "imitation_only": tuple(k for k in _ORDER if _is_imitation(k)),
 }
 
 
@@ -251,8 +262,11 @@ def main(argv=None):
     ap.add_argument("--dry", action="store_true", help="不寫 records.json")
     ap.add_argument("--pool", default=None,
                     help="逗號分隔,無空白。項目可為 preset 或單一 AI 名稱:"
-                         " preset 有 all(11 個)、no_imitation(7 個人格)、"
-                         "imitation_only(4 個模仿 step);名稱為 "
+                         " preset 有 all(%d 個)、no_imitation(%d 個人格)、"
+                         "imitation_only(%d 個模仿者);名稱為 "
+                         % (len(POOL_PRESETS["all"]),
+                            len(POOL_PRESETS["no_imitation"]),
+                            len(POOL_PRESETS["imitation_only"]))
                          + ", ".join(seats_mod.automated_options()) + "。"
                          "展開後取聯集並去重,每個不同的 AI 權重相等(各 1/n);"
                          "重複的項目不增加權重。順序固定為選項的既定順序,"

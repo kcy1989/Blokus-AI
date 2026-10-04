@@ -1,4 +1,4 @@
-"""An H-B2 checkpoint as a seat that plays.
+"""An H-C2 checkpoint as a seat that plays.
 
 Four things have to hold for a checkpoint to be a legal opponent, and each gets
 its own test because each fails differently:
@@ -10,9 +10,11 @@ its own test because each fails differently:
     two seats on the same step do not interfere;
   * argmax is deterministic and softmax is a different, still legal, stream.
 
-Every test here needs `data/hb2/step_002000.pt`, which H-B2 produced and which
+Every test here needs `data/hc2/step_001000.pt`, which H-C2 produced and which
 is gitignored. The tests that need it are skipped when it is absent rather than
-failing, because the repository is checked out without its data.
+failing, because the repository is checked out without its data. H-B2's four
+checkpoints are still in `data/hb2`; they are no longer in the seat pool, so
+nothing here names one.
 """
 import os
 import random
@@ -36,13 +38,13 @@ def _have_checkpoint(step=STEP):
 
 
 needs_checkpoint = pytest.mark.skipif(
-    not _have_checkpoint(), reason="no H-B2 checkpoint in %s" % CHECKPOINT_DIR)
+    not _have_checkpoint(), reason="no H-C2 checkpoint in %s" % CHECKPOINT_DIR)
 
 
 def make_game(seed=0, options=None, colours=None, mode="argmax"):
     rng = random.Random(seed)
     g = Game(rng)
-    keys = options or ["step_%d" % STEP] * 4
+    keys = options or [seats.imitation_key(STEP)] * 4
     g.setup_seats(keys, colours, rng, checkpoint_dir=CHECKPOINT_DIR,
                   mode=mode)
     g.start()
@@ -92,10 +94,19 @@ def test_the_module_does_not_import_torch():
     assert out.stdout.strip() == "False", out.stdout
 
 
-def test_the_seat_pools_list_the_four_checkpoints():
-    assert seats.IMITATION_STEPS == (2000, 10000, 22000, 38000)
+def test_the_seat_pool_lists_the_three_hc2_checkpoints():
+    """The pool is H-C2, named `hc_*`, pointed at `data/hc2`.
+
+    Pinning the directory as well as the names matters: a pool carrying the new
+    key names but the old directory would pass every key-shape check here and
+    serve networks trained on a `stuck` column that disagreed with the rules.
+    """
+    assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
+    assert seats.IMITATION_STEPS == (1000, 2000, 10000)
     assert [seats.imitation_key(s) for s in seats.IMITATION_STEPS] == \
-        ["step_2000", "step_10000", "step_22000", "step_38000"]
+        ["hc_1000", "hc_2000", "hc_10000"]
+    for key in ("step_2000", "step_10000", "step_22000", "step_38000"):
+        assert not seats.is_imitation_key(key)
 
 
 def test_an_imitation_seat_is_built_only_when_asked_for():
@@ -117,7 +128,7 @@ def test_a_checkpoint_loads_read_only():
     import rl.imitation as I
     brain = I.load_brain(STEP, checkpoint_dir=CHECKPOINT_DIR, device="cpu")
     assert brain.step == STEP
-    assert brain.key == "step_%d" % STEP
+    assert brain.key == seats.imitation_key(STEP)
     assert brain.mode == "argmax"
     # read-only: eval mode, no gradients, no optimiser state carried
     assert not brain.net.training
@@ -204,7 +215,7 @@ def test_it_plays_from_every_opening_player():
         rng = random.Random(60 + start)
         g = Game(rng)
         g.turn_order = [CLOCKWISE_OWNERS[(start + i) % 4] for i in range(4)]
-        g.owner_key = {o: "step_%d" % STEP for o in range(4)}
+        g.owner_key = {o: seats.imitation_key(STEP) for o in range(4)}
         g.colors = {o: c for o, c in zip(CLOCKWISE_OWNERS,
                                          seats.COLOR_NAMES)}
         g.brains = {o: shared for o in range(4)}
@@ -304,7 +315,7 @@ def test_pick_action_argmax_and_softmax():
         I.pick_action(logits, "greedy")
 
 
-def test_checkpoint_path_is_the_one_hb2_wrote():
+def test_checkpoint_path_is_the_one_the_run_wrote():
     from rl.imitation import checkpoint_path
     for step in seats.IMITATION_STEPS:
         assert checkpoint_path(step, CHECKPOINT_DIR).endswith(

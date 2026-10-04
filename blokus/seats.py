@@ -51,25 +51,49 @@ RANDOM_AI_KEY = "random_ai"
 HUMAN_KEY = "human"
 HUMAN_LOG_KEY = "human_log"
 
-# Which H-B2 checkpoints are offered as players, in the order the menu lists
+# Which H-C2 checkpoints are offered as players, in the order the menu lists
 # them. Read-only at inference: the optimiser state in those files is ignored,
-# and so is the fact that 38,000 was the last step trained.
-IMITATION_STEPS = (2000, 10000, 22000, 38000)
-IMITATION_CHECKPOINT_DIR = "data/hb2"
+# and so is the fact that 10,000 was the last step trained.
+#
+# H-C2 is the run that regenerated the imitation data on the exact-latch engine
+# (reports/hc2_report.md). H-B2's checkpoints are still on disk in `data/hb2`
+# and are still loadable by step number; they are simply no longer *named*, so
+# that a stale key cannot silently resolve to a checkpoint trained on data whose
+# `stuck` column disagreed with the rules.
+IMITATION_STEPS = (1000, 2000, 10000)
+IMITATION_CHECKPOINT_DIR = "data/hc2"
+
+# The option-key prefix. `seats` owns this naming; `rl.imitation` asks for a key
+# rather than inventing one, so an old `step_*` name has no path to a network.
+IMITATION_KEY_PREFIX = "hc_"
 
 SEATS = 4
 
 
 def imitation_key(step):
     """The option key for the checkpoint saved at `step`."""
-    return "step_%d" % int(step)
+    return "%s%d" % (IMITATION_KEY_PREFIX, int(step))
 
 
 def imitation_step(key):
     """The step an option key names. Inverse of `imitation_key`."""
-    if not key.startswith("step_"):
+    if not key.startswith(IMITATION_KEY_PREFIX):
         raise ValueError("%r is not an imitation option" % (key,))
-    return int(key[len("step_"):])
+    return int(key[len(IMITATION_KEY_PREFIX):])
+
+
+def is_imitation_key(key):
+    """Is this an option key naming a checkpoint that is actually in the pool?
+
+    Deliberately a set membership rather than a prefix test: `hc_9999` has the
+    right shape and no file behind it, and the old `step_*` names have the wrong
+    shape and a perfectly good file behind them. Matching the set is what stops
+    either of those from being treated as a playable seat.
+    """
+    return key in _IMITATION_KEYS
+
+
+_IMITATION_KEYS = frozenset(imitation_key(s) for s in IMITATION_STEPS)
 
 
 def automated_options():
@@ -131,7 +155,7 @@ def kind_of(key, include_humans=True):
         return KIND_RANDOM_AI
     if key in personality_keys():
         return KIND_AI
-    if key in (imitation_key(s) for s in IMITATION_STEPS):
+    if is_imitation_key(key):
         return KIND_IMITATION
     if key == HUMAN_KEY:
         return KIND_HUMAN
@@ -210,7 +234,7 @@ def corner_of(owner):
     return OWNER_CORNER[owner]
 
 
-def build_brain(key, rng, kind=None, checkpoint_dir=IMITATION_CHECKPOINT_DIR,
+def build_brain(key, rng, kind=None, checkpoint_dir=None,
                 device=None, mode="argmax"):
     """The contestant for one seat: a Brain for an AI or an imitation player,
     `None` for a human.
@@ -225,12 +249,21 @@ def build_brain(key, rng, kind=None, checkpoint_dir=IMITATION_CHECKPOINT_DIR,
         raise ValueError(
             "seat option %r is a deferred choice; call resolve_random_ai "
             "before building a game" % (key,))
+    if checkpoint_dir is None:
+        # Resolved here rather than as a default argument, which would bind the
+        # directory once at import and quietly ignore a later rebinding - the
+        # same trap `records.Records.__init__` sets with its path.
+        checkpoint_dir = IMITATION_CHECKPOINT_DIR
     if kind == KIND_AI:
         return make_brain(key, rng)
     if kind == KIND_IMITATION:
         from rl.imitation import load_brain
+        # The seat key is handed to the brain rather than rebuilt from the step:
+        # `choose_move` traces and `test_seats` both require
+        # `brains[owner].key == owner_key[owner]`, and two places formatting the
+        # same name is two places to forget.
         return load_brain(imitation_step(key), checkpoint_dir=checkpoint_dir,
-                          device=device, mode=mode)
+                          device=device, mode=mode, key=key)
     return None
 
 
