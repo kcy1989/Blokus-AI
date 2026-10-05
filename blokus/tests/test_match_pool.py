@@ -150,11 +150,13 @@ def test_no_imitation_leaves_out_the_trained_policy_too():
     """The name means "no network", so a network that is not an imitation
     checkpoint still has to be excluded - otherwise the preset quietly measures
     the trained policy too and its seven is an eight."""
-    assert "rl_1000_20k" not in POOL_PRESETS["no_imitation"]
-    assert "rl_1000_20k" not in expand_pool("no_imitation")
-    assert "rl_1000_20k" in POOL_PRESETS["all"]
+    assert "rl_h1000_20k" not in POOL_PRESETS["no_imitation"]
+    assert "rl_h1000_20k" not in expand_pool("no_imitation")
+    assert "rl_h1000_20k" in POOL_PRESETS["all"]
     # and imitation_only keeps meaning imitation
-    assert "rl_1000_20k" not in POOL_PRESETS["imitation_only"]
+    assert "rl_h1000_20k" not in POOL_PRESETS["imitation_only"]
+    # the pre-rename spelling resolves to the same option and so is excluded too
+    assert "rl_1000_20k" not in expand_pool("no_imitation")
 
 
 def test_presets_expand_to_the_expected_names():
@@ -309,7 +311,7 @@ def test_no_pool_at_all_means_all():
 # **Recaptured twice.** First when the imitation seats were replaced - the pool
 # went from eleven options to ten, the seven personalities plus `hc_1000`,
 # `hc_2000` and `hc_10000` in place of the four H-B2 steps - and again when the
-# trained policy `rl_1000_20k` was registered, taking it to eleven. Either way
+# trained policy `rl_h1000_20k` was registered, taking it to eleven. Either way
 # `rng.choice` draws different indices and every seat in these games changes.
 #
 # What the test still guards is the property that survives: a default run and an
@@ -318,13 +320,13 @@ def test_no_pool_at_all_means_all():
 # so a future pool change must recapture them - which is the intended cost of
 # catching a silent change to what a league seat can be.
 GOLDEN = {
-    20260928: [('rl_1000_20k', 'red', 14), ('hc_2000', 'yellow', 9),
+    20260928: [('rl_h1000_20k', 'red', 14), ('hc_2000', 'yellow', 9),
                ('optimizer', 'blue', 0), ('wolf', 'green', 12),
-               ('chess', 'yellow', 35), ('rl_1000_20k', 'blue', 0),
+               ('chess', 'yellow', 35), ('rl_h1000_20k', 'blue', 0),
                ('hc_2000', 'green', 12), ('hc_2000', 'red', 7)],
     7: [('builder', 'green', 4), ('fox', 'red', 25),
-        ('hunter', 'yellow', 12), ('rl_1000_20k', 'blue', 15),
-        ('rl_1000_20k', 'green', 18), ('builder', 'yellow', 4),
+        ('hunter', 'yellow', 12), ('rl_h1000_20k', 'blue', 15),
+        ('rl_h1000_20k', 'green', 18), ('builder', 'yellow', 4),
         ('wolf', 'blue', 32), ('hc_1000', 'red', 16)],
     99: [('hunter', 'yellow', 12), ('hunter', 'red', 32),
          ('intruder', 'blue', 15), ('hc_10000', 'green', 16),

@@ -473,8 +473,13 @@ def test_an_unknown_subject_names_the_legal_options():
         M.run_league(games=1, seed=1, options=GROUP_A, paired_rng=True,
                      subject="hunterr")
     assert "hunterr" in str(e.value)
-    for key in ("rl_1000_20k", "hc_1000", "wolf"):
+    # Read the names from the pool rather than writing them out, so that a
+    # rename does not turn this into a test of the rename.
+    legal = S.automated_options()
+    for key in ("rl_h1000_20k", "hc_1000", "wolf"):
+        assert key in legal
         assert key in str(e.value)
+    assert len(legal) == 11
 
 
 def test_a_subject_without_the_split_is_refused():

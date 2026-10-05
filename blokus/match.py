@@ -175,12 +175,18 @@ def expand_pool(text):
     for item in items:
         if item in POOL_PRESETS:
             chosen.update(POOL_PRESETS[item])
-        elif item in _ORDER:
-            chosen.add(item)
-        else:
-            raise ValueError(
-                "unknown --pool item %r. Presets: %s. Options: %s"
-                % (item, ", ".join(sorted(POOL_PRESETS)), ", ".join(_ORDER)))
+            continue
+        # An alias names the same contestant, so `--pool rl_1000_20k` must still
+        # work and must expand to the *canonical* name: the pool is a set of
+        # names that get drawn into games and written into the batch file, and
+        # letting the old spelling through would put it in the evidence.
+        key = seats_mod.canonical_key(item)
+        if key in _ORDER:
+            chosen.add(key)
+            continue
+        raise ValueError(
+            "unknown --pool item %r. Presets: %s. Options: %s"
+            % (item, ", ".join(sorted(POOL_PRESETS)), ", ".join(_ORDER)))
     # Ordered by the fixed option order, so the input order cannot matter.
     pool = [k for k in _ORDER if k in chosen]
     if not pool:
@@ -333,17 +339,24 @@ def subject_in_pool(subject, options):
 
 
 def validate_subject(subject, options, paired_rng):
-    """Raise unless `subject` is usable, naming what is legal.
+    """Check `subject` and return the name to record it under.
 
     Two ways it can be wrong, and both are silent failures otherwise: an unknown
     name would build a seat that does not exist, and a subject without the split
     would produce numbers labelled as paired that are not paired. The subject
     being in the pool is **not** checked - see `subject_in_pool`.
+
+    An alias is accepted and resolved, and the **canonical** name is returned
+    rather than the caller's spelling. `subject` goes into the batch file's
+    `subject` field and into the filename, and an alias landing in either would
+    put the pre-rename name into evidence that is supposed to outlive the
+    rename.
     """
     if subject is None:
-        return
+        return None
+    canonical = seats_mod.canonical_key(subject)
     legal = sorted(seats_mod.automated_options())
-    if subject not in legal:
+    if canonical not in legal:
         raise ValueError("unknown --subject %r. Options: %s"
                          % (subject, ", ".join(legal)))
     if not paired_rng:
@@ -351,6 +364,7 @@ def validate_subject(subject, options, paired_rng):
             "--subject needs --paired-rng: a designated seat is only worth "
             "anything if the same game index lays out the same board twice, and "
             "without the split it does not")
+    return canonical
 
 
 def batch_text(payload):
@@ -508,7 +522,8 @@ def main(argv=None):
     pool_raw = args.pool
     try:
         pool = expand_pool(pool_raw)
-        validate_subject(args.subject, pool, args.paired_rng)
+        # The resolved name, so an alias is recorded under its canonical spelling.
+        subject = validate_subject(args.subject, pool, args.paired_rng)
     except ValueError as exc:
         # A bad pool or a bad subject is a usage error, not a crash: argparse
         # prints the usage and exits 2, which is what a typo deserves.
@@ -529,7 +544,7 @@ def main(argv=None):
         print("成對模式：不寫入排行榜（--paired-rng），結果只寫入批次檔")
     rows = run_league(args.games, args.seed, records, options=pool,
                       mode=args.mode, device=args.device,
-                      paired_rng=args.paired_rng)
+                      paired_rng=args.paired_rng, subject=subject)
 
     flat = [r for game in rows for r in game]
     summary = summarise(flat)
@@ -539,10 +554,10 @@ def main(argv=None):
     print("  --pool 原始字串 : %s" % (pool_raw if pool_raw else "(未指定 → all)"))
     print("  展開後的池      : %s" % ", ".join(pool))
     print("  種子            : %d" % args.seed)
-    print("  隨機流模式      : %s" % rng_mode_of(args.paired_rng, args.subject))
-    if args.subject:
-        print("  指定席位(subject): %s" % args.subject)
-        if subject_in_pool(args.subject, pool):
+    print("  隨機流模式      : %s" % rng_mode_of(args.paired_rng, subject))
+    if subject:
+        print("  指定席位(subject): %s" % subject)
+        if subject_in_pool(subject, pool):
             print("    注意: subject 也在池內，對手席可能抽到同一個，"
                   "故同一局可能兩席同選項（與訓練條件一致）")
     print("  局數            : %d" % args.games)
@@ -572,12 +587,12 @@ def main(argv=None):
         # batch lay their games out differently and must never be averaged
         # together, and a paired batch from another version of the derivation
         # must not be averaged with this one either.
-        "rng_mode": rng_mode_of(args.paired_rng, args.subject),
+        "rng_mode": rng_mode_of(args.paired_rng, subject),
         # The designated seat, so a batch says which model it is about. It may
         # also appear among the opponents - that is the training condition for a
         # personality subject - so this is not recoverable from `games_detail`
         # after the fact.
-        "subject": args.subject,
+        "subject": subject,
         "appearances": appearances,
         "summary": summary,
         "games_detail": [[[k, c, r, rk, p] for k, c, r, rk, p in game]

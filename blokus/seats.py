@@ -82,15 +82,46 @@ IMITATION_KEY_PREFIX = "hc_"
 # is named, and pinning it is the friction that keeps a league result
 # interpretable.
 #
-# `rl_1000_20k` = PPO from `hc_1000`, 20,000 episodes. `reports/rl1_report.md`
-# has the training curve.
+# `rl_h1000_20k` = PPO from `hc_1000`, 20,000 episodes. The `h` names the
+# 0k model it started from, which was distilled from the `hunter` personality:
+# `data/hc1/manifest.json` records `teacher = hunter`, and the checkpoint's own
+# `init_checkpoint` field records `data/hc2/step_001000.pt`. The training curve
+# is in `data/rl1/rounds.jsonl`, which is where the 40 rounds of 500 games are.
 RL_SEATS = (
-    ("rl_1000_20k", "data/rl1/step_000040.pt"),
+    ("rl_h1000_20k", "data/rl1/step_000040.pt"),
 )
+
+# The key this seat carried before plan9 step 1 renamed it, kept resolving to the
+# same policy. An alias rather than a second row in `RL_SEATS`: a second row would
+# put the same weights in the pool twice, taking the pool from eleven options to
+# twelve and giving every league a doubled chance of drawing one model - which
+# would silently change what a pool size means.
+#
+# The alias resolves on the way *in* and never appears in `automated_options()`,
+# so the pool still lists eleven and the leaderboard still has one row per
+# policy. What it does not solve is a leaderboard that already holds the old
+# name: a result recorded through the alias lands in its own row, because
+# `records.json` is keyed by the name a game was played under and knows nothing
+# about aliases. `records.json` was renamed in step 1 rather than left to split.
+RL_ALIASES = {
+    "rl_1000_20k": "rl_h1000_20k",
+}
 
 RL_KEY_PREFIX = "rl_"
 
 SEATS = 4
+
+
+def canonical_key(key):
+    """The registered name for `key`, following the alias table.
+
+    Everything that has to *recognise* a seat goes through here, so an alias is
+    accepted anywhere a key is: `--pool rl_1000_20k`, `--subject rl_1000_20k`
+    and `build_brain("rl_1000_20k", ...)` all name the same policy as
+    `rl_h1000_20k`. Deliberately one hop - an alias naming another alias would
+    need a loop and nothing currently needs one.
+    """
+    return RL_ALIASES.get(key, key)
 
 
 def rl_keys():
@@ -105,6 +136,7 @@ def rl_checkpoint(key):
     registered - `rl_9999` would otherwise be a name that resolves to nothing, or
     worse, to whatever a future table happens to put at that slot.
     """
+    key = canonical_key(key)
     for registered, path in RL_SEATS:
         if registered == key:
             return path
@@ -115,9 +147,10 @@ def is_rl_key(key):
     """Is this an option key naming a trained policy in the pool?
 
     Set membership for the same reason `is_imitation_key` is: a prefix test would
-    accept `rl_9999`, which has the right shape and no file behind it.
+    accept `rl_9999`, which has the right shape and no file behind it. Aliases
+    count, or an old command line would stop resolving.
     """
-    return key in _RL_KEYS
+    return key in _RL_KEYS or canonical_key(key) in _RL_KEYS
 
 
 _RL_KEYS = frozenset(rl_keys())

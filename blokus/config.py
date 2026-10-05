@@ -116,7 +116,7 @@ I = {
     "imitation_fmt": "模仿 {0} 步",
     "imitation_mode_fmt": "模仿選步：{0}",
     "imitation_desc_fmt": "H-C2 第 {0} 步的檢查點",
-    # A trained policy's name already says what it is - `rl_1000_20k` is PPO
+    # A trained policy's name already says what it is - `rl_h1000_20k` is PPO
     # from hc_1000 over 20,000 games - so there is nothing to interpolate and
     # nothing to translate. The label is the name.
     "rl_fmt": "強化學習 {0}",
