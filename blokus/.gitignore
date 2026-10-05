@@ -9,6 +9,19 @@ __pycache__/
 htmlcov/
 plan*
 
+# ...but the evaluation results named `eval/plan9/` are not plans, they are
+# evidence, and an evaluation that cannot be recomputed from the repository is
+# not evidence. `plan*` above matches any path *component* starting with
+# "plan", so it silently swallowed the whole directory - no warning, the files
+# just never appeared in `git status`. One line brings them back, and the
+# `plan*.md` files it was written for stay ignored.
+#
+# Unlike the `data/` block further down, no three-line dance is needed here: that
+# one had to re-include a directory whose *parent* was excluded, and git refuses
+# to descend into an excluded parent. `eval/` itself is not excluded, so naming
+# the one directory is enough.
+!eval/plan9/
+
 # Virtual environments. `.venv-rl/` is the stage-G reinforcement-learning
 # environment: about 4 GiB of CUDA wheels, regenerateable with one pip command.
 .venv/
