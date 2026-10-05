@@ -43,18 +43,29 @@ class Game:
 
     def setup_seats(self, option_keys, colours=None, rng=None,
                     checkpoint_dir=None, device=None,
-                    mode="argmax", include_humans=True):
+                    mode="argmax", include_humans=True, seat_rngs=None):
         """Configure all four seats by hand: one option and one colour each.
 
         `option_keys` is four option keys from `seats.seat_options`, in seat
         order, and may repeat freely. A seat left on `seats.RANDOM_AI_KEY` is
-        dealt one of the eleven automated options here, one draw per seat, so
-        by the time this returns every seat names a specific contestant.
+        dealt one of the eleven automated options here, one draw per seat, so by
+        the time this returns every seat names a specific contestant.
         `colours` is four entries, each a colour name or `None`/`"random"` to be
         dealt one of whatever is left; specified colours must be distinct.
 
         Turn order is drawn here rather than passed in, and is independent of
         both: any owner may open the game.
+
+        `seat_rngs` gives each seat its own generator to be **built** with, and
+        is the reason a league can be paired at all. Building a brain draws
+        from the stream it is handed, and a personality draws seven times on the
+        way in - one `uniform` per weight, to jitter it by 0.7-1.3 - while a
+        trained policy is loaded from a file and draws not at all. The opening
+        player below is drawn *after* the brains, so on one shared stream that
+        count would decide who went first, and two pools differing only in which
+        models are sitting in them would open differently. Handing every seat a
+        stream of its own takes the consumption out of the setup draw: how much
+        a seat reads to be built is then nobody else's business.
         """
         option_keys = list(option_keys)
         if len(option_keys) != MATCH_SEATS:
@@ -73,7 +84,9 @@ class Game:
         self.colors = {o: resolved[o] for o in range(MATCH_SEATS)}
         self.seat_kinds = kinds
         self.brains = {
-            o: seats_mod.build_brain(option_keys[o], rng, kinds[o],
+            o: seats_mod.build_brain(option_keys[o],
+                                     rng if seat_rngs is None else seat_rngs[o],
+                                     kinds[o],
                                      checkpoint_dir=checkpoint_dir,
                                      device=device, mode=mode)
             for o in range(MATCH_SEATS)

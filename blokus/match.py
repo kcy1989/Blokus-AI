@@ -16,6 +16,7 @@ with.
     python3 match.py --games 5 --pool no_imitation,hunter
 """
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -33,6 +34,50 @@ from records import POINTS_FOR_RANK, Records, rank_rows
 # cumulative leaderboard of the human player's own games, and a benchmark run
 # would flood it with thousands of machine-vs-machine results.
 DEFAULT_OUT_DIR = os.path.join(PROJECT_DIR, "data", "match")
+
+# Bumped whenever the paired streams are derived differently, and written into
+# every batch file produced in that mode. A paired result is not comparable with
+# an unpaired one and neither is comparable with a paired result from another
+# version, so the label has to travel with the numbers rather than live in
+# somebody's memory.
+PAIRED_RNG_VERSION = "paired-v1"
+
+LEGACY_RNG_MODE = "legacy-single-stream"
+
+
+def paired_stream_seed(*parts):
+    """A seed for one stream, derived from labels rather than from position.
+
+    The whole point of the split is that a stream's contents cannot depend on
+    how much of it an earlier game happened to consume, so nothing here may be
+    "the next draw" - every stream has to be nameable. Hence blake2b over the
+    labels `(seed, game index, "seat", owner)` rather than arithmetic on the
+    game index: arithmetic invites an off-by-one that silently reuses a stream,
+    and `hash()` is salted per process, which would make a paired run
+    unreproducible from the seed alone.
+
+    The separator matters. `repr` of each part plus a byte that cannot appear
+    inside a repr keeps `("a", "bc")` and `("ab", "c")` distinct.
+    """
+    h = hashlib.blake2b(digest_size=8)
+    for part in parts:
+        h.update(repr(part).encode("utf-8"))
+        h.update(b"\x1f")
+    return int.from_bytes(h.digest(), "big")
+
+
+def paired_streams(seed, game_index):
+    """`(setup_rng, [seat_rng, seat_rng, seat_rng, seat_rng])` for one game.
+
+    Five streams: one that decides who is playing and who goes first, and one per
+    seat for that seat's own decisions. All five are functions of `(seed,
+    game_index)` alone, so game 300 is drawn exactly the same way whether it is
+    reached by playing 299 games before it or on its own.
+    """
+    setup = random.Random(paired_stream_seed(seed, game_index, "setup"))
+    seats = [random.Random(paired_stream_seed(seed, game_index, "seat", o))
+             for o in range(4)]
+    return setup, seats
 
 # The three shorthands `--pool` accepts. `all` is the whole automated pool, and
 # is spelled out as the ordered tuple rather than a filter so that
@@ -127,7 +172,7 @@ def expand_pool(text):
     return pool
 
 
-def play_match(game, rng, on_move=None):
+def play_match(game, rng, on_move=None, seat_rngs=None):
     """Play one game to the end.
 
     Returns one row per **seat**: `(option, colour, remaining, rank, points)`.
@@ -140,12 +185,22 @@ def play_match(game, rng, on_move=None):
     `on_move(game, owner, move)` can be hooked in to check something after each
     turn (verifying the corner-contact rule move by move, say), the same way
     `tests/test_simulation.py` does it.
+
+    `seat_rngs` gives each seat the generator its decisions are drawn from,
+    instead of every seat sharing `rng`. The reason is the same as in
+    `Game.setup_seats`: `choose_move` draws a number of times that depends on
+    the position and on the model's own mistake rate, so on one shared stream
+    two models sitting in the same seat leave the rest of the league reading
+    from different places. With a stream per seat the consumption stops being
+    anyone else's problem. Left `None`, every seat reads from `rng`, which is
+    the original behaviour and still the default.
     """
     game.start()
     while game.state == "PLAYING":
         owner = game.current_owner()
         move = ai.choose_move(game.board, game.hands[owner].names, owner,
-                              game.brains[owner], rng,
+                              game.brains[owner],
+                              rng if seat_rngs is None else seat_rngs[owner],
                               other_brains=game.brain_map(),
                               must_cover=game.must_cover(owner),
                               reach=game.reach(owner),
@@ -229,7 +284,8 @@ def default_out_path(seed, games, pool_raw):
 
 
 def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
-               options=None, mode="argmax", checkpoint_dir=None, device=None):
+               options=None, mode="argmax", checkpoint_dir=None, device=None,
+               paired_rng=False):
     """Run `games` league matches, recording each into the leaderboard.
 
     Every seat is drawn independently from `options`, so options repeat freely -
@@ -238,12 +294,24 @@ def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
     Colours and the opening player are decided by `setup_seats`, the same code
     the UI uses, so a league game and a played game are laid out the same way.
 
-    Returns a list of games, each a list of four seat rows as
-    `play_match` returns them - the game's rows, not a flat list, because four
-    seats is the unit that was played.
+    Returns a list of games, each a list of four seat rows as `play_match`
+    returns them - the game's rows, not a flat list, because four seats is the
+    unit that was played.
 
     With `records=None` no file is touched at all, which is how the tests use
     it.
+
+    `paired_rng` switches the randomness from one stream for the whole league
+    to five per game, derived from `(seed, game_index)`. The default is the
+    original single stream and is left exactly as it was: every game reads from
+    wherever the previous one stopped, so a model that draws a different number
+    of times moves every later game's seat draw, colours and opening player.
+    That is fine for a league whose question is simply which option is strongest
+    on average, and fatal for one whose question is whether *these two* models
+    differ - they never meet the same board twice. In paired mode the setup of a
+    given game index is a function of the seed alone, so two runs that differ
+    only in one seat's model meet the same opponents, the same colours and the
+    same opening player in every game. See `paired_streams`.
     """
     options = league_options() if options is None else tuple(options)
     if not options:
@@ -253,11 +321,16 @@ def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
     rng = random.Random(seed)
     rows = []
     for i in range(games):
-        g = Game(rng)
-        keys = [rng.choice(options) for _ in range(4)]
-        g.setup_seats(keys, [None] * 4, rng, checkpoint_dir=checkpoint_dir,
+        if paired_rng:
+            game_rng, seat_rngs = paired_streams(seed, i)
+        else:
+            game_rng, seat_rngs = rng, None
+        g = Game(game_rng)
+        keys = [game_rng.choice(options) for _ in range(4)]
+        g.setup_seats(keys, [None] * 4, game_rng, seat_rngs=seat_rngs,
+                      checkpoint_dir=checkpoint_dir,
                       device=device, mode=mode)
-        standings = play_match(g, rng, on_move)
+        standings = play_match(g, game_rng, on_move, seat_rngs=seat_rngs)
         rows.append(standings)
         if records is not None:
             records.record([(k, rem) for k, _c, rem, _rk, _p in standings])
@@ -292,6 +365,10 @@ def main(argv=None):
     ap.add_argument("--mode", default="argmax", choices=("argmax", "softmax"),
                     help="模仿選項的選步方式")
     ap.add_argument("--device", default=None, help="模仿選項的 torch device")
+    ap.add_argument("--paired-rng", action="store_true",
+                    help="每局用五條由 (種子, 局序) 派生的獨立流（setup 流 + "
+                         "每席位流），使只更換某席位模型時每局開局完全一致。"
+                         "預設關閉，維持原有單一隨機流。")
     args = ap.parse_args(argv)
 
     pool_raw = args.pool
@@ -303,13 +380,21 @@ def main(argv=None):
         ap.error(str(exc))
 
     records = None
-    if not args.dry:
+    if not args.dry and not args.paired_rng:
         records = Records()
         if args.reset:
             records.reset()
             print("排行榜已清空")
+    if args.paired_rng and not args.dry:
+        # A paired batch is a different measurement from the leaderboard's: its
+        # games are laid out by per-game streams rather than by one stream the
+        # league walks down, and folding it in would average two designs whose
+        # seat draws are not comparable. The batch file carries the per-game rows
+        # the paired statistics need, so nothing is lost by not folding.
+        print("成對模式：不寫入排行榜（--paired-rng），結果只寫入批次檔")
     rows = run_league(args.games, args.seed, records, options=pool,
-                      mode=args.mode, device=args.device)
+                      mode=args.mode, device=args.device,
+                      paired_rng=args.paired_rng)
 
     flat = [r for game in rows for r in game]
     summary = summarise(flat)
@@ -319,6 +404,8 @@ def main(argv=None):
     print("  --pool 原始字串 : %s" % (pool_raw if pool_raw else "(未指定 → all)"))
     print("  展開後的池      : %s" % ", ".join(pool))
     print("  種子            : %d" % args.seed)
+    print("  隨機流模式      : %s" % (PAIRED_RNG_VERSION if args.paired_rng
+                                   else LEGACY_RNG_MODE))
     print("  局數            : %d" % args.games)
     print("  席次總數        : %d" % len(flat))
     print()
@@ -343,6 +430,12 @@ def main(argv=None):
             "games": args.games,
             "seats_per_game": 4,
             "mode": args.mode,
+            # Travels with the numbers on purpose: a paired batch and a
+            # leaderboard batch lay their games out differently and must never
+            # be averaged together, and a paired batch from another version of
+            # the derivation must not be averaged with this one either.
+            "rng_mode": PAIRED_RNG_VERSION if args.paired_rng
+                        else LEGACY_RNG_MODE,
             "appearances": appearances,
             "summary": summary,
             "games_detail": [[[k, c, r, rk, p] for k, c, r, rk, p in game]
