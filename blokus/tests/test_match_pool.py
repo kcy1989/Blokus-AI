@@ -26,8 +26,14 @@ from match import (POOL_PRESETS, expand_pool, league_options, main, play_match,
                    run_league, summarise)
 
 AUTOMATED = seats_mod.automated_options()
-PERSONALITIES = [k for k in AUTOMATED if not seats_mod.is_imitation_key(k)]
+# Both exclusions, not one. `not is_imitation_key` alone would sweep the trained
+# policy into PERSONALALITIES, and every preset-size assertion below would then
+# be quietly comparing the wrong sets.
+PERSONALITIES = [k for k in AUTOMATED
+                 if not seats_mod.is_imitation_key(k)
+                 and not seats_mod.is_rl_key(k)]
 STEPS = [k for k in AUTOMATED if seats_mod.is_imitation_key(k)]
+TRAINED = [k for k in AUTOMATED if seats_mod.is_rl_key(k)]
 
 
 def flat(rows):
@@ -126,21 +132,36 @@ def test_the_cli_reports_a_bad_pool_as_a_usage_error(tmp_path):
 
 # ----------------------------------------------------------------- presets
 
-def test_the_three_presets_have_the_ruled_sizes():
-    assert len(POOL_PRESETS["all"]) == 10
+def test_the_four_presets_have_the_ruled_sizes():
+    assert len(POOL_PRESETS["all"]) == 11
     assert len(POOL_PRESETS["no_imitation"]) == 7
     assert len(POOL_PRESETS["imitation_only"]) == 3
+    assert len(POOL_PRESETS["rl_only"]) == 1
     assert POOL_PRESETS["no_imitation"] == tuple(PERSONALITIES)
     assert POOL_PRESETS["imitation_only"] == tuple(STEPS)
-    assert len(expand_pool("all")) == 10
+    assert POOL_PRESETS["rl_only"] == tuple(TRAINED)
+    assert len(expand_pool("all")) == 11
     assert len(expand_pool("no_imitation")) == 7
     assert len(expand_pool("imitation_only")) == 3
+    assert len(expand_pool("rl_only")) == 1
+
+
+def test_no_imitation_leaves_out_the_trained_policy_too():
+    """The name means "no network", so a network that is not an imitation
+    checkpoint still has to be excluded - otherwise the preset quietly measures
+    the trained policy too and its seven is an eight."""
+    assert "rl_1000_20k" not in POOL_PRESETS["no_imitation"]
+    assert "rl_1000_20k" not in expand_pool("no_imitation")
+    assert "rl_1000_20k" in POOL_PRESETS["all"]
+    # and imitation_only keeps meaning imitation
+    assert "rl_1000_20k" not in POOL_PRESETS["imitation_only"]
 
 
 def test_presets_expand_to_the_expected_names():
     assert expand_pool("all") == list(AUTOMATED)
     assert expand_pool("no_imitation") == PERSONALITIES
     assert expand_pool("imitation_only") == STEPS
+    assert expand_pool("rl_only") == TRAINED
 
 
 # -------------------------------------------------------------- mixed lists
@@ -180,16 +201,16 @@ def test_a_repeated_item_collapses_to_one():
 
 def test_the_expanded_order_does_not_depend_on_the_input_order():
     pairs = [("hc_2000,no_imitation", "no_imitation,hc_2000"),
-             ("all", "no_imitation,imitation_only"),
+             ("all", "no_imitation,imitation_only,rl_only"),
              ("hunter,wolf", "wolf,hunter"),
-             ("hc_10000,imitation_only,no_imitation", "all")]
+             ("hc_10000,imitation_only,no_imitation,rl_only", "all")]
     for a, b in pairs:
         assert expand_pool(a) == expand_pool(b), (a, b)
 
 
 def test_the_expanded_order_is_the_fixed_option_order():
     for text in ("all", "hc_10000,hc_2000", "hunter,wolf",
-                 "no_imitation,imitation_only"):
+                 "no_imitation,imitation_only,rl_only"):
         pool = expand_pool(text)
         assert pool == [k for k in AUTOMATED if k in set(pool)], text
 
@@ -285,25 +306,29 @@ def test_no_pool_at_all_means_all():
 # pool means `rng.choice` consumes the stream identically, so the seats, the
 # colours and the scores all come out the same.
 #
-# **Recaptured when the imitation seats were replaced.** The pool went from
-# eleven options to ten - the seven personalities plus `hc_1000`, `hc_2000` and
-# `hc_10000` in place of the four H-B2 steps - so `rng.choice` draws different
-# indices and every seat in these games changes. What the test still guards is
-# the property that survives the rename: a default run and an explicit `--pool
-# all` play exactly the same games, and that pair keeps doing so as the pool
-# changes. The absolute numbers below are pinned to the current pool, so a
-# future pool change must recapture them - which is the intended cost of
+# **Recaptured twice.** First when the imitation seats were replaced - the pool
+# went from eleven options to ten, the seven personalities plus `hc_1000`,
+# `hc_2000` and `hc_10000` in place of the four H-B2 steps - and again when the
+# trained policy `rl_1000_20k` was registered, taking it to eleven. Either way
+# `rng.choice` draws different indices and every seat in these games changes.
+#
+# What the test still guards is the property that survives: a default run and an
+# explicit `--pool all` play exactly the same games, and that pair keeps doing so
+# as the pool changes. The absolute numbers below are pinned to the current pool,
+# so a future pool change must recapture them - which is the intended cost of
 # catching a silent change to what a league seat can be.
 GOLDEN = {
-    20260928: [('hc_2000', 'yellow', 17), ('optimizer', 'red', 4),
-               ('wolf', 'green', 35), ('intruder', 'blue', 9),
-               ('builder', 'red', 16), ('hc_10000', 'green', 21),
-               ('chess', 'yellow', 13), ('fox', 'blue', 28)],
-    7: [('builder', 'green', 0), ('fox', 'yellow', 22), ('hunter', 'red', 19),
-        ('wolf', 'blue', 38), ('hunter', 'yellow', 15), ('intruder', 'red', 8),
-        ('fox', 'blue', 27), ('chess', 'green', 30)],
-    99: [('hunter', 'yellow', 12), ('hunter', 'red', 32), ('intruder', 'blue', 15),
-         ('hc_10000', 'green', 16), ('fox', 'yellow', 38), ('builder', 'blue', 0),
+    20260928: [('rl_1000_20k', 'red', 14), ('hc_2000', 'yellow', 9),
+               ('optimizer', 'blue', 0), ('wolf', 'green', 12),
+               ('chess', 'yellow', 35), ('rl_1000_20k', 'blue', 0),
+               ('hc_2000', 'green', 12), ('hc_2000', 'red', 7)],
+    7: [('builder', 'green', 4), ('fox', 'red', 25),
+        ('hunter', 'yellow', 12), ('rl_1000_20k', 'blue', 15),
+        ('rl_1000_20k', 'green', 18), ('builder', 'yellow', 4),
+        ('wolf', 'blue', 32), ('hc_1000', 'red', 16)],
+    99: [('hunter', 'yellow', 12), ('hunter', 'red', 32),
+         ('intruder', 'blue', 15), ('hc_10000', 'green', 16),
+         ('fox', 'yellow', 38), ('builder', 'blue', 0),
          ('hc_1000', 'red', 13), ('wolf', 'green', 13)],
 }
 
@@ -323,10 +348,11 @@ def test_pool_all_is_identical_to_no_pool_at_all(seed):
         seats_of(run_league(2, seed=seed, options=expand_pool("all")))
 
 
-def test_all_equals_the_two_presets_that_partition_it():
+def test_all_equals_the_three_presets_that_partition_it():
     rows = seats_of(run_league(1, seed=20260928, options=expand_pool("all")))
     same = seats_of(run_league(1, seed=20260928,
-                               options=expand_pool("no_imitation,imitation_only")))
+                               options=expand_pool("no_imitation,imitation_only,"
+                                                   "rl_only")))
     assert rows == same
 
 
@@ -432,7 +458,7 @@ def test_the_default_output_path_is_the_same_for_the_same_run(tmp_path, monkeypa
 def test_the_steps_flag_is_now_an_unknown_argument(tmp_path):
     """`--steps` was a second spelling of `--pool imitation_only` and it had to
     go, so a script still passing it fails loudly instead of quietly running the
-    full ten-option pool."""
+    full eleven-option pool."""
     with pytest.raises(SystemExit) as exc:
         main(["--games", "1", "--steps", "--dry",
               "--out", str(tmp_path / "o.json")])

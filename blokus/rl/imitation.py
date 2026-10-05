@@ -274,7 +274,8 @@ class ImitationBrain:
 
     def __init__(self, step, checkpoint_dir=None, device=None,
                  mode=DEFAULT_MODE, temperature=DEFAULT_TEMPERATURE,
-                 seed=DEFAULT_SEED, state_dict=None, profile=None, key=None):
+                 seed=DEFAULT_SEED, state_dict=None, profile=None, key=None,
+                 path=None):
         import torch
         from rl.smoke_gpu import build_model
 
@@ -300,7 +301,8 @@ class ImitationBrain:
         self.uses_lookahead = False
         self.device = torch.device(device) if device is not None else None
 
-        path = checkpoint_path(step, checkpoint_dir)
+        if path is None:
+            path = checkpoint_path(step, checkpoint_dir)
         blob = _load_blob(path)
         sd = state_dict if state_dict is not None else blob["state_dict"]
         channels, blocks, in_ch = _shape_settings(
@@ -439,3 +441,31 @@ def load_brain(step, checkpoint_dir=None, device=None, mode=DEFAULT_MODE,
     return ImitationBrain(step, checkpoint_dir=checkpoint_dir, device=device,
                           mode=mode, temperature=temperature, seed=seed,
                           key=key)
+
+
+def load_brain_at(path, step=None, key=None, device=None, mode=DEFAULT_MODE,
+                  temperature=DEFAULT_TEMPERATURE, seed=DEFAULT_SEED):
+    """One seat's player for the checkpoint **file** at `path`.
+
+    `load_brain` finds its file from a step number and a directory, which is the
+    right shape for H-C2 - one directory, one naming convention, so a step
+    identifies a file. A trained policy is the opposite: its identity is the
+    file, and the file's name carries a *round*, not an imitation step. Naming it
+    by step would invent a convention it does not follow, and `data/rl1`'s
+    `step_000040.pt` happens to match `checkpoint_path`'s pattern - which is a
+    coincidence to rely on for something as permanent as a pool entry.
+
+    `step` defaults to the round the file records, so `brain.step` still means
+    something, and `key` to `path`'s basename without the extension.
+    """
+    if step is None:
+        import torch
+        blob_head = torch.load(path, map_location="cpu", weights_only=False)
+        step = blob_head.get("step")
+        if step is None:
+            step = blob_head.get("round")
+    if key is None:
+        key = os.path.splitext(os.path.basename(path))[0]
+    return ImitationBrain(step, device=device, mode=mode,
+                          temperature=temperature, seed=seed, key=key,
+                          path=path)

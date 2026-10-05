@@ -564,9 +564,9 @@ def test_the_seat_screen_starts_a_game_without_picking_anything():
 
 def test_every_seat_option_renders_on_the_seat_screen():
     """The screen looks each option up by key, so a new option with a missing
-    name or description only blows up at runtime. Checked for all thirteen."""
+    name or description only blows up at runtime. Checked for all fourteen."""
     options = seats_mod.seat_menu_options()
-    assert len(options) == 13
+    assert len(options) == 14
     for opt in options:
         u = make_ui()
         at_seat_screen(u)
@@ -574,7 +574,8 @@ def test_every_seat_option_renders_on_the_seat_screen():
             u.seat_keys[seat] = opt
             u.draw_setup_seats()
         assert ui.seat_label(opt)
-        if seats_mod.kind_of(opt) in (seats_mod.KIND_AI, seats_mod.KIND_IMITATION):
+        if seats_mod.kind_of(opt) in (seats_mod.KIND_AI, seats_mod.KIND_IMITATION,
+                                      seats_mod.KIND_RL):
             assert ui.seat_desc(opt), opt
     for opt in options:
         if seats_mod.kind_of(opt) == seats_mod.KIND_AI:
@@ -1291,7 +1292,7 @@ def test_the_picker_offers_random_ai_and_it_resolves_at_start():
     assert u.seat_pick == (0, "option")
     menu = u.menu_rects()
     assert "option:random_ai" in menu
-    assert len([k for k in menu if k.startswith("option:")]) == 13
+    assert len([k for k in menu if k.startswith("option:")]) == 14
     # all thirteen fit on screen without overlapping
     rects = [r for k, r in menu.items() if k.startswith("option:")]
     assert all(r.bottom <= u.L.H for r in rects), rects
@@ -1320,10 +1321,10 @@ def test_the_picker_offers_random_ai_and_it_resolves_at_start():
 
 
 def test_the_league_pool_is_unchanged_by_the_new_option():
-    """`match.py` already draws every seat from the ten, so it does not need
+    """`match.py` already draws every seat from the eleven, so it does not need
     the deferred choice - adding it there would only draw twice."""
     from match import league_options
-    assert len(league_options()) == 10
+    assert len(league_options()) == 11
     assert seats_mod.RANDOM_AI_KEY not in league_options()
 
 

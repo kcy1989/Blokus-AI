@@ -41,11 +41,12 @@ PERSONA_ZH = {k: I[k] for k in PERSONALITY_ORDER}
 
 
 def seat_label(key):
-    """The Chinese name of any of the twelve seat options.
+    """The Chinese name of any of the thirteen seat options.
 
     One lookup for the whole set, because the four seats are no longer all
-    personalities: a seat may be a personality, an H-C2 checkpoint, or one of
-    the two human seats, and every screen that names a seat goes through here.
+    personalities: a seat may be a personality, an H-C2 checkpoint, a trained
+    policy, or one of the two human seats, and every screen that names a seat
+    goes through here.
     """
     if key is None:
         return I["player"]
@@ -57,6 +58,8 @@ def seat_label(key):
         return I["human_log"]
     if seats_mod.is_imitation_key(key):
         return I["imitation_fmt"].format(seats_mod.imitation_step(key))
+    if seats_mod.is_rl_key(key):
+        return I["rl_fmt"].format(key)
     return PERSONA_ZH.get(key, key)
 
 
@@ -69,6 +72,8 @@ def seat_desc(key):
         return I[key + "_desc"]
     if kind == seats_mod.KIND_IMITATION:
         return I["imitation_desc_fmt"].format(seats_mod.imitation_step(key))
+    if kind == seats_mod.KIND_RL:
+        return I["rl_desc_fmt"]
     return ""
 
 # One background colour for the whole window; the sidebar, the hand band and the

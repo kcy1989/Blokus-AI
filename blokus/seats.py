@@ -35,10 +35,14 @@ COLOR_NAMES = tuple(COLORS)
 # whether the seat needs a brain, may be logged, or waits for a human.
 KIND_AI = "ai"
 KIND_IMITATION = "imitation"
+# A trained policy. Its own kind rather than KIND_IMITATION so that
+# `imitation_only` keeps meaning the checkpoints that were trained by imitation,
+# which is what the name says and what the three `hc_*` seats are.
+KIND_RL = "rl"
 KIND_HUMAN = "human"
 KIND_HUMAN_LOG = "human_log"
 # Not a kind of contestant but a deferred choice: a seat left on this is dealt
-# one of the ten automated options when the game starts, the same way a
+# one of the eleven automated options when the game starts, the same way a
 # "random" colour is dealt one of what is left. It is resolved before anything
 # looks at the seat, so a game in progress never contains one.
 KIND_RANDOM_AI = "random_ai"
@@ -67,7 +71,56 @@ IMITATION_CHECKPOINT_DIR = "data/hc2"
 # rather than inventing one, so an old `step_*` name has no path to a network.
 IMITATION_KEY_PREFIX = "hc_"
 
+# Trained policies, as `(option key, checkpoint file)` pairs.
+#
+# Written out as a table rather than derived, because a trained policy's identity
+# *is* its file. H-C2's three checkpoints live in one directory under one naming
+# convention, so a step number identifies a file and `imitation_key` can build
+# the name. `data/rl1` has no such convention: `step_000040.pt` there means round
+# 40, not an imitation step, and `latest.pt` is a moving target that would make
+# the pool entry quietly mean a different policy after every retrain. So the file
+# is named, and pinning it is the friction that keeps a league result
+# interpretable.
+#
+# `rl_1000_20k` = PPO from `hc_1000`, 20,000 episodes. `reports/rl1_report.md`
+# has the training curve.
+RL_SEATS = (
+    ("rl_1000_20k", "data/rl1/step_000040.pt"),
+)
+
+RL_KEY_PREFIX = "rl_"
+
 SEATS = 4
+
+
+def rl_keys():
+    """The option keys naming trained policies, in table order."""
+    return tuple(key for key, _path in RL_SEATS)
+
+
+def rl_checkpoint(key):
+    """The checkpoint file for a trained-policy key.
+
+    Raises for anything else, including a key of the right shape that is not
+    registered - `rl_9999` would otherwise be a name that resolves to nothing, or
+    worse, to whatever a future table happens to put at that slot.
+    """
+    for registered, path in RL_SEATS:
+        if registered == key:
+            return path
+    raise ValueError("%r is not a trained-policy seat" % (key,))
+
+
+def is_rl_key(key):
+    """Is this an option key naming a trained policy in the pool?
+
+    Set membership for the same reason `is_imitation_key` is: a prefix test would
+    accept `rl_9999`, which has the right shape and no file behind it.
+    """
+    return key in _RL_KEYS
+
+
+_RL_KEYS = frozenset(rl_keys())
 
 
 def imitation_key(step):
@@ -97,17 +150,19 @@ _IMITATION_KEYS = frozenset(imitation_key(s) for s in IMITATION_STEPS)
 
 
 def automated_options():
-    """The ten options something can be played by: seven personalities and
-    four checkpoints. This is the pool `RANDOM_AI_KEY` draws from, and the same
-    pool the league draws its four seats from."""
+    """The eleven options something can be played by: seven personalities, three
+    checkpoints and one trained policy. This is the pool `RANDOM_AI_KEY` draws
+    from, and the same pool the league draws its four seats from."""
     out = [k for k in personality_keys()]
     out += [imitation_key(s) for s in IMITATION_STEPS]
+    out += list(rl_keys())
     return tuple(out)
 
 
 def seat_options(include_humans=True):
     """Every option a seat can be *set to*, in menu order: the AI pool, then
-    the imitation steps, then (optionally) the two human seats.
+    the imitation steps, then the trained policies, then (optionally) the two
+    human seats.
 
     11 without humans, 13 with them. The deferred "random AI" is not here,
     because it is not something a seat stays set to - `seat_menu_options` is
@@ -123,13 +178,13 @@ def seat_menu_options():
     """What the seat screen offers: the thirteen, plus "random AI" at the end.
 
     Fourteen entries, because the deferred choice is a fourth thing a seat can
-    say, sitting alongside the ten automated options and the two human ones.
+    say, sitting alongside the eleven automated options and the two human ones.
     """
     return seat_options(True) + (RANDOM_AI_KEY,)
 
 
 def resolve_random_ai(keys, rng):
-    """Deal any `RANDOM_AI_KEY` seat one of the ten, one draw per seat.
+    """Deal any `RANDOM_AI_KEY` seat one of the eleven, one draw per seat.
 
     Each draw is independent, so two "random AI" seats may land on the same
     option - which is the same rule the colours follow. The result is a concrete
@@ -157,6 +212,8 @@ def kind_of(key, include_humans=True):
         return KIND_AI
     if is_imitation_key(key):
         return KIND_IMITATION
+    if is_rl_key(key):
+        return KIND_RL
     if key == HUMAN_KEY:
         return KIND_HUMAN
     if key == HUMAN_LOG_KEY:
@@ -264,6 +321,14 @@ def build_brain(key, rng, kind=None, checkpoint_dir=None,
         # same name is two places to forget.
         return load_brain(imitation_step(key), checkpoint_dir=checkpoint_dir,
                           device=device, mode=mode, key=key)
+    if kind == KIND_RL:
+        from rl.imitation import load_brain_at
+        # `checkpoint_dir` is deliberately not consulted: it names where the
+        # H-C2 checkpoints live, and a trained policy is not one of those. Its
+        # file is named in `RL_SEATS`, which is the only place that decides which
+        # weights this key means.
+        return load_brain_at(rl_checkpoint(key), key=key, device=device,
+                             mode=mode)
     return None
 
 

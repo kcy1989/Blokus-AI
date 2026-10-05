@@ -1,12 +1,13 @@
-"""All-AI league: each game draws four seats from the ten automated options,
+"""All-AI league: each game draws four seats from the eleven automated options,
 and the results feed the leaderboard.
 
 This is a tool for answering "which option is actually strongest"; it does not
 affect the flow of a normal player game.
 
-The ten are the seven personalities plus the three H-C2 imitation steps. The
-two human seats are excluded: a league of people cannot be replayed from a
-seed, and a seat with no brain would have nothing to choose with.
+The eleven are the seven personalities, the three H-C2 imitation steps, and one
+PPO-trained policy. The two human seats are excluded: a league of people cannot
+be replayed from a seed, and a seat with no brain would have nothing to choose
+with.
 
     python3 match.py --games 100            # record into records.json
     python3 match.py --games 20 --dry       # run only, write nothing
@@ -50,11 +51,23 @@ def _is_imitation(key):
     return seats_mod.kind_of(key) == seats_mod.KIND_IMITATION
 
 
+def _is_rl(key):
+    return seats_mod.kind_of(key) == seats_mod.KIND_RL
+
+
 _ORDER = seats_mod.automated_options()
 POOL_PRESETS = {
     "all": _ORDER,
-    "no_imitation": tuple(k for k in _ORDER if not _is_imitation(k)),
+    # "no network" rather than "not an imitation checkpoint": the trained policy
+    # is a network, so leaving it in here would make the name wrong.
+    "no_imitation": tuple(k for k in _ORDER
+                          if not _is_imitation(k) and not _is_rl(k)),
+    # Only the checkpoints that were trained *by imitation*, which is what the
+    # name has always meant here.
     "imitation_only": tuple(k for k in _ORDER if _is_imitation(k)),
+    # The trained policy alone - the question "how does it actually do" asked
+    # without also measuring three imitation checkpoints it is descended from.
+    "rl_only": tuple(k for k in _ORDER if _is_rl(k)),
 }
 
 
@@ -263,10 +276,12 @@ def main(argv=None):
     ap.add_argument("--pool", default=None,
                     help="逗號分隔,無空白。項目可為 preset 或單一 AI 名稱:"
                          " preset 有 all(%d 個)、no_imitation(%d 個人格)、"
-                         "imitation_only(%d 個模仿者);名稱為 "
+                         " imitation_only(%d 個模仿檢查點)、rl_only(%d 個訓練"
+                         "結果);名稱為 "
                          % (len(POOL_PRESETS["all"]),
                             len(POOL_PRESETS["no_imitation"]),
-                            len(POOL_PRESETS["imitation_only"]))
+                            len(POOL_PRESETS["imitation_only"]),
+                            len(POOL_PRESETS["rl_only"]))
                          + ", ".join(seats_mod.automated_options()) + "。"
                          "展開後取聯集並去重,每個不同的 AI 權重相等(各 1/n);"
                          "重複的項目不增加權重。順序固定為選項的既定順序,"

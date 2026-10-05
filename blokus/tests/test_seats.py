@@ -28,25 +28,52 @@ from game import Game
 
 # ------------------------------------------------------------------ options
 
-def test_there_are_twelve_options_and_ten_without_humans():
-    twelve = seats.seat_options(True)
-    assert len(twelve) == 12
-    assert len(set(twelve)) == 12
-    ten = seats.seat_options(False)
-    assert len(ten) == 10
-    assert not any(seats.is_human_kind(seats.kind_of(k, False)) for k in ten)
+def test_there_are_thirteen_options_and_eleven_without_humans():
+    thirteen = seats.seat_options(True)
+    assert len(thirteen) == 13
+    assert len(set(thirteen)) == 13
+    eleven = seats.seat_options(False)
+    assert len(eleven) == 11
+    assert not any(seats.is_human_kind(seats.kind_of(k, False)) for k in eleven)
     # the two human seats are exactly what the league leaves out
-    assert set(twelve) - set(ten) == {"human", "human_log"}
+    assert set(thirteen) - set(eleven) == {"human", "human_log"}
 
 
-def test_the_option_pool_is_seven_ai_and_three_checkpoints():
+def test_the_option_pool_is_seven_ai_three_checkpoints_and_one_policy():
     options = seats.seat_options(False)
-    assert len(options) == 10
+    assert len(options) == 11
     ai_only = [k for k in options if seats.kind_of(k) == seats.KIND_AI]
     imitating = [k for k in options if seats.kind_of(k) == seats.KIND_IMITATION]
+    trained = [k for k in options if seats.kind_of(k) == seats.KIND_RL]
     assert len(ai_only) == 7
     assert set(ai_only) == set(ai.personality_keys())
     assert [seats.imitation_step(k) for k in imitating] == [1000, 2000, 10000]
+    # the trained policy is its own kind, so `imitation_only` keeps meaning the
+    # checkpoints that were trained by imitation
+    assert trained == list(seats.rl_keys())
+
+
+def test_a_trained_policy_seat_names_a_file_that_exists():
+    """The one thing that makes a pool entry safe to trust.
+
+    Every other registered key resolves through `imitation_key`, and a mistake
+    there shows up as a missing file at game start. This one resolves through a
+    table, so the table is what has to be checked - and it is checked here
+    rather than at the first game, where the failure would look like a training
+    problem.
+    """
+    for key in seats.rl_keys():
+        path = seats.rl_checkpoint(key)
+        assert os.path.exists(path), (key, path)
+        assert os.path.isabs(path) or path.startswith("data/")
+
+
+def test_the_rl_key_prefix_alone_is_not_a_registered_seat():
+    """`rl_9999` has the right shape and no file behind it."""
+    assert not seats.is_rl_key("rl_9999")
+    assert not seats.is_rl_key("rl_")
+    with pytest.raises(ValueError):
+        seats.rl_checkpoint("rl_9999")
 
 
 def test_the_checkpoint_seats_are_the_hc2_run():
@@ -78,11 +105,13 @@ def test_an_unknown_option_is_refused():
 def test_kind_of_covers_every_option():
     for key in seats.seat_options(True):
         assert seats.kind_of(key) in (seats.KIND_AI, seats.KIND_IMITATION,
-                                      seats.KIND_HUMAN, seats.KIND_HUMAN_LOG)
+                                      seats.KIND_RL, seats.KIND_HUMAN,
+                                      seats.KIND_HUMAN_LOG)
     assert seats.is_human_kind(seats.KIND_HUMAN)
     assert seats.is_human_kind(seats.KIND_HUMAN_LOG)
     assert not seats.is_human_kind(seats.KIND_AI)
     assert not seats.is_human_kind(seats.KIND_IMITATION)
+    assert not seats.is_human_kind(seats.KIND_RL)
 
 
 # ------------------------------------------------------------------ colours
@@ -354,15 +383,15 @@ def test_every_owner_may_open_on_its_own_corner():
 # ------------------------------------------------------- the deferred "random AI"
 
 def test_the_menu_offers_one_more_than_there_are_options():
-    """Fourteen things to pick from, thirteen things to be. The fourteenth is a
+    """Fifteen things to pick from, fourteen things to be. The fifteenth is a
     request rather than a setting."""
     menu = seats.seat_menu_options()
-    assert len(menu) == 13
-    assert len(set(menu)) == 13
+    assert len(menu) == 14
+    assert len(set(menu)) == 14
     assert menu[-1] == seats.RANDOM_AI_KEY
     assert set(menu) - set(seats.seat_options(True)) == {seats.RANDOM_AI_KEY}
     assert seats.seat_options(True) == menu[:-1]
-    assert len(seats.seat_options(False)) == 10
+    assert len(seats.seat_options(False)) == 11
     assert seats.automated_options() == seats.seat_options(False)
 
 
@@ -371,13 +400,17 @@ def test_random_ai_is_a_kind_of_request_not_of_contestant():
     assert not seats.is_human_kind(seats.KIND_RANDOM_AI)
 
 
-def test_random_ai_draws_from_the_ten_automated_options():
-    assert len(seats.automated_options()) == 10
+def test_random_ai_draws_from_the_eleven_automated_options():
+    assert len(seats.automated_options()) == 11
     pool = seats.automated_options()
-    assert len(pool) == 10 and len(set(pool)) == 10
+    assert len(pool) == 11 and len(set(pool)) == 11
     assert not any(k.startswith("human") for k in pool)
     assert any(seats.is_imitation_key(k) for k in pool)
-    assert set(k for k in pool if not seats.is_imitation_key(k)) == \
+    assert any(seats.is_rl_key(k) for k in pool)
+    # neither a checkpoint nor a trained policy is a personality, and nothing
+    # else is in the pool either
+    assert set(k for k in pool
+               if not seats.is_imitation_key(k) and not seats.is_rl_key(k)) == \
         set(ai.personality_keys())
 
 
@@ -437,7 +470,8 @@ def test_a_game_never_contains_a_deferred_choice():
         assert all(k in seats.seat_options(False) for k in g.owner_key.values())
         assert all(k != seats.RANDOM_AI_KEY for k in g.owner_key.values())
         assert set(g.seat_kinds.values()) <= {seats.KIND_AI,
-                                              seats.KIND_IMITATION}
+                                              seats.KIND_IMITATION,
+                                              seats.KIND_RL}
         for o in range(4):
             brain = g.brains[o]
             assert brain is not None
@@ -451,7 +485,8 @@ def test_four_random_seats_mix_ai_and_checkpoints():
         g = Game(rng)
         g.setup_seats([seats.RANDOM_AI_KEY] * 4, None, rng)
         kinds |= set(g.seat_kinds.values())
-    assert kinds == {seats.KIND_AI, seats.KIND_IMITATION}, kinds
+    assert kinds == {seats.KIND_AI, seats.KIND_IMITATION,
+                     seats.KIND_RL}, kinds
 
 
 def test_a_random_seat_beside_a_human_still_resolves():

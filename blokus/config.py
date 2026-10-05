@@ -110,12 +110,17 @@ I = {
     "colours_all_random": "顏色全部隨機",
     "start_game": "開始遊戲",
     "random_ai": "隨機AI",
-    "random_ai_desc": "開局時從 10 個 AI 與模仿中隨機抽一個",
+    "random_ai_desc": "開局時從 11 個 AI 與模仿中隨機抽一個",
     "human": "人類（不記錄）",
     "human_log": "人類（記錄）",
     "imitation_fmt": "模仿 {0} 步",
     "imitation_mode_fmt": "模仿選步：{0}",
     "imitation_desc_fmt": "H-C2 第 {0} 步的檢查點",
+    # A trained policy's name already says what it is - `rl_1000_20k` is PPO
+    # from hc_1000 over 20,000 games - so there is nothing to interpolate and
+    # nothing to translate. The label is the name.
+    "rl_fmt": "強化學習 {0}",
+    "rl_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；比啟動它的 hc_1000 強",
     "ai_pool": "AI",
     "human_pool": "人類",
     "imitation_pool": "模仿",

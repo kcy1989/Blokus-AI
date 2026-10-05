@@ -90,7 +90,7 @@ def test_play_match_ends_and_scores_by_personality():
 def test_league_records_only_personality_keys(tmp_path):
     """A league of the seven personalities, with no player in it.
 
-    Run without the imitation options on purpose: the default ten would load
+    Run without the network options on purpose: the default eleven would load
     four checkpoints, and this test is about the leaderboard, not about torch.
     """
     rec = Records(str(tmp_path / "records.json"))
@@ -116,16 +116,18 @@ def test_run_league_without_records_touches_no_file(tmp_path):
     assert not list(tmp_path.iterdir())
 
 
-# ---------------------------------------------------- the ten-seat league
+# -------------------------------------------------- the eleven-seat league
 
-def test_the_league_offers_ten_options_and_no_humans():
+def test_the_league_offers_eleven_options_and_no_humans():
     from match import league_options
     opts = league_options()
-    assert len(opts) == 10
-    assert len(set(opts)) == 10
+    assert len(opts) == 11
+    assert len(set(opts)) == 11
     kinds = [seats_mod.kind_of(k, include_humans=False) for k in opts]
     assert kinds.count(seats_mod.KIND_AI) == 7
     assert kinds.count(seats_mod.KIND_IMITATION) == 3
+    assert kinds.count(seats_mod.KIND_RL) == 1
+    assert not any(seats_mod.is_human_kind(k) for k in kinds)
     assert not any(seats_mod.is_human_kind(k) for k in kinds)
 
 
