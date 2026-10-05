@@ -244,29 +244,38 @@ def test_the_log_writes_and_reads_back_as_jsonl(tmp_path):
         assert gamelog.row_mask(rec)[gamelog.row_label(rec)]
 
 
-def test_the_default_path_is_under_the_gitignored_data_directory():
-    path = gamelog.default_log_path("probe")
+def test_the_shipped_log_directory_is_gitignored():
+    """A played game's log must be something no commit can pick up.
+
+    The directory is **stated** rather than read from `gamelog.LOG_DIR`, and that
+    is the substantive change here. A test run deliberately redirects
+    `LOG_DIR` to scratch space - see the session fixture in `conftest.py` - so
+    reading it would answer a question about the sandbox instead of about the
+    program. The shipped default is `<project>/data/humanlog`, and it is derived
+    from `PROJECT_DIR` in `gamelog`, so it is restated from the same constant.
+
+    Asked git rather than reading `.gitignore`, because "this path is ignored"
+    is a property of the *path*, not of a spelling. Matching the rules as text
+    asserted that some rule read `data/`, which is one way to ignore `data/` and
+    stops being true the moment the directory is excluded a different way -
+    including the way it has to be once a file inside it needs tracking, since
+    excluding the directory itself makes every negation below it dead. The
+    question the name asks is whether a played game can commit its log, and only
+    git answers that.
+    """
+    from config import PROJECT_DIR
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # <root>/data/humanlog/... - inside the repository but inside `data/`,
-    # which is what `.gitignore` excludes.
-    assert os.path.abspath(path).startswith(os.path.join(root, "data") + os.sep)
-    assert os.path.basename(os.path.dirname(path)) == "humanlog"
-    assert os.path.isdir(gamelog.LOG_DIR)
-    # Asked git rather than reading `.gitignore`, because "this path is
-    # ignored" is a property of the *path*, not of a spelling. Matching the
-    # rules as text asserted that some rule read `data/`, which is one way to
-    # ignore `data/` and stops being true the moment the directory is excluded
-    # a different way - including the way it has to be once a file inside it
-    # needs tracking, since excluding the directory itself makes every
-    # negation below it dead. The question the name asks is whether a played
-    # game can commit its log, and only git answers that.
+    shipped = os.path.join(PROJECT_DIR, "data", "humanlog")
+    assert os.path.basename(shipped) == "humanlog"
+    assert shipped.startswith(root + os.sep), shipped
+
+    path = os.path.join(shipped, "game-probe.jsonl")
     import subprocess
     rel = os.path.relpath(os.path.abspath(path), root)
     r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=root,
                        capture_output=True)
     # returncode 0 = ignored, 1 = not ignored, anything else = git could not
-    # answer (no repo, no git) and the path assertions above are all that is
-    # left to stand on.
+    # answer (no repo, no git).
     if r.returncode in (0, 1):
         assert r.returncode == 0, "%s would be committed" % rel
 

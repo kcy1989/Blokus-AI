@@ -41,6 +41,9 @@ import os
 
 import pytest
 
+import gamelog
+import records
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Where the guarded files live. Overridable so the guard can be pointed at a
@@ -197,3 +200,49 @@ def pytest_sessionfinish(session, exitstatus):
         for line in render_changes(changes).splitlines():
             reporter.write_line("  " + line, red=True)
     session.exitstatus = 1
+
+# --------------------------------------------------------------------------
+# the repository is not writable from a test
+# --------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True, scope="session")
+def _the_repository_is_not_writable_from_a_test(tmp_path_factory):
+    """Point the two default output paths at scratch space for the whole run.
+
+    `data/` and `records.json` are gitignored, so a write to either is invisible
+    in a diff: nothing would show up in a commit, and the leaderboard would
+    simply be wrong afterwards. The guard above *detects* that by comparing
+    snapshots; this makes it impossible instead, which is the stronger property
+    and the one that does not depend on catching it.
+
+    Two mechanisms rather than one, because the two defaults are bound
+    differently:
+
+      * `Records.__init__` takes `path=RECORDS_PATH` as a **default argument**,
+        evaluated when the function is defined. Rebinding `records.RECORDS_PATH`
+        at runtime would not move the file - the trap this very repository
+        documents in `seats.build_brain`. So the default tuple itself is
+        replaced. That also composes with the tests that redirect the leaderboard
+        by swapping `__init__` wholesale, because `monkeypatch` puts the original
+        function back and the patched defaults ride along on it.
+      * `gamelog.LOG_DIR` is a module constant read inside
+        `default_log_path`, so rebinding it is enough.
+
+    The session guard above is left in place. Detection and prevention are not
+    the same tool, and the guard also covers a human playing while the suite
+    runs - which this fixture cannot prevent, because that write is not a test's.
+    """
+    scratch = tmp_path_factory.mktemp("not-the-repository")
+    log_dir = scratch / "humanlog"
+    log_dir.mkdir()
+    leaderboard = scratch / "records.json"
+
+    original_defaults = records.Records.__init__.__defaults__
+    original_log_dir = gamelog.LOG_DIR
+    records.Records.__init__.__defaults__ = (str(leaderboard),)
+    gamelog.LOG_DIR = str(log_dir)
+    try:
+        yield
+    finally:
+        records.Records.__init__.__defaults__ = original_defaults
+        gamelog.LOG_DIR = original_log_dir
