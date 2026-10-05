@@ -28,10 +28,13 @@ What this file pins, in order of how much it matters:
     paired batch and a leaderboard batch are two different measurements.
 """
 import contextlib
+import gzip
 import hashlib
 import json
 import os
 import random
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -364,6 +367,9 @@ GROUP_A = tuple(M.expand_pool("no_imitation"))
 # chance is a test that will not fail.
 SEAT_SEQUENCE = "300223121301211232221010"
 
+# Scratch for the write tests below, which are about files rather than games.
+TMP = Path(tempfile.mkdtemp(prefix="batch-writes-"))
+
 # Captured at 764f24c, before --subject existed.
 PAIRED_NO_SUBJECT_MD5 = "fc85b0fc00461a5600f6e2daea42f555"
 
@@ -528,3 +534,113 @@ def test_a_subject_batch_is_labelled_and_keeps_out_of_the_leaderboard(
     M.main(["--games", "1", "--seed", "14", "--pool", "hunter", "--dry",
             "--paired-rng", "--out", str(out2)])
     assert json.loads(out2.read_text(encoding="utf-8"))["subject"] is None
+
+
+# --------------------------------------------------------------------------
+# --gzip: the batch in transit, with nothing about it changed
+# --------------------------------------------------------------------------
+
+PAYLOAD = {
+    "pool_raw": "no_imitation",
+    "pool": list(GROUP_A),
+    "seed": 99,
+    "games": 2,
+    "mode": "argmax",
+    "rng_mode": M.PAIRED_RNG_SUBJECT_VERSION,
+    "subject": "hunter",
+    "summary": [{"option": "wolf", "appearances": 2, "avg_points": 2.5,
+                 "avg_remaining": 9.0, "points_stderr": 0.5}],
+    "games_detail": [[["wolf", "red", 5, 1, 4], ["hunter", "blue", 7, 2, 3],
+                      ["fox", "green", 9, 3, 2], ["wolf", "yellow", 12, 4, 1]]] * 2,
+}
+
+
+def test_gzip_replaces_the_plain_file_and_leaves_no_second_copy():
+    """One copy, not two.
+
+    Two copies of an evaluation are two things that can disagree, and the stale
+    one is the one somebody eventually reads.
+    """
+    plain = M.write_batch(str(TMP / "b.json"), PAYLOAD, compress=False)
+    assert plain.endswith("b.json") and os.path.exists(plain)
+
+    out = M.write_batch(str(TMP / "c.json"), PAYLOAD, compress=True)
+    assert out.endswith("c.json.gz")
+    assert os.path.exists(out)
+    assert not os.path.exists(str(TMP / "c.json")), "the plain file must not exist"
+
+
+def test_the_compressed_bytes_are_the_plain_bytes():
+    """Byte-for-byte, not "equivalent after parsing".
+
+    Checked both ways round so that neither a serialiser that differs nor a
+    reader that is lenient could hide a difference: the raw decompressed bytes
+    must equal the bytes the plain writer produced, and `json.loads` of them must
+    compare equal as objects.
+    """
+    plain = M.write_batch(str(TMP / "d.json"), PAYLOAD, compress=False)
+    gz = M.write_batch(str(TMP / "d.json"), PAYLOAD, compress=True)
+    on_disk = open(plain, encoding="utf-8").read().encode("utf-8")
+    packed = gzip.decompress(open(gz, "rb").read())
+    assert packed == on_disk
+    assert json.loads(packed.decode("utf-8")) == json.loads(on_disk.decode("utf-8"))
+
+
+def test_the_gzip_carries_everything_the_plain_file_carried():
+    """`rng_mode` and `subject` above all: they are what make a batch readable."""
+    gz = M.write_batch(str(TMP / "e.json"), PAYLOAD, compress=True)
+    got = json.loads(gzip.decompress(open(gz, "rb").read()))
+    assert got == PAYLOAD
+    assert got["rng_mode"] == M.PAIRED_RNG_SUBJECT_VERSION
+    assert got["subject"] == "hunter"
+
+
+def test_the_same_payload_gives_the_same_gzip_bytes():
+    """`mtime=0` and no stored filename, so a committed batch is hashable.
+
+    Both halves are needed. A stored MTIME makes every re-run differ from the
+    last even when it produced identical numbers, and a stored FNAME makes two
+    identical batches differ whenever they were written under different names -
+    which is exactly what happens when the same run is checked out twice.
+    """
+    a = M.write_batch(str(TMP / "f.json"), PAYLOAD, compress=True)
+    b = M.write_batch(str(TMP / "f.json"), PAYLOAD, compress=True)
+    c = M.write_batch(str(TMP / "some-other-name.json"), PAYLOAD, compress=True)
+    raw = open(a, "rb").read()
+    assert raw == open(b, "rb").read()
+    assert raw == open(c, "rb").read()
+    assert int.from_bytes(raw[4:8], "little") == 0, "MTIME must be 0"
+    assert raw[3] == 0, "FLG must be 0: no stored filename or comment"
+
+
+def test_a_different_payload_gives_different_gzip_bytes():
+    """The reproducibility above must not be reproducibility of everything."""
+    a = M.write_batch(str(TMP / "g1.json"), PAYLOAD, compress=True)
+    other = dict(PAYLOAD, subject="hc_1000")
+    b = M.write_batch(str(TMP / "g2.json"), other, compress=True)
+    assert gzip.decompress(open(a, "rb").read()) != \
+        gzip.decompress(open(b, "rb").read())
+    assert open(a, "rb").read() != open(b, "rb").read()
+
+
+def test_out_without_gzip_still_writes_plain_json(tmp_path):
+    """The default is untouched: no flag, no `.gz`, no behaviour change."""
+    out = tmp_path / "plain.json"
+    assert M.main(["--games", "2", "--seed", "15", "--pool", "hunter", "--dry",
+                   "--out", str(out)]) == 0
+    assert out.exists()
+    assert not (tmp_path / "plain.json.gz").exists()
+    assert json.loads(out.read_text(encoding="utf-8"))["rng_mode"] \
+        == M.LEGACY_RNG_MODE
+
+
+def test_gzip_and_plain_produce_the_same_payload_from_one_run(tmp_path):
+    """Not just the same helper: the same league, through `main`."""
+    plain = tmp_path / "p.json"
+    packed = tmp_path / "q.json"
+    argv = ["--games", "2", "--seed", "16", "--pool", "hunter", "--dry",
+            "--paired-rng", "--subject", "hunter"]
+    assert M.main(argv + ["--out", str(plain)]) == 0
+    assert M.main(argv + ["--out", str(packed), "--gzip"]) == 0
+    assert json.loads(plain.read_text(encoding="utf-8")) == \
+        json.loads(gzip.decompress((tmp_path / "q.json.gz").read_bytes()))

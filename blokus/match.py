@@ -16,6 +16,7 @@ with.
     python3 match.py --games 5 --pool no_imitation,hunter
 """
 import argparse
+import gzip
 import hashlib
 import json
 import math
@@ -352,6 +353,50 @@ def validate_subject(subject, options, paired_rng):
             "without the split it does not")
 
 
+def batch_text(payload):
+    """The exact bytes a batch file holds, plain or compressed.
+
+    Serialised once and handed to whichever writer there is, because "the
+    compressed batch contains the same JSON" is only true if both go through the
+    same `json.dumps` and nobody is tempted to re-encode on the way in.
+    """
+    return json.dumps(payload, indent=1, ensure_ascii=False) + "\n"
+
+
+def write_batch(path, payload, compress=False):
+    """Write a batch file and return the path actually written.
+
+    `compress` writes `<path>.gz` **instead of** `<path>` rather than both. Two
+    copies of an evaluation is two things that can disagree, and the one that is
+    silently stale is the one somebody reads.
+
+    The gzip header carries `mtime=0` and no stored filename, so the same payload
+    always produces the same bytes. That is what makes a committed batch
+    comparable by hash: without it every run stamps the current time into the
+    header and `git diff` reports a change for a re-run that produced identical
+    numbers.
+
+    Nothing else is normalised. The level is 9, and the compressed bytes are
+    byte-for-byte the decompressed ones - this is a transport choice, not a
+    different format.
+    """
+    text = batch_text(payload)
+    if not compress:
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+    final = path if path.endswith(".gz") else path + ".gz"
+    with open(final, "wb") as raw:
+        # `filename=""` suppresses the FNAME field. Left to itself GzipFile takes
+        # the name from the file object, which would put this batch's basename
+        # in the header and make two identical batches differ whenever they were
+        # written under different names.
+        with gzip.GzipFile(filename="", mode="wb", compresslevel=9,
+                           fileobj=raw, mtime=0) as fh:
+            fh.write(text.encode("utf-8"))
+    return final
+
+
 def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
                options=None, mode="argmax", checkpoint_dir=None, device=None,
                paired_rng=False, subject=None):
@@ -452,6 +497,9 @@ def main(argv=None):
                     help="每局用五條由 (種子, 局序) 派生的獨立流（setup 流 + "
                          "每席位流），使只更換某席位模型時每局開局完全一致。"
                          "預設關閉，維持原有單一隨機流。")
+    ap.add_argument("--gzip", action="store_true",
+                    help="批次輸出直接以 .json.gz 取代未壓縮檔（不保留兩份）；"
+                         "gzip 標頭 mtime=0，相同內容產生相同位元組。")
     ap.add_argument("--subject", default=None,
                     help="指定每局必有一席的選項；該席位由 setup 流抽出，其餘三席"
                          "自 --pool 有放回抽。必須同時使用 --paired-rng。")
@@ -512,31 +560,30 @@ def main(argv=None):
 
     out_path = args.out or default_out_path(args.seed, args.games, pool_raw)
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as fh:
-        json.dump({
-            "pool_raw": pool_raw,
-            "pool": pool,
-            "pool_size": len(pool),
-            "seed": args.seed,
-            "games": args.games,
-            "seats_per_game": 4,
-            "mode": args.mode,
-            # Travels with the numbers on purpose: a paired batch and a
-            # leaderboard batch lay their games out differently and must never
-            # be averaged together, and a paired batch from another version of
-            # the derivation must not be averaged with this one either.
-            "rng_mode": rng_mode_of(args.paired_rng, args.subject),
-            # The designated seat, so a batch says which model it is about. It
-            # may also appear among the opponents - that is the training
-            # condition for a personality subject - so this is not
-            # recoverable from `games_detail` after the fact.
-            "subject": args.subject,
-            "appearances": appearances,
-            "summary": summary,
-            "games_detail": [[[k, c, r, rk, p] for k, c, r, rk, p in game]
-                             for game in rows],
-        }, fh, indent=1, ensure_ascii=False)
-        fh.write("\n")
+    payload = {
+        "pool_raw": pool_raw,
+        "pool": pool,
+        "pool_size": len(pool),
+        "seed": args.seed,
+        "games": args.games,
+        "seats_per_game": 4,
+        "mode": args.mode,
+        # Travels with the numbers on purpose: a paired batch and a leaderboard
+        # batch lay their games out differently and must never be averaged
+        # together, and a paired batch from another version of the derivation
+        # must not be averaged with this one either.
+        "rng_mode": rng_mode_of(args.paired_rng, args.subject),
+        # The designated seat, so a batch says which model it is about. It may
+        # also appear among the opponents - that is the training condition for a
+        # personality subject - so this is not recoverable from `games_detail`
+        # after the fact.
+        "subject": args.subject,
+        "appearances": appearances,
+        "summary": summary,
+        "games_detail": [[[k, c, r, rk, p] for k, c, r, rk, p in game]
+                         for game in rows],
+    }
+    out_path = write_batch(out_path, payload, compress=args.gzip)
     print("批量評測輸出已寫入 %s" % out_path)
 
     if records is not None:
