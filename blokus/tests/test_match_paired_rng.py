@@ -113,14 +113,18 @@ def test_the_default_league_is_byte_identical_to_before_the_split():
                                     mode="argmax")) == LEGACY_GOLDEN_MD5
 
 
-def test_paired_rng_is_off_unless_asked_for():
-    """A league with no flag must still be the single-stream one.
+def test_both_layout_switches_default_to_off():
+    """Every caller that does not pass the argument inherits these defaults.
 
-    Checked by pinning `run_league`'s own default rather than the flag alone,
-    because every caller that does not pass the argument - the tests, the UI,
-    whatever calls this next - inherits that default.
+    Named through `inspect.signature` rather than by position: `__defaults__[-1]`
+    names whichever parameter happens to be last, so adding a parameter silently
+    moved this assertion onto a different argument and it kept passing while
+    checking nothing.
     """
-    assert M.run_league.__defaults__[-1] is False
+    import inspect
+    params = inspect.signature(M.run_league).parameters
+    assert params["paired_rng"].default is False
+    assert params["subject"].default is None
 
 
 # --------------------------------------------------------------------------
@@ -347,3 +351,180 @@ def test_paired_batches_keep_the_per_game_rows_the_statistics_need(tmp_path):
     assert len(payload["games_detail"]) == 3
     assert all(len(game) == 4 for game in payload["games_detail"])
     assert all(len(row) == 5 for game in payload["games_detail"] for row in game)
+
+# --------------------------------------------------------------------------
+# --subject: one designated seat in every game
+# --------------------------------------------------------------------------
+
+GROUP_A = tuple(M.expand_pool("no_imitation"))
+
+# The seat each game designates, for the first 24 games of this seed. Pinned as a
+# string rather than asserted as a distribution: a seat that is merely *likely*
+# uniform is not the property that matters, and a test that could only fail by
+# chance is a test that will not fail.
+SEAT_SEQUENCE = "300223121301211232221010"
+
+# Captured at 764f24c, before --subject existed.
+PAIRED_NO_SUBJECT_MD5 = "fc85b0fc00461a5600f6e2daea42f555"
+
+
+def _capture_subject_setups(subject, games=10, seed=20261005, pool=GROUP_A):
+    """Per game: `(designated seat, opponents, colours, turn order)`, unplayed."""
+    seen = []
+    holder = {}
+    original_play = M.play_match
+    original_draw = M.subject_draw
+
+    def draw_spy(rng, options, subj):
+        seat, keys = original_draw(rng, options, subj)
+        holder["seat"] = seat
+        return seat, keys
+
+    def play_spy(game, rng, on_move=None, seat_rngs=None):
+        seat = holder["seat"]
+        seen.append((seat,
+                     tuple(game.owner_key[o] for o in range(4) if o != seat),
+                     tuple(game.colors[o] for o in range(4)),
+                     tuple(game.turn_order)))
+        return [(subject, "red", 10, 1, 4)] * 4
+
+    M.subject_draw = draw_spy
+    M.play_match = play_spy
+    try:
+        M.run_league(games=games, seed=seed, options=pool, mode="argmax",
+                     paired_rng=True, subject=subject)
+    finally:
+        M.subject_draw = original_draw
+        M.play_match = original_play
+    return seen
+
+
+def test_every_game_has_exactly_one_designated_subject_seat():
+    """Counted by index, never by key.
+
+    `hunter` is allowed to appear in the pool, so in a good share of games the
+    key appears twice and a test that counted keys would either fail or - worse -
+    quietly define the seat as the wrong one.
+    """
+    setups = _capture_subject_setups("hunter", games=60)
+    assert len(setups) == 60
+    for seat, opponents, _colours, _order in setups:
+        assert seat in (0, 1, 2, 3)
+        assert len(opponents) == 3
+        assert len(set(opponents)) <= 3          # three seats, draws may repeat
+
+
+def test_the_designated_seat_follows_the_setup_stream_deterministically():
+    setups = _capture_subject_setups("hunter", games=24)
+    assert "".join(str(seat) for seat, _o, _c, _t in setups) == SEAT_SEQUENCE
+
+
+def test_swapping_the_subject_leaves_every_setup_identical():
+    """The property the whole thing exists for.
+
+    Seat, the other three contestants, the colours and the opening player all
+    come out the same in every game. If any of them moved, the paired difference
+    would be comparing two different games.
+    """
+    a = _capture_subject_setups("hunter", games=10)
+    b = _capture_subject_setups("hc_1000", games=10)
+    c = _capture_subject_setups("rl_1000_20k", games=10)
+    assert a == b == c
+
+
+def test_the_swap_survives_the_personality_to_network_boundary():
+    """Named apart from the test above because this is the one that used to fail.
+
+    A personality draws seven times while it is being built and a trained policy
+    draws none, and the opening player is drawn after the brains. That asymmetry
+    is exactly what `--subject` has to absorb when the subject changes from
+    `hunter` to a checkpoint.
+    """
+    a = _capture_subject_setups("hunter", games=8)
+    b = _capture_subject_setups("hc_1000", games=8)
+    assert [s[0] for s in a] == [s[0] for s in b]      # the same seat
+    assert [s[1] for s in a] == [s[1] for s in b]      # the same opponents
+    assert [s[3] for s in a] == [s[3] for s in b]      # the same opening player
+
+
+def test_the_subject_may_also_appear_in_the_pool():
+    """Allowed on purpose, and worth pinning because it looks like a bug.
+
+    Seating `hunter` against a pool containing `hunter` reproduces the training
+    condition. The alternative - silently dropping the subject from the pool -
+    would quietly measure a weaker model than the one trained.
+    """
+    setups = _capture_subject_setups("hunter", games=200, seed=31337)
+    duplicated = sum(1 for _s, opp, _c, _t in setups if "hunter" in opp)
+    assert duplicated > 0, "expected the pool to seat the subject's key too"
+    # and the seat is still the designated index, every time
+    for seat, _opp, _c, _t in setups:
+        assert seat in (0, 1, 2, 3)
+
+
+def test_an_unknown_subject_names_the_legal_options():
+    with pytest.raises(ValueError) as e:
+        M.run_league(games=1, seed=1, options=GROUP_A, paired_rng=True,
+                     subject="hunterr")
+    assert "hunterr" in str(e.value)
+    for key in ("rl_1000_20k", "hc_1000", "wolf"):
+        assert key in str(e.value)
+
+
+def test_a_subject_without_the_split_is_refused():
+    """Otherwise it produces numbers labelled as paired that are not paired."""
+    with pytest.raises(ValueError) as e:
+        M.run_league(games=1, seed=1, options=GROUP_A, subject="hunter")
+    assert "--paired-rng" in str(e.value)
+
+
+def test_the_two_existing_layouts_are_byte_identical():
+    """Both digests captured before `--subject` existed, on the same 12 games.
+
+    Not "the tests are green": the golden digest test already says that, and a
+    green suite is compatible with a change that quietly alters every game. The
+    digests are the claim.
+    """
+    assert rows_digest(M.run_league(games=12, seed=4242, options=POOL,
+                                    mode="argmax")) == LEGACY_GOLDEN_MD5
+    assert rows_digest(M.run_league(games=12, seed=4242, options=POOL,
+                                    mode="argmax",
+                                    paired_rng=True)) == PAIRED_NO_SUBJECT_MD5
+
+
+def test_a_subject_batch_is_neither_of_the_other_two():
+    """Or `rng_mode` would be the only thing distinguishing them, and wrong."""
+    plain = rows_digest(M.run_league(games=12, seed=4242, options=POOL,
+                                     mode="argmax", paired_rng=True))
+    subject = rows_digest(M.run_league(games=12, seed=4242, options=POOL,
+                                       mode="argmax", paired_rng=True,
+                                       subject="hunter"))
+    assert subject != plain
+    assert subject != LEGACY_GOLDEN_MD5
+
+
+def test_a_subject_batch_is_labelled_and_keeps_out_of_the_leaderboard(
+        tmp_path, monkeypatch):
+    built = []
+
+    class Tripwire:
+        def __init__(self, *a, **kw):
+            built.append(a)
+            raise AssertionError("a subject batch built a leaderboard")
+
+    monkeypatch.setattr(M, "Records", Tripwire)
+    out = tmp_path / "b.json"
+    assert M.main(["--games", "2", "--seed", "14", "--pool", "hunter",
+                   "--paired-rng", "--subject", "hunter",
+                   "--out", str(out)]) == 0
+    assert built == []
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["subject"] == "hunter"
+    assert payload["rng_mode"] == M.PAIRED_RNG_SUBJECT_VERSION
+    assert M.PAIRED_RNG_SUBJECT_VERSION not in (M.PAIRED_RNG_VERSION,
+                                                M.LEGACY_RNG_MODE)
+    # and a subjectless paired batch still says subject is absent
+    out2 = tmp_path / "c.json"
+    M.main(["--games", "1", "--seed", "14", "--pool", "hunter", "--dry",
+            "--paired-rng", "--out", str(out2)])
+    assert json.loads(out2.read_text(encoding="utf-8"))["subject"] is None

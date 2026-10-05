@@ -41,8 +41,23 @@ DEFAULT_OUT_DIR = os.path.join(PROJECT_DIR, "data", "match")
 # version, so the label has to travel with the numbers rather than live in
 # somebody's memory.
 PAIRED_RNG_VERSION = "paired-v1"
+PAIRED_RNG_SUBJECT_VERSION = "paired-v1-subject"
 
 LEGACY_RNG_MODE = "legacy-single-stream"
+
+
+def rng_mode_of(paired_rng, subject=None):
+    """The label that travels with a batch, from how its games were laid out.
+
+    A subject batch is a third thing rather than a variant of the second: its
+    seat draw is four draws in a different pattern, so it plays different games
+    from the same seed. Labelling it `paired-v1` would let it be averaged with a
+    subjectless paired batch by anyone who checked the one field they were told
+    to check.
+    """
+    if not paired_rng:
+        return LEGACY_RNG_MODE
+    return PAIRED_RNG_SUBJECT_VERSION if subject else PAIRED_RNG_VERSION
 
 
 def paired_stream_seed(*parts):
@@ -283,9 +298,63 @@ def default_out_path(seed, games, pool_raw):
                         "seed%d-g%d-pool%s.json" % (seed, games, safe[:40]))
 
 
+def subject_draw(rng, options, subject):
+    """`(seat_index, keys)` for one game with exactly one designated seat.
+
+    The seat is drawn first, then the other three, and the draw count is four in
+    both this and the subjectless path - the same number, a different pattern, so
+    a subject batch and a subjectless batch play different games from the same
+    seed and are labelled differently for exactly that reason.
+
+    **The seat is an index, and it stays an index.** Nothing downstream may count
+    occurrences of the subject *key* to decide which seat was designated, because
+    the subject is allowed to appear in the pool: `--subject hunter` against a
+    pool containing `hunter` seats the same contestant twice in about 37% of
+    games, and `keys.index(subject)` would then name the opponent rather than the
+    seat that was meant. The duplicate is intended - it is the training condition
+    being reproduced - but the statistics must be able to tell the two apart.
+    """
+    seat = rng.randrange(4)
+    rest = [rng.choice(options) for _ in range(3)]
+    return seat, rest[:seat] + [subject] + rest[seat:]
+
+
+def subject_in_pool(subject, options):
+    """True when the designated seat's key can also be drawn as an opponent.
+
+    Not an error - for a personality subject that is the training condition, and
+    silently dropping the subject from the pool would quietly measure a weaker
+    model than the one trained. It is reported rather than prevented, because the
+    reader of the result has to know that the same contestant can be seated twice
+    in one game before they can read the numbers.
+    """
+    return subject is not None and subject in options
+
+
+def validate_subject(subject, options, paired_rng):
+    """Raise unless `subject` is usable, naming what is legal.
+
+    Two ways it can be wrong, and both are silent failures otherwise: an unknown
+    name would build a seat that does not exist, and a subject without the split
+    would produce numbers labelled as paired that are not paired. The subject
+    being in the pool is **not** checked - see `subject_in_pool`.
+    """
+    if subject is None:
+        return
+    legal = sorted(seats_mod.automated_options())
+    if subject not in legal:
+        raise ValueError("unknown --subject %r. Options: %s"
+                         % (subject, ", ".join(legal)))
+    if not paired_rng:
+        raise ValueError(
+            "--subject needs --paired-rng: a designated seat is only worth "
+            "anything if the same game index lays out the same board twice, and "
+            "without the split it does not")
+
+
 def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
                options=None, mode="argmax", checkpoint_dir=None, device=None,
-               paired_rng=False):
+               paired_rng=False, subject=None):
     """Run `games` league matches, recording each into the leaderboard.
 
     Every seat is drawn independently from `options`, so options repeat freely -
@@ -312,10 +381,21 @@ def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
     given game index is a function of the seed alone, so two runs that differ
     only in one seat's model meet the same opponents, the same colours and the
     same opening player in every game. See `paired_streams`.
+
+    `subject` names one seat that every game is guaranteed to have, which is what
+    makes an evaluation of a single model possible: without it the model is in
+    about 41% of games in an eight-option pool and every other game is dead
+    weight. It requires `paired_rng` - see `validate_subject` - and it is
+    deliberately allowed to also appear in `options`, because seating `hunter`
+    against a pool that contains `hunter` is reproducing the training condition
+    rather than making a mistake. `subject_draw` draws the seat from the setup
+    stream, so two runs with different subjects meet the same board in every
+    game.
     """
     options = league_options() if options is None else tuple(options)
     if not options:
         raise ValueError("run_league needs at least one option to draw from")
+    validate_subject(subject, options, paired_rng)
     if checkpoint_dir is None:
         checkpoint_dir = seats_mod.IMITATION_CHECKPOINT_DIR
     rng = random.Random(seed)
@@ -326,7 +406,10 @@ def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
         else:
             game_rng, seat_rngs = rng, None
         g = Game(game_rng)
-        keys = [game_rng.choice(options) for _ in range(4)]
+        if subject is None:
+            keys = [game_rng.choice(options) for _ in range(4)]
+        else:
+            _seat, keys = subject_draw(game_rng, options, subject)
         g.setup_seats(keys, [None] * 4, game_rng, seat_rngs=seat_rngs,
                       checkpoint_dir=checkpoint_dir,
                       device=device, mode=mode)
@@ -369,14 +452,18 @@ def main(argv=None):
                     help="每局用五條由 (種子, 局序) 派生的獨立流（setup 流 + "
                          "每席位流），使只更換某席位模型時每局開局完全一致。"
                          "預設關閉，維持原有單一隨機流。")
+    ap.add_argument("--subject", default=None,
+                    help="指定每局必有一席的選項；該席位由 setup 流抽出，其餘三席"
+                         "自 --pool 有放回抽。必須同時使用 --paired-rng。")
     args = ap.parse_args(argv)
 
     pool_raw = args.pool
     try:
         pool = expand_pool(pool_raw)
+        validate_subject(args.subject, pool, args.paired_rng)
     except ValueError as exc:
-        # A bad pool is a usage error, not a crash: argparse prints the usage
-        # and exits 2, which is what a mistyped `--pool` deserves.
+        # A bad pool or a bad subject is a usage error, not a crash: argparse
+        # prints the usage and exits 2, which is what a typo deserves.
         ap.error(str(exc))
 
     records = None
@@ -404,8 +491,12 @@ def main(argv=None):
     print("  --pool 原始字串 : %s" % (pool_raw if pool_raw else "(未指定 → all)"))
     print("  展開後的池      : %s" % ", ".join(pool))
     print("  種子            : %d" % args.seed)
-    print("  隨機流模式      : %s" % (PAIRED_RNG_VERSION if args.paired_rng
-                                   else LEGACY_RNG_MODE))
+    print("  隨機流模式      : %s" % rng_mode_of(args.paired_rng, args.subject))
+    if args.subject:
+        print("  指定席位(subject): %s" % args.subject)
+        if subject_in_pool(args.subject, pool):
+            print("    注意: subject 也在池內，對手席可能抽到同一個，"
+                  "故同一局可能兩席同選項（與訓練條件一致）")
     print("  局數            : %d" % args.games)
     print("  席次總數        : %d" % len(flat))
     print()
@@ -434,8 +525,12 @@ def main(argv=None):
             # leaderboard batch lay their games out differently and must never
             # be averaged together, and a paired batch from another version of
             # the derivation must not be averaged with this one either.
-            "rng_mode": PAIRED_RNG_VERSION if args.paired_rng
-                        else LEGACY_RNG_MODE,
+            "rng_mode": rng_mode_of(args.paired_rng, args.subject),
+            # The designated seat, so a batch says which model it is about. It
+            # may also appear among the opponents - that is the training
+            # condition for a personality subject - so this is not
+            # recoverable from `games_detail` after the fact.
+            "subject": args.subject,
             "appearances": appearances,
             "summary": summary,
             "games_detail": [[[k, c, r, rk, p] for k, c, r, rk, p in game]
