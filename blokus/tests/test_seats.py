@@ -68,6 +68,54 @@ def test_a_trained_policy_seat_names_a_file_that_exists():
         assert os.path.isabs(path) or path.startswith("data/")
 
 
+def _is_gitignored(path):
+    """Would `git add` skip this file? `None` when git cannot be asked."""
+    import subprocess
+    try:
+        r = subprocess.run(["git", "check-ignore", "-q", path],
+                           cwd=_repo_root(), capture_output=True)
+    except (OSError, ValueError):
+        return None
+    if r.returncode not in (0, 1):
+        return None
+    return r.returncode == 0
+
+
+def _repo_root():
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def test_every_network_seat_is_actually_in_the_repository():
+    """A seat whose weights are not committed is not a seat.
+
+    The four checkpoints are gitignored as a class, with each one named back by a
+    negation - and a negation cannot re-include a file whose parent directory the
+    pattern matched, so the whole arrangement fails silently and leaves a pool
+    that works on the machine that trained it and nowhere else. The symptom is a
+    fresh clone that cannot start a game, which reads as a broken checkout rather
+    than as a missing blob.
+
+    So the agreement between the tables is the thing under test: every
+    registered checkpoint file has to survive `git check-ignore`.
+    """
+    seen = []
+    for key in seats.rl_keys():
+        seen.append((key, seats.rl_checkpoint(key)))
+    for key in (seats.imitation_key(s) for s in seats.IMITATION_STEPS):
+        seen.append((key, os.path.join(seats.IMITATION_CHECKPOINT_DIR,
+                                       "step_%06d.pt" % seats.imitation_step(key))))
+    checked = 0
+    for key, path in seen:
+        ignored = _is_gitignored(path)
+        if ignored is None:
+            continue                       # no git here; nothing to assert
+        assert not ignored, (
+            "%s names %s, which is gitignored - a fresh clone would have the "
+            "seat but not the weights" % (key, path))
+        checked += 1
+    assert checked == len(seen), "git could not be consulted at all"
+
+
 def test_the_rl_key_prefix_alone_is_not_a_registered_seat():
     """`rl_9999` has the right shape and no file behind it."""
     assert not seats.is_rl_key("rl_9999")

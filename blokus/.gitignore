@@ -16,13 +16,29 @@ plan*
 venv/
 env/
 
-# The stage-G imitation dataset. Regenerateable from a fixed seed range, and
-# `plan3.md` asks for `data/` as a whole to be ignored - which also ignores
-# `data/manifest.json`. Its contents are reproduced in `reports/g_report.md`.
+# `data/` is regenerable in principle and enormous in practice - the imitation
+# shards, the H-B1/H-C2 datasets and every other training checkpoint - so it is
+# ignored as a whole, which also covers `data/manifest.json`. Its contents are
+# reproduced in `reports/g_report.md`.
+#
+# **Except the four checkpoints the game can be played against.** A fresh clone
+# has to be able to sit down and play, and a seat whose weights are not in the
+# repository is not a seat - it is a name that fails to load on first use.
+#
+# The three lines per directory are not redundant. gitignore cannot re-include a
+# file whose parent *directory* the pattern matched, so a single `data/*` plus
+# `!data/hc2/step_001000.pt` below it is silently dead: `data/*` matches the
+# directory `data/hc2`, and everything under an excluded directory stays
+# excluded no matter what follows. The directory has to be un-ignored first,
+# then its contents re-excluded, and only then can the one file be named.
 data/*
+!data/hc2/
+data/hc2/*
 !data/hc2/step_001000.pt
 !data/hc2/step_002000.pt
 !data/hc2/step_010000.pt
+!data/rl1/
+data/rl1/*
 !data/rl1/step_000040.pt
 
 # Runtime-generated game data (recreated on first play)
