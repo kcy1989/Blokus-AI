@@ -11,8 +11,8 @@ its own test because each fails differently:
   * argmax is deterministic and softmax is a different, still legal, stream.
 
 Every test here needs `data/hc2/step_001000.pt`, which H-C2 produced and which
-is gitignored. The tests that need it are skipped when it is absent rather than
-failing, because the repository is checked out without its data. H-B2's four
+is tracked. The tests that need it are skipped when it is absent rather than
+failing, because a checkout can still be missing data. H-B2's four
 checkpoints are still in `data/hb2`; they are no longer in the seat pool, so
 nothing here names one.
 """

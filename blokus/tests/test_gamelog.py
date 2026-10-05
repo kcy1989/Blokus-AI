@@ -252,9 +252,23 @@ def test_the_default_path_is_under_the_gitignored_data_directory():
     assert os.path.abspath(path).startswith(os.path.join(root, "data") + os.sep)
     assert os.path.basename(os.path.dirname(path)) == "humanlog"
     assert os.path.isdir(gamelog.LOG_DIR)
-    with open(os.path.join(root, ".gitignore"), encoding="utf-8") as fh:
-        rules = [ln.strip() for ln in fh]
-    assert any(r in ("data", "data/", "/data", "/data/") for r in rules), rules
+    # Asked git rather than reading `.gitignore`, because "this path is
+    # ignored" is a property of the *path*, not of a spelling. Matching the
+    # rules as text asserted that some rule read `data/`, which is one way to
+    # ignore `data/` and stops being true the moment the directory is excluded
+    # a different way - including the way it has to be once a file inside it
+    # needs tracking, since excluding the directory itself makes every
+    # negation below it dead. The question the name asks is whether a played
+    # game can commit its log, and only git answers that.
+    import subprocess
+    rel = os.path.relpath(os.path.abspath(path), root)
+    r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=root,
+                       capture_output=True)
+    # returncode 0 = ignored, 1 = not ignored, anything else = git could not
+    # answer (no repo, no git) and the path assertions above are all that is
+    # left to stand on.
+    if r.returncode in (0, 1):
+        assert r.returncode == 0, "%s would be committed" % rel
 
 
 def test_action_index_round_trips_through_the_engine():
