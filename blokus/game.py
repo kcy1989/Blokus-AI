@@ -48,7 +48,7 @@ class Game:
 
         `option_keys` is four option keys from `seats.seat_options`, in seat
         order, and may repeat freely. A seat left on `seats.RANDOM_AI_KEY` is
-        dealt one of the ten automated options here, one draw per seat, so
+        dealt one of the eleven automated options here, one draw per seat, so
         by the time this returns every seat names a specific contestant.
         `colours` is four entries, each a colour name or `None`/`"random"` to be
         dealt one of whatever is left; specified colours must be distinct.

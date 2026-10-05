@@ -120,6 +120,15 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   要的形狀。改 `personality_keys()` 的順序會改變既有種子下的對局結果 → 要可重現
   就把新的人格加在最後。
 - **排行榜以人格為 key，不是座位**。`Game.setup_match` 檢查四個人格互不相同。
+- **訓練出來的策略是池裡的一等選項，但不是 `KIND_IMITATION`。** `rl_1000_20k`
+  走自己的 `KIND_RL`，所以 `imitation_only` 仍然只含三個 `hc_*`，而
+  `no_imitation` 排除的其實是「所有網絡席位」而不是「所有模仿席位」。若把訓練
+  結果塞進 `KIND_IMITATION`，那兩個 preset 的名字就會開始說謊。
+- **`RL_SEATS` 是 `(key, 檔案)` 的表，不是「步數 + 目錄」。** H-C2 一個目錄一個
+  命名慣例，步數就能定位檔案；`data/rl1` 沒有——那裡的 `step_000040.pt` 是第 40
+  輪，不是模仿步數，而 `latest.pt` 是會動的靶。**指向某個訓練輪次的具體檔案**，
+  這是讓聯賽結果還有意義的必要摩擦。`tests/test_seats.py` 有測「表裡每個檔案
+  都真的存在」——漏掉的話，症狀會出現在第一次開局，看起來像訓練壞了。
 - **`records.json` / `settings.json` 執行時自動生成**，已在 `.gitignore`。
   載入與存檔都包在 `try` 裡：檔案損壞時當作沒紀錄，不讓遊戲開不起來。
 

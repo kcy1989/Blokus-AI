@@ -91,7 +91,8 @@ def test_league_records_only_personality_keys(tmp_path):
     """A league of the seven personalities, with no player in it.
 
     Run without the network options on purpose: the default eleven would load
-    four checkpoints, and this test is about the leaderboard, not about torch.
+    three checkpoints and a trained policy - four files, four torch imports -
+    and this test is about the leaderboard, not about torch.
     """
     rec = Records(str(tmp_path / "records.json"))
     rows = run_league(6, seed=3, records=rec, options=PERSONALITY_ORDER)
