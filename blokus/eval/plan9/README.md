@@ -219,3 +219,101 @@ t 值落在 9.51(達標)與 −0.44(無法判定)兩端,所以 500 局的第一�
 
 所以填 `null`,並記錄原因。修法在訓練端:比照 `code_hash()` 把 commit 與 dirty 寫進
 checkpoint,留給之後動訓練程式碼的提交。
+
+---
+
+## 事後更正:模仿資料的種子基底是 6,000,000,不是 1,000,000
+
+**這一節是事後更正,寫於看見任何學生結果之前。**
+
+plan9 步驟 0 的報告裡,我把 `rl/collect.py` 的預設值 `TRAIN_SEED_BASE = 1_000_000` /
+`VALID_SEED_BASE = 2_000_000` 當成 `data/hc1` 的種子基底寫進報告。**那是錯的。**程式碼
+裡的常數已經在那次收集之後被改過,讀程式碼讀不出當時用的是什麼。
+
+`data/hc1/manifest.json` 的分片清單記下了當時實際使用的範圍:
+
+```
+train  : hb1_train_6000000_6000508.npz  ..  hb1_train_6029378_….npz   (60 個分片)
+valid  : hb1_valid_6100000_6100128.npz  ..  hb1_valid_6101545_….npz   (12 個分片)
+```
+
+**TRAIN base = 6,000,000,VALID base = 6,100,000。**
+
+**為什麼這個更正重要。**`data/hc1` → `hc_1000` → `rl_h1000_20k` 是同一條鏈。步驟 3 規定
+o / b / i 的 RL 要「與 `rl_h1000_20k` 逐項相同」,而 h 版的模仿資料用的是 6,000,000
+基底。若學生用 1,000,000,則「逐項相同」在種子這一項上不成立,而症狀只會出現在訓練
+曲線上,沒有任何東西指向原因。
+
+### 新範圍與其他範圍的重疊檢查
+
+| 範圍 | 區間 | 與新範圍重疊? |
+| --- | --- | --- |
+| RL 訓練(`rl_train.py`) | 7,000,000 – 7,019,999 | 否 |
+| RL 輪中評測 | 7,100,000 – 7,100,999 | 否 |
+| `bench_engine` | 0 – 199 | 否 |
+| `tools_benchmark` | 20,240,101 – 20,240,197 | 否 |
+| 0.5b 評測種子 `20261005` | 見下 | 否 |
+
+0.5b 的 `--seed 20261005` 是 `match.py` 單一 master `random.Random` 的種子,不產生
+6,000,000–6,101,999 的整數,也不消耗任何 `collect.py` 的種子,所以與分片區間不可能重疊。
+
+**但新範圍落在 `RESERVED_RANGES` 的兩個區塊之內**,這一點必須講清楚,因為它看起來像
+衝突而其實是預留給同一用途:
+
+```
+('H-B1/H-C1 imitation train', 6000000, 6029378)
+('H-B1/H-C1 imitation valid', 6100000, 6101545)
+```
+
+這兩個區塊是為了標記「模仿資料的種子範圍」而保留的(plan8 B0 建立),**保留給的正是
+這個用途**。新的學生資料用它們,是使用預留而不是侵犯預留。
+
+要注意兩個 `check_seed_ranges` 的管轄範圍不同:
+
+- `rl/collect.py` 的 `check_seed_ranges` **只看 bench 兩個範圍**,所以 6,000,000 會被接受。
+- `rl/paired3.py` 的 `reject_reserved_seeds` 會**拒絕** 6,000,000(它落在預留區塊內),
+  但那是給 RL rollout 用的護欄,`collect.py` 不呼叫它。
+
+### 一個尚未解決的差異:資料規模
+
+`data/hc1` 涵蓋約 **29,505 train 局 + 1,420 valid 局**(`total_games` 30,925)。本階段的
+學生資料是 **2,000 + 200 局**,規模約為其 1/15。`hc_1000` 是從 29k 局蒸餾的,學生的 0k
+版會從 2.2k 局蒸餾——**這是 0k 起點之間的實在不對稱**,寫報告時必須說明,不能當成
+「學生的 0k 版與 `hc_1000` 等價」。
+
+## `teacher_equals_shortlist_first_share` 恆為 1.0:它沒有區分力
+
+步驟 2b 比較了 hunter(`data/hc1`)與 optimizer(試跑)的這個指標,兩者都是 **1.000000**。
+**但這不是「兩者性質相近」的證據,而是恆等式。**
+
+四個老師全部是規則型人格,而且都不抽籤:
+
+```
+hunter      HunterBrain       mistake_rate=0.00  uses_lookahead=False
+optimizer   OptimizerBrain    mistake_rate=0.00  uses_lookahead=False
+builder     BuilderBrain      mistake_rate=0.00  uses_lookahead=False
+intruder    IntruderBrain     mistake_rate=0.00  uses_lookahead=False
+```
+
+`mistake_rate = 0` 且不抽籤,`choose_move` 恆取 (rescored) shortlist 的第一名,而
+`teacher_move` 記錄的就是那個 action。**所以對這四個老師,這個指標必然是 1.0。**
+
+hunter 的值是**唯讀重算**出來的:`data/hc1` 從未存過 stats,遍歷 72 個分片照
+`summarise()` 的算法重算,讀到的總列數 1,191,605 與 manifest 的 `total_samples`
+完全相同,確認讀齊。未跑任何新局。
+
+### 真正可觀察的差異:shortlist 長度——這是步驟 4 的混雜因素
+
+| | hunter(`data/hc1`) | optimizer(試跑) |
+| --- | --- | --- |
+| 樣本數 | 1,191,605 | 895 |
+| shortlist 長度 mean | **13.62** | **19.64** |
+| shortlist 長度 max | 34 | 37 |
+| `samples_with_empty_shortlist` | 0 | 0 |
+
+optimizer 的標籤空間比 hunter 大約 **44%**。**這是步驟 4 必須記錄的混雜因素**:若某個
+學生在步驟 4 的分數較低,原因可能是它的標籤空間較難,而不是模型較弱。步驟 4 的報告在
+比較三個學生之前,必須先看各自資料的 shortlist 長度分佈,否則會把資料難度讀成模型差異。
+
+注意 hunter 是 29k 局、optimizer 試跑只有 895 個樣本,這個量級差本身也會影響分佈估計
+的穩定性;學生正式資料(2,200 局)會比試跑可靠,但仍小於 hc1 一個數量級。
