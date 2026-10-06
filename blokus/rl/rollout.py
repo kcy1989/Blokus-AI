@@ -487,8 +487,6 @@ def make_specs(start_seed, n, rng_seed=None, own=None):
         names = tuple(rng.sample(pool, 3))
         seat = rng.randrange(4)
         seat_counts[seat] += 1
-        keys = list(names)
-        keys.insert(seat, "rl_h1000_0k")
         specs.append(Spec(seed, seat, names))
     manifest = {
         "start_seed": start_seed,
