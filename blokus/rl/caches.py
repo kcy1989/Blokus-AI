@@ -325,36 +325,71 @@ def assert_targets_legal(mask, labels, where, gidx=None):
 
 # ------------------------------------------------------------------ builders
 
-def build_legal_cache(data_dir, out_name=LEGAL_CACHE_NAME, workers=12):
-    """Precompute every row's legal-action indices. Data preprocessing."""
-    import multiprocessing as mp
+def _legal_chunk(args):
+    """One `(path, lo, hi)` -> `(path, lo, flat indices, per-row counts)`.
 
+    Module scope, not a closure: `Pool.map` sends the function through a queue
+    and a queue pickles, so a local one fails with `Can't pickle local object`
+    before a single row is read. That is exactly what the original did, which
+    is why neither builder had ever run - and why the tuple is unpacked by
+    position (2 for the payload, 3 for the counts) rather than the "index 1 is
+    the payload" the broken version assumed.
+    """
+    path, lo, hi = args
+    d = load_shard(path)
+    states = states_from_rows({c: d[c][lo:hi] for c in COLUMNS})
+    parts = []
+    counts = np.empty(hi - lo, dtype=np.int32)
+    for k, st in enumerate(states):
+        idx = np.flatnonzero(legal_mask_view(st)).astype(np.int32)
+        parts.append(idx)
+        counts[k] = idx.size
+    return path, lo, (np.concatenate(parts) if parts
+                      else np.empty(0, np.int32)), counts
+
+
+def _label_chunk(args):
+    """One `(path, lo, hi)` -> `(path, lo, view-frame labels)`. See above."""
+    path, lo, hi = args
+    d = load_shard(path)
+    action = d["action"][lo:hi].astype(np.int64)
+    to_move = d["to_move"][lo:hi].astype(np.int64)
+    out = np.empty(hi - lo, dtype=np.int32)
+    for owner in range(4):
+        p = CLOCKWISE_OWNERS.index(owner)
+        sel = np.flatnonzero(to_move == owner)
+        if sel.size:
+            out[sel] = real_to_view(action[sel], p)
+    return path, lo, out
+
+
+def _chunks(data_dir, workers):
+    """`[(path, lo, hi)]` covering every row of every shard, plus the names."""
     names = shard_order(data_dir)
-    chunks = []
+    out = []
     for n in names:
         k = _shard_rows(data_dir, n)
         step = max(1, -(-k // workers))
         for lo in range(0, k, step):
-            chunks.append((os.path.join(data_dir, n), lo, min(lo + step, k)))
+            out.append((os.path.join(data_dir, n), lo, min(lo + step, k)))
+    return names, out
 
-    def one(args):
-        path, lo, hi = args
-        d = load_shard(path)
-        states = states_from_rows({c: d[c][lo:hi] for c in COLUMNS})
-        parts = []
-        counts = np.empty(hi - lo, dtype=np.int32)
-        for k, st in enumerate(states):
-            idx = np.flatnonzero(legal_mask_view(st)).astype(np.int32)
-            parts.append(idx)
-            counts[k] = idx.size
-        return path, lo, np.concatenate(parts) if parts else \
-            np.empty(0, np.int32), counts
 
+def _ordered(parts):
+    """Results back into global row order: by shard path, then by start row."""
+    return sorted(range(len(parts)), key=lambda i: (parts[i][0], parts[i][1]))
+
+
+def build_legal_cache(data_dir, out_name=LEGAL_CACHE_NAME, workers=12):
+    """Precompute every row's legal-action indices. Data preprocessing."""
+    import multiprocessing as mp
+
+    names, chunks = _chunks(data_dir, workers)
     with mp.get_context("fork").Pool(workers) as pool:
-        parts = pool.map(one, chunks)
-    order = sorted(range(len(parts)), key=lambda i: (parts[i][0], parts[i][1]))
-    flat = np.concatenate([parts[i][1] for i in order])
-    counts = np.concatenate([parts[i][2] for i in order])
+        parts = pool.map(_legal_chunk, chunks)
+    order = _ordered(parts)
+    flat = np.concatenate([parts[i][2] for i in order])
+    counts = np.concatenate([parts[i][3] for i in order])
     offsets = np.zeros(counts.size + 1, dtype=np.int64)
     np.cumsum(counts, out=offsets[1:])
     out = os.path.join(data_dir, out_name)
@@ -375,30 +410,10 @@ def build_label_cache(data_dir, out_name=LABEL_CACHE_NAME, workers=12):
     """
     import multiprocessing as mp
 
-    names = shard_order(data_dir)
-    chunks = []
-    for n in names:
-        k = _shard_rows(data_dir, n)
-        step = max(1, -(-k // workers))
-        for lo in range(0, k, step):
-            chunks.append((os.path.join(data_dir, n), lo, min(lo + step, k)))
-
-    def one(args):
-        path, lo, hi = args
-        d = load_shard(path)
-        action = d["action"][lo:hi].astype(np.int64)
-        to_move = d["to_move"][lo:hi].astype(np.int64)
-        out = np.empty(hi - lo, dtype=np.int32)
-        for owner in range(4):
-            p = CLOCKWISE_OWNERS.index(owner)
-            sel = np.flatnonzero(to_move == owner)
-            if sel.size:
-                out[sel] = real_to_view(action[sel], p)
-        return path, lo, out
-
+    names, chunks = _chunks(data_dir, workers)
     with mp.get_context("fork").Pool(workers) as pool:
-        parts = pool.map(one, chunks)
-    order = sorted(range(len(parts)), key=lambda i: (parts[i][0], parts[i][1]))
+        parts = pool.map(_label_chunk, chunks)
+    order = _ordered(parts)
     labels = np.concatenate([parts[i][2] for i in order])
     out = os.path.join(data_dir, out_name)
     if os.path.exists(out):

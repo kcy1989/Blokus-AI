@@ -21,10 +21,11 @@ if ROOT not in sys.path:
 import engine  # noqa: E402
 from config import CLOCKWISE_OWNERS  # noqa: E402
 from rl.actions import legal_mask_view, real_to_view, seat_of_mover  # noqa: E402
-from rl.caches import (LABEL_CACHE_NAME, LEGAL_CACHE_NAME, N_ACTIONS,  # noqa: E402
-                       Resident, ShardArrays, assert_targets_legal,
+from rl.caches import (COLUMNS, LABEL_CACHE_NAME, LEGAL_CACHE_NAME,  # noqa: E402
+                       N_ACTIONS, Resident, ShardArrays, assert_targets_legal,
                        features_27, mask_from_cache, open_label_cache,
                        open_legal_cache, shard_order, states_from_rows)
+from rl.collect import load_shard  # noqa: E402
 
 DATA = os.path.join(ROOT, "data", "hb1")
 HAVE = os.path.isdir(DATA) and os.path.exists(
@@ -217,3 +218,101 @@ def test_shard_arrays_and_resident_agree_on_a_batch():
     assert np.array_equal(xa, xb)
     assert np.array_equal(ma, mb)
     assert np.array_equal(ya, yb)
+
+
+# ---------------------------------------------------------- the two builders
+#
+# Both builders had never run. `Pool.map` pickles the function it is handed and
+# a local one cannot be pickled, so each died with `Can't pickle local object`
+# before reading a row; the legal builder additionally took index 1 of the
+# worker's result as the payload, which is the chunk's start row. The tests
+# below run both end to end through a real pool and check the assembled caches
+# against a single-process recomputation, so neither defect can return quietly.
+
+def _source_shard():
+    """One real shard to take miniature rows from, or None if no dataset."""
+    for name in ("hb1", "hco", "hcb", "hci", "hc1"):
+        d = os.path.join(ROOT, "data", name)
+        if os.path.isdir(d) and shard_order(d):
+            return os.path.join(d, shard_order(d)[0])
+    return None
+
+
+SOURCE = _source_shard()
+needs_shards = pytest.mark.skipif(
+    SOURCE is None, reason="no dataset with hb1_* shards is present")
+
+
+def test_the_cache_workers_pickle():
+    """A closure cannot cross a queue, so the builders must not hold one.
+
+    `pickle.dumps` on a local function raises instead of returning, so the
+    identity check below is only reached by something defined at module scope.
+    """
+    import pickle
+
+    from rl.caches import _label_chunk, _legal_chunk
+    for fn in (_legal_chunk, _label_chunk):
+        assert pickle.loads(pickle.dumps(fn)) is fn
+
+
+def _mini_dataset(tmp_path, rows=8):
+    """Two shards of real rows, named so `split_offsets` finds both splits."""
+    d = np.load(SOURCE)
+    half = rows // 2
+    np.savez(str(tmp_path / ("hb1_train_0_%d.npz" % half)),
+             **{k: d[k][:half] for k in d.files})
+    np.savez(str(tmp_path / ("hb1_valid_%d_%d.npz" % (half, rows))),
+             **{k: d[k][half:rows] for k in d.files})
+    return shard_order(str(tmp_path))
+
+
+@needs_shards
+def test_both_builders_run_through_a_pool_and_match_a_serial_pass(tmp_path):
+    from rl.caches import (build_label_cache, build_legal_cache,
+                           split_offsets)
+
+    names = _mini_dataset(tmp_path)
+    legal = build_legal_cache(str(tmp_path), workers=2)
+    labels = build_label_cache(str(tmp_path), workers=2)
+    assert legal["rows"] == labels["rows"] == 8
+    assert split_offsets(str(tmp_path))[1] == 8
+
+    # the same computation in one process, with no chunks to order
+    flat_expected, counts_expected, label_expected = [], [], []
+    for n in names:
+        d = load_shard(os.path.join(str(tmp_path), n))
+        for st in states_from_rows({c: d[c] for c in COLUMNS}):
+            idx = np.flatnonzero(legal_mask_view(st)).astype(np.int32)
+            flat_expected.append(idx)
+            counts_expected.append(idx.size)
+        action = d["action"].astype(np.int64)
+        to_move = d["to_move"].astype(np.int64)
+        out = np.empty(len(d["action"]), dtype=np.int32)
+        for owner in range(4):
+            p = CLOCKWISE_OWNERS.index(owner)
+            sel = np.flatnonzero(to_move == owner)
+            if sel.size:
+                out[sel] = real_to_view(action[sel], p)
+        label_expected.append(out)
+
+    flat, offsets = open_legal_cache(str(tmp_path), mmap=False)
+    assert np.array_equal(flat, np.concatenate(flat_expected))
+    counts = np.asarray(counts_expected, dtype=np.int64)
+    assert np.array_equal(offsets, np.concatenate([[0], np.cumsum(counts)]))
+    assert legal["indices"] == int(flat.size)
+    assert np.array_equal(open_label_cache(str(tmp_path), mmap=False),
+                          np.concatenate(label_expected))
+
+
+@needs_shards
+def test_the_builders_refuse_to_overwrite_an_existing_cache(tmp_path):
+    from rl.caches import build_label_cache, build_legal_cache
+
+    _mini_dataset(tmp_path)
+    build_label_cache(str(tmp_path), workers=2)
+    with pytest.raises(FileExistsError):
+        build_label_cache(str(tmp_path), workers=2)
+    build_legal_cache(str(tmp_path), workers=2)
+    with pytest.raises(FileExistsError):
+        build_legal_cache(str(tmp_path), workers=2)
