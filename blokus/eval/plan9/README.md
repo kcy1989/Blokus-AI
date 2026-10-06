@@ -203,3 +203,19 @@ t 值落在 9.51(達標)與 −0.44(無法判定)兩端,所以 500 局的第一�
 `plan9.md` 本身被 `.gitignore` 的 `plan*` 規則忽略(與 `plan2.md` … `plan8.md`、
 `plan.md` 相同——只有 `plan.md` 是被追蹤的),所以規則寫在 plan 裡不會進版控,也就
 沒有辦法證明它是「看到結果之前」定的。`eval/plan9/` 是被追蹤的,所以規則寫在這裡。
+
+### `records.json` 中 `rl_h1000_20k` 的 `commit` 欄位為 `null`
+
+`commit` 欄位的語意是**「訓練出這些權重的程式碼版本」**。`rl_h1000_20k` 的值是
+`null`,不是 `82bfadf`、也不是 `0119360`:
+
+- 訓練(2026-10-05 07:34–08:28)當下**沒有任何程式碼記錄自己的 commit**。checkpoint 的
+  blob、`rounds.jsonl`、`eval.jsonl` 都沒有 commit 欄位。
+- git 歷史可把該時段夾到唯一的 `82bfadf`(時段內 0 個 commit;前一個 10-05 01:12,
+  下一個 `1f91b04` 10-05 08:56)。**但這是推論**:沒有任何東西證明當時工作樹乾淨,
+  而 reflog 只記 HEAD 移動、不記工作樹內容。
+- 本專案自己的標準(`rl/collect.py` 的 `code_hash()` 註解)是「工作樹有未提交變更時,
+  單靠 commit 不能識別這份資料」——該函式同時記 `dirty`。`rl/rl_train.py` 沒有。
+
+所以填 `null`,並記錄原因。修法在訓練端:比照 `code_hash()` 把 commit 與 dirty 寫進
+checkpoint,留給之後動訓練程式碼的提交。

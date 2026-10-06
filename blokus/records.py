@@ -32,6 +32,19 @@ POINTS_FOR_RANK = (4, 3, 2, 1)
 # None of this is read by the scoring. `rows()` and `rank_rows()` look only at
 # `games`, `total_points` and `total_remaining`, and their arithmetic is
 # unchanged - provenance is carried alongside a result, never mixed into it.
+#
+# `commit` means **the code that produced these weights**, not the code that was
+# checked out when the contestant was registered, and not the commit that renamed
+# it. Those are different questions with different answers, and answering the
+# second one here is worse than leaving the field null: a registration commit
+# moves every time anybody renames a seat, and by then it says nothing about the
+# artefact it is filed next to.
+#
+# A trained policy can fill it in only if its own training run recorded one. See
+# `rl/collect.py`'s `code_hash`, which does - it records the commit *and* whether
+# the tree was dirty, because "the tree had uncommitted changes, so the commit
+# alone does not identify this data". `rl/rl_train.py` records neither, so for a
+# policy trained before that gap was closed the honest value is `None`.
 META_FIELDS = ("history", "train_seed", "teacher", "pool_contains_teacher",
                "commit")
 

@@ -120,6 +120,13 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   要的形狀。改 `personality_keys()` 的順序會改變既有種子下的對局結果 → 要可重現
   就把新的人格加在最後。
 - **排行榜以人格為 key，不是座位**。`Game.setup_match` 檢查四個人格互不相同。
+- **`records.json` 的 `commit` 是「訓練出權重的程式碼版本」，不是登記版本。**
+  登記用的 commit 會在任何人改名時過期，到那時它不再描述旁邊的權重檔，所以那個語意
+  不能塞進這個欄位。`rl/collect.py` 的 `code_hash()` 會記 commit **加** 工作樹是否
+  乾淨（註解：工作樹有未提交變更時，單靠 commit 不能識別這份資料）；`rl/rl_train.py`
+  兩者都沒記，所以 `rl_h1000_20k` 的 `commit` 是 `null` 而非 `82bfadf`——後者只是 git
+  歷史夾出來的推論，無法證明訓練時工作樹乾淨。**要補這個欄位就改訓練端**，不要在
+  排行榜端填一個看起來合理的值。
 - **訓練出來的策略是池裡的一等選項，但不是 `KIND_IMITATION`。** `rl_h1000_20k`
   走自己的 `KIND_RL`，所以 `imitation_only` 仍然只含三個 `hc_*`，而
   `no_imitation` 排除的其實是「所有網絡席位」而不是「所有模仿席位」。若把訓練
