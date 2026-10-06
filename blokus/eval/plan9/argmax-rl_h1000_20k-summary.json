@@ -1,0 +1,32 @@
+{
+  "batch": "argmax-rl_h1000_20k",
+  "subject": "rl_h1000_20k",
+  "mode": "argmax",
+  "rng_mode": "paired-v1-subject",
+  "seed": 20261005,
+  "pool": [
+    "wolf",
+    "chess",
+    "fox",
+    "intruder",
+    "optimizer",
+    "builder",
+    "hunter"
+  ],
+  "games": 2000,
+  "population": "every scheduled game: --subject guarantees exactly one designated seat per game, so effective == scheduled",
+  "effective_games": 2000,
+  "avg_points": 3.345,
+  "points_independent_se": 0.0191,
+  "avg_remaining": 9.013,
+  "remaining_independent_se": 0.1474,
+  "rank_distribution": {
+    "1": 1117,
+    "2": 530,
+    "3": 279,
+    "4": 74
+  },
+  "opponents_include_subject_key": false,
+  "games_file": "argmax-rl_h1000_20k-games.json.gz",
+  "games_file_md5": "ba07c1a088885200053ae7c2d991ea3d"
+}

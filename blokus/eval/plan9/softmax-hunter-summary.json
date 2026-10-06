@@ -1,0 +1,32 @@
+{
+  "batch": "softmax-hunter",
+  "subject": "hunter",
+  "mode": "softmax",
+  "rng_mode": "paired-v1-subject",
+  "seed": 20261005,
+  "pool": [
+    "wolf",
+    "chess",
+    "fox",
+    "intruder",
+    "optimizer",
+    "builder",
+    "hunter"
+  ],
+  "games": 2000,
+  "population": "every scheduled game: --subject guarantees exactly one designated seat per game, so effective == scheduled",
+  "effective_games": 2000,
+  "avg_points": 3.141,
+  "points_independent_se": 0.0215,
+  "avg_remaining": 10.866,
+  "remaining_independent_se": 0.1646,
+  "rank_distribution": {
+    "1": 938,
+    "2": 550,
+    "3": 368,
+    "4": 144
+  },
+  "opponents_include_subject_key": true,
+  "games_file": "softmax-hunter-games.json.gz",
+  "games_file_md5": "fe3aa491b260649a60ccc6e952408dd8"
+}

@@ -55,3 +55,43 @@ gzip -9 eval/plan9/<批次>-games.json      # -> <批次>-games.json.gz
 
 - `--subject` 的旗標介面與抽籤細節（見 plan9 步驟 0.5a′ 續報）。
 - 批次檔名的最終格式。
+## 已執行的批次:plan9 步驟 0.5b
+
+被測對象是 `rl_h1000_20k` 的 20k 最終權重(`data/rl1/step_000040.pt`,
+md5 `9e788eab769f74b09cf8855da05afed6`),對照物為 `hc_1000`(其 0k 模仿版)
+與 `hunter`(其人格老師本尊)。
+
+六批,種子一律 `20261005`,每批 2000 局,`--paired-rng --subject <key>
+--pool no_imitation --gzip`:
+
+| 批次 | rng_mode | md5 | bytes |
+| --- | --- | --- | --- |
+| `argmax-rl_h1000_20k-games.json.gz` | `paired-v1-subject` | `ba07c1a088885200053ae7c2d991ea3d` | 29,386 |
+| `argmax-hc_1000-games.json.gz` | `paired-v1-subject` | `257177ec1bec403e35c47bcd11ef5009` | 29,233 |
+| `argmax-hunter-games.json.gz` | `paired-v1-subject` | `fb8a294ffa0307ae119896c49e0c6bcc` | 28,424 |
+| `softmax-rl_h1000_20k-games.json.gz` | `paired-v1-subject` | `22d29a81af70767811caf8059bff7860` | 29,500 |
+| `softmax-hc_1000-games.json.gz` | `paired-v1-subject` | `7bd4cb61fd4af16eb7c79b63f55a1937` | 29,187 |
+| `softmax-hunter-games.json.gz` | `paired-v1-subject` | `fe3aa491b260649a60ccc6e952408dd8` | 28,427 |
+
+**母體:全部 2000 局,無排除。**`--subject` 保證每局恰有一個被指定的席位,所以
+「有效局數 = 排定局數」,不存在在場率問題。
+
+**配對是怎麼建立起來的,以及統計時怎麼找回被指定席位:**
+
+- 配對方式是「同一局序號、同一 `--seed`、跑兩次,只換 subject 席位的模型」。
+  實測驗證:三批之間**每一局的顏色完全相同**(2000/2000),除 subject 席以外的三個
+  對手席位也完全相同。
+- **統計時必須用席位「索引」定位 subject,不能用 key。**`hunter` 同時在池內,約
+  37.3% 的局有兩席都是 `hunter`;用 key 匹配會有一半機率取到對手席。索引可由
+  `match.paired_streams(seed, i)` + `match.subject_draw(...)` 確定性重算,見
+  `tests/test_match_paired_rng.py` 與 `seats.subject_draw` 的說明。
+
+**兩件必須讀報告時知道的事:**
+
+1. **`argmax-hunter` 與 `softmax-hunter` 的 `games_detail` 逐位元組相同**,兩個檔的
+   md5 不同只因為 JSON 裡的 `mode` 欄位不同。`--mode` 只影響**網絡席位**的選步,
+   `hunter` 是規則型人格,所以對它而言 argmax 與 softmax 是同一場評測。
+2. **`hunter` 作為 subject 時,對手席有 37.3% 的局也含 `hunter`**(與訓練條件一致);
+   `rl_h1000_20k` 與 `hc_1000` 不在 `no_imitation` 池內,沒有這個現象。因此
+   `hunter` 那一列的「平均分」是 2842 席(2000 被指定席 + 842 對手席)的平均,
+   與另外兩個 subject 的 2000 席不可直接比較。
