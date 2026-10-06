@@ -461,8 +461,9 @@ import 就被拒絕，錯誤訊息指名那個 key。
 還自己寫死 `hc_1000`：那是 `data/rl1/eval.jsonl` 的列名，改了會把同一條基線切成
 兩欄。RL 端要不要改接這個函式，是後續階段的決定。
 
-**池的順序 = JSON 陣列順序**。`rng.choice` 抽的是 index，所以把一列往上挪就會重排
-同種子的所有對局。階段 3 會改成依 key 排序，與註冊順序脫鉤。
+**池的順序 = 依 key 排序**（plan9a 階段 3）。排序規則只有一處 ——
+`ai.registry.pool_order()`，見 `## 測試` 底下的「池的順序」。註冊表陣列順序
+因此不再是任何行為的一部分：重排 `ai/registry.json` 的列不會動到任何一場對局。
 
 ### 選棋流水線
 
@@ -591,6 +592,86 @@ AI 要在幾百毫秒內對 21 種棋塊、數千個候選做決策，所以每�
 
 **量時間或除錯時用 `-n 0` 或不加 `-n`** —— 有五處測試斷言執行時間，在並行下量出
 來的數字沒有意義。
+
+### 池的順序：一律依 key 排序
+
+**排序規則只有一處**：`ai.registry.pool_order()` —— 對 key 做純字串 `sorted`，
+不看 locale、不做大小寫折疊、也不對 `hc_1000` / `hc_10000` 裡的數字做自然排序。
+`ai.registry.automated_options()` 與 `ai.registry.pool()` 都走它，而
+`seats.automated_options()` → `seat_options` / `seat_menu_options` /
+`resolve_random_ai` → `match._ORDER` / `POOL_PRESETS` / `expand_pool` /
+`league_options` 全是這兩個函式的下游，所以整個專案只有一份順序規則。
+
+**為什麼是 key 而不是註冊順序**：`rng.choice` 抽的是 index，池的順序就是每個同種子
+對局所依賴的 index→key 對應。註冊順序是 `ai/registry.json` 的屬性，改名册就會改；
+key 排序是**集合**的函式，只有集合變了才變。階段 3 之前兩者恰好相同，所以重排
+JSON 陣列等於重排每一場已提交的對局。
+
+**`--pool-order`**（`match.py`）：
+
+- `sorted`（預設）：上面那條規則。日常對局與所有評測都用這個。
+- `literal`：照 `--pool` 原樣 —— **不排序、不去重、不看 `enabled`、連拼法都保留**。
+  **只用來逐字重現階段 3 之前提交的歷史證據**，日常評測不該使用它。
+  必須搭配明確的 `--pool` 名單，且不得混入 preset 名稱（preset 的順序就是註冊表的
+  順序，正是 literal 假定不存在的東西）；這種組合會以用法錯誤（exit 2）擋下。
+  literal 下 `--subject` 也不會被正規化，好讓重現出來的 `games_detail` 與舊批次
+  逐字相同，不必先做任何字串對照。
+
+已提交的 0.5b 批次在 literal 上的重現方式（`eval/plan9/README.md` 有完整說明）：
+
+```bash
+.venv-rl/bin/python match.py \
+    --pool wolf,chess,fox,intruder,optimizer,builder,hunter \
+    --pool-order literal \
+    --games 2000 --seed 20261005 --paired-rng --subject hc_1000 \
+    --mode argmax --gzip --out <輸出.json>
+```
+
+### GOLDEN 重採（plan9a 階段 3）
+
+`tests/test_match_pool.py` 的 `GOLDEN` 釘住三個種子各兩局的
+`(option, colour, remaining)`。池改成 key 排序後 `rng.choice` 抽到不同的 index，
+三個種子**全部變動**。這是**純排序變更**：十一個 key 一個都沒增刪，
+`tests/test_registry_json.py::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted`
+把 JSON 陣列的原樣釘住，就是這句話的證據。
+
+| | commit |
+| --- | --- |
+| 舊值（註冊表順序） | `1789b46` |
+| 新值（key 排序） | 本提交（訊息 `Sort every pool by key, ...`） |
+
+舊值：
+
+```
+20260928  [('rl_h1000_20k','red',14), ('hc_2000','yellow',9), ('optimizer','blue',0),
+           ('wolf','green',12), ('chess','yellow',35), ('rl_h1000_20k','blue',0),
+           ('hc_2000','green',12), ('hc_2000','red',7)]
+7         [('builder','green',4), ('fox','red',25), ('hunter','yellow',12),
+           ('rl_h1000_20k','blue',15), ('rl_h1000_20k','green',18),
+           ('builder','yellow',4), ('wolf','blue',32), ('rl_h1000_0k','red',16)]
+99        [('hunter','yellow',12), ('hunter','red',32), ('intruder','blue',15),
+           ('hc_10000','green',16), ('fox','yellow',38), ('builder','blue',0),
+           ('rl_h1000_0k','red',13), ('wolf','green',13)]
+```
+
+新值：
+
+```
+20260928  [('wolf','red',23), ('rl_h1000_0k','yellow',12), ('hc_2000','blue',17),
+           ('builder','green',13), ('wolf','yellow',43), ('chess','blue',16),
+           ('hunter','red',31), ('hunter','green',9)]
+7         [('hunter','green',0), ('fox','red',34), ('intruder','yellow',8),
+           ('wolf','blue',27), ('hc_10000','yellow',3), ('fox','red',38),
+           ('chess','blue',36), ('fox','green',26)]
+99        [('intruder','yellow',13), ('intruder','red',21), ('hc_10000','blue',11),
+           ('rl_h1000_20k','green',0), ('chess','yellow',39), ('fox','red',15),
+           ('hc_2000','green',18), ('rl_h1000_20k','blue',4)]
+```
+
+同時 `GOLDEN_POOL` 改成測試內**寫死的明確清單**，不再從註冊表推導 ——
+GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是跟著名册一起動。
+兩者唯一允許相遇的地方是
+`test_the_pinned_pool_is_still_the_registry_s_pool`。
 
 ### 依主題
 

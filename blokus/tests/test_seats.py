@@ -47,7 +47,11 @@ def test_the_option_pool_is_seven_ai_three_checkpoints_and_one_policy():
     trained = [k for k in options if seats.kind_of(k) == seats.KIND_RL]
     assert len(ai_only) == 7
     assert set(ai_only) == set(ai.personality_keys())
-    assert [seats.imitation_step(k) for k in imitating] == [1000, 2000, 10000]
+    # The three checkpoints come out in *key* order, which is not step order:
+    # plan9a stage 3 sorts every pool by key, and `hc_10000` sorts first.
+    assert sorted(seats.imitation_step(k) for k in imitating) == [1000, 2000,
+                                                                  10000]
+    assert imitating == sorted(imitating)
     # the trained policy is its own kind, so `imitation_only` keeps meaning the
     # checkpoints that were trained by imitation
     assert trained == list(seats.rl_keys())

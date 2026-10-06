@@ -137,7 +137,7 @@ def league_options():
     return seats_mod.seat_options(include_humans=False)
 
 
-def expand_pool(text):
+def expand_pool(text, order="sorted"):
     """`--pool` text -> the deduplicated, ordered list of options to draw from.
 
     A comma-separated list of items, each either a preset name or one option
@@ -151,19 +151,29 @@ def expand_pool(text):
     Repeating an item, or listing a preset and a name that overlaps it, changes
     nothing.
 
-    The order is `seats.automated_options()` order, always - not the order the
-    items were given in, and not the traversal order of a set. Two `--pool`
-    arguments with the same contents therefore expand to the same list and play
-    the same games from the same seed.
+    `order="sorted"` - the default, and every path the game itself takes - is
+    `ai.registry.pool_order`: by key, ascending. Two `--pool` arguments with the
+    same contents therefore expand to the same list and play the same games from
+    the same seed, whatever order the roster happens to be registered in.
+
+    `order="literal"` is the opposite of all three of those properties and exists
+    only to replay a batch committed before stage 3: no sorting, no
+    deduplication, no `enabled` filter, and the given spelling kept. It requires
+    an explicit name list and refuses presets, because a preset's order *is* the
+    registry's - the one thing literal mode is defined as not assuming. See
+    `_literal_pool`.
 
     An unknown name is an error naming what is legal, never a silent omission:
     a typo that dropped an option would quietly change what is being measured.
     """
+    if order == "literal":
+        return _literal_pool(text)
+    if order != "sorted":
+        raise ValueError("unknown pool order %r; expected 'sorted' or "
+                         "'literal'" % (order,))
     if text is None:
         return list(_ORDER)
-    body = text.strip()
-    if len(body) >= 2 and body[0] == body[-1] and body[0] in "\"'":
-        body = body[1:-1].strip()
+    body = _unquoted(text)
     items = [p.strip() for p in body.split(",")]
     items = [p for p in items if p]
     if not items:
@@ -192,6 +202,72 @@ def expand_pool(text):
     if not pool:
         raise ValueError("--pool %r expanded to an empty pool" % (text,))
     return pool
+
+
+def _unquoted(text):
+    """`text` with one matching pair of outer quotes removed, if present."""
+    body = text.strip()
+    if len(body) >= 2 and body[0] == body[-1] and body[0] in "\"'":
+        body = body[1:-1].strip()
+    return body
+
+
+# The kinds a league seat may hold. `KIND_HUMAN` and `KIND_RANDOM_AI` are seat
+# options but not *automated* ones: a human has no brain to draw for, and
+# `random_ai` is a deferred choice that a running league has already resolved.
+_AUTOMATED_KINDS = (seats_mod.KIND_AI, seats_mod.KIND_IMITATION,
+                    seats_mod.KIND_RL)
+
+
+def _literal_pool(text):
+    """`--pool` exactly as written: same order, same spelling, duplicates kept.
+
+    The replay mode. A batch committed before plan9a stage 3 recorded the pool
+    in the order the registry had it then; replaying it after the switch to key
+    order means handing `run_league` that recorded list rather than any list this
+    code would derive, because `rng.choice` draws an index and the index-to-key
+    mapping *is* the order.
+
+    Three things it deliberately does not do: sort, deduplicate, and consult
+    `enabled`. The first two would be the sorted mode it exists to opt out of;
+    the third would mean a roster edit could silently drop a seat out of a
+    historical replay. What it still refuses is an unknown name and a preset -
+    a preset is a *recipe* for a pool, and expanding one here would quietly put
+    the registry's order back in.
+
+    The spelling is kept too: `hc_1000` stays `hc_1000` on the way into
+    `games_detail`, which is what makes a replay comparable to its batch without
+    translating either side first.
+    """
+    if text is None:
+        raise ValueError(
+            "--pool-order literal needs an explicit --pool list; it does not "
+            "have a default, because the default pool is derived from the "
+            "registry in an order literal mode exists to disregard")
+    items = [p.strip() for p in _unquoted(text).split(",")]
+    items = [p for p in items if p]
+    if not items:
+        raise ValueError(
+            "--pool was given nothing to expand; expected a comma-separated "
+            "list of option names")
+    for item in items:
+        if item in POOL_PRESETS:
+            raise ValueError(
+                "--pool-order literal cannot expand the preset %r: a preset's "
+                "order is the registry's, which is exactly what literal mode "
+                "refuses to assume. Name the options themselves: %s"
+                % (item, ", ".join(_ORDER)))
+        try:
+            kind = seats_mod.kind_of(item)
+        except ValueError:
+            raise ValueError(
+                "unknown --pool item %r. Options: %s" % (item, ", ".join(_ORDER)))
+        if kind not in _AUTOMATED_KINDS:
+            raise ValueError(
+                "--pool item %r is a seat option but not an automated one "
+                "(%s); a league draws weights, not people"
+                % (item, kind))
+    return items
 
 
 def play_match(game, rng, on_move=None, seat_rngs=None):
@@ -338,7 +414,7 @@ def subject_in_pool(subject, options):
     return subject is not None and subject in options
 
 
-def validate_subject(subject, options, paired_rng):
+def validate_subject(subject, options, paired_rng, canonicalise=True):
     """Check `subject` and return the name to record it under.
 
     Two ways it can be wrong, and both are silent failures otherwise: an unknown
@@ -351,6 +427,12 @@ def validate_subject(subject, options, paired_rng):
     `subject` field and into the filename, and an alias landing in either would
     put the pre-rename name into evidence that is supposed to outlive the
     rename.
+
+    `canonicalise=False` turns off only the rewrite, not the checks - it is what
+    `--pool-order literal` passes, so that a replay of a batch written before a
+    rename carries that batch's spelling all the way into `games_detail`. The
+    validation still runs, so a literal replay cannot name a seat that does not
+    exist; it just does not get to improve the spelling on the way through.
     """
     if subject is None:
         return None
@@ -364,7 +446,7 @@ def validate_subject(subject, options, paired_rng):
             "--subject needs --paired-rng: a designated seat is only worth "
             "anything if the same game index lays out the same board twice, and "
             "without the split it does not")
-    return canonical
+    return canonical if canonicalise else subject
 
 
 def batch_text(payload):
@@ -499,8 +581,16 @@ def main(argv=None):
                             len(POOL_PRESETS["rl_only"]))
                          + ", ".join(seats_mod.automated_options()) + "。"
                          "展開後取聯集並去重,每個不同的 AI 權重相等(各 1/n);"
-                         "重複的項目不增加權重。順序固定為選項的既定順序,"
+                         "重複的項目不增加權重。順序固定為各 key 的排序,"
                          "與輸入順序無關。不給則等同 all。")
+    ap.add_argument("--pool-order", choices=("sorted", "literal"),
+                    default="sorted",
+                    help="池的順序。sorted(預設):依 key 排序,與輸入順序、與"
+                         "註冊表順序都無關。literal:照 --pool 原樣,不排序、"
+                         "不去重、不過濾,連拼法都保留 —— 只用來逐字重現"
+                         "階段 3 之前提交的歷史批次,日常評測請用 sorted。"
+                         "literal 必須搭配明確的 --pool 名單,且其中不得出現 "
+                         "preset 名稱。")
     ap.add_argument("--out", default=None,
                     help="批量評測輸出檔(JSON);預設寫到 data/match/ 下,"
                          "不寫入 records.json")
@@ -521,9 +611,12 @@ def main(argv=None):
 
     pool_raw = args.pool
     try:
-        pool = expand_pool(pool_raw)
-        # The resolved name, so an alias is recorded under its canonical spelling.
-        subject = validate_subject(args.subject, pool, args.paired_rng)
+        pool = expand_pool(pool_raw, order=args.pool_order)
+        # The resolved name, so an alias is recorded under its canonical spelling
+        # - except in literal mode, where the caller's spelling *is* the point.
+        subject = validate_subject(
+            args.subject, pool, args.paired_rng,
+            canonicalise=(args.pool_order != "literal"))
     except ValueError as exc:
         # A bad pool or a bad subject is a usage error, not a crash: argparse
         # prints the usage and exits 2, which is what a typo deserves.
@@ -553,6 +646,9 @@ def main(argv=None):
     print("%d 局完成（每局 4 席）" % args.games)
     print("  --pool 原始字串 : %s" % (pool_raw if pool_raw else "(未指定 → all)"))
     print("  展開後的池      : %s" % ", ".join(pool))
+    print("  池順序          : %s" % (
+        "literal（照 --pool 原樣，不排序不去重）"
+        if args.pool_order == "literal" else "sorted（依 key）"))
     print("  種子            : %d" % args.seed)
     print("  隨機流模式      : %s" % rng_mode_of(args.paired_rng, subject))
     if subject:
@@ -579,6 +675,11 @@ def main(argv=None):
         "pool_raw": pool_raw,
         "pool": pool,
         "pool_size": len(pool),
+        # How `pool` was ordered. `literal` replays by handing the same string
+        # back verbatim; `sorted` is a function of the key set. Batches written
+        # before this field existed predate the switch to key order, so replaying
+        # one needs literal mode rather than the default.
+        "pool_order": args.pool_order,
         "seed": args.seed,
         "games": args.games,
         "seats_per_game": 4,

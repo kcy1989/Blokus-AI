@@ -3,15 +3,19 @@
 The pool is a **set**, not a multiset. Naming `hunter` alongside the
 `no_imitation` preset does not give `hunter` a second chance, because it is
 already in that preset; every distinct option in the expanded pool is worth
-1/n. And the expansion order is fixed by `seats.automated_options()` rather
-than by the order the items were typed in, so two `--pool` arguments with the
-same contents play exactly the same games from the same seed.
+1/n. And the expansion order is `ai.registry.pool_order` - by key, ascending -
+rather than the order the items were typed in or the order the roster happens
+to be registered in, so two `--pool` arguments with the same contents play
+exactly the same games from the same seed.
 
-The last test is the one that matters most for regression: without `--pool`, the
-league must still play the same games it always did, byte for byte. The
-expected values in it were captured from the code before this feature existed.
+The `GOLDEN` block near the bottom is the one that matters most for regression:
+it pins what three seeds actually play, against a pool spelled out in the test
+rather than read from the registry. Its values were recaptured when the pool
+switched to key order (plan9a stage 3); the old values and the commit they came
+from are in README.md under 「GOLDEN 重採」.
 """
 import collections
+import gzip
 import json
 import math
 import os
@@ -24,6 +28,8 @@ import match
 import seats as seats_mod
 from match import (POOL_PRESETS, expand_pool, league_options, main, play_match,
                    run_league, summarise)
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 AUTOMATED = seats_mod.automated_options()
 # Both exclusions, not one. `not is_imitation_key` alone would sweep the trained
@@ -308,41 +314,60 @@ def test_no_pool_at_all_means_all():
 # pool means `rng.choice` consumes the stream identically, so the seats, the
 # colours and the scores all come out the same.
 #
-# **Recaptured twice.** First when the imitation seats were replaced - the pool
-# went from eleven options to ten, the seven personalities plus `hc_1000`,
+# **Recaptured three times.** First when the imitation seats were replaced - the
+# pool went from eleven options to ten, the seven personalities plus `hc_1000`,
 # `hc_2000` and `hc_10000` in place of the four H-B2 steps - and again when the
 # trained policy `rl_h1000_20k` was registered, taking it to eleven. Either way
 # `rng.choice` draws different indices and every seat in these games changes.
 #
 # **And touched once, without recapturing.** plan9a stage 1 renamed `hc_1000` to
-# `rl_h1000_0k`. The key sits at the same index of the same eleven-long list, so
-# the draws are unchanged and only the name column moved - which is the point of
-# the check in `test_seat_rename`: a rename is a change of name, not of seating.
+# `rl_h1000_0k`. Under registration order the key sat at the same index of the
+# same eleven-long list, so the draws were unchanged and only the name column
+# moved - which is what `test_seat_rename` checked.
 #
-# What the test still guards is the property that survives: a default run and an
-# explicit `--pool all` play exactly the same games, and that pair keeps doing so
-# as the pool changes. The absolute numbers below are pinned to the current pool,
-# so a future pool change must recapture them - which is the intended cost of
-# catching a silent change to what a league seat can be.
+# **Recaptured a third time by plan9a stage 3**, which orders every pool by key.
+# `rng.choice` draws an index, so a different order is a different game from the
+# same seed and all three seeds changed. Old values, new values and the commits
+# are in README.md under 「GOLDEN 重採」; the point of writing them down is that
+# this was an ordering change and nothing else - the eleven keys are the same
+# eleven.
+#
+# **The pool is spelled out rather than read.** `GOLDEN_POOL` below is a literal
+# list: GOLDEN is evidence, and evidence that derives itself from the registry
+# follows the registry instead of failing when the roster changes.
+# `test_the_pinned_pool_is_still_the_registry_s_pool` is the one place the two
+# are allowed to meet, and it is what turns a roster edit into a loud failure
+# here rather than a silent drift.
+GOLDEN_POOL = ["builder", "chess", "fox", "hc_10000", "hc_2000", "hunter",
+               "intruder", "optimizer", "rl_h1000_0k", "rl_h1000_20k", "wolf"]
+
 GOLDEN = {
-    20260928: [('rl_h1000_20k', 'red', 14), ('hc_2000', 'yellow', 9),
-               ('optimizer', 'blue', 0), ('wolf', 'green', 12),
-               ('chess', 'yellow', 35), ('rl_h1000_20k', 'blue', 0),
-               ('hc_2000', 'green', 12), ('hc_2000', 'red', 7)],
-    7: [('builder', 'green', 4), ('fox', 'red', 25),
-        ('hunter', 'yellow', 12), ('rl_h1000_20k', 'blue', 15),
-        ('rl_h1000_20k', 'green', 18), ('builder', 'yellow', 4),
-        ('wolf', 'blue', 32), ('rl_h1000_0k', 'red', 16)],
-    99: [('hunter', 'yellow', 12), ('hunter', 'red', 32),
-         ('intruder', 'blue', 15), ('hc_10000', 'green', 16),
-         ('fox', 'yellow', 38), ('builder', 'blue', 0),
-         ('rl_h1000_0k', 'red', 13), ('wolf', 'green', 13)],
+    20260928: [('wolf', 'red', 23), ('rl_h1000_0k', 'yellow', 12),
+               ('hc_2000', 'blue', 17), ('builder', 'green', 13),
+               ('wolf', 'yellow', 43), ('chess', 'blue', 16),
+               ('hunter', 'red', 31), ('hunter', 'green', 9)],
+    7: [('hunter', 'green', 0), ('fox', 'red', 34),
+        ('intruder', 'yellow', 8), ('wolf', 'blue', 27),
+        ('hc_10000', 'yellow', 3), ('fox', 'red', 38),
+        ('chess', 'blue', 36), ('fox', 'green', 26)],
+    99: [('intruder', 'yellow', 13), ('intruder', 'red', 21),
+         ('hc_10000', 'blue', 11), ('rl_h1000_20k', 'green', 0),
+         ('chess', 'yellow', 39), ('fox', 'red', 15),
+         ('hc_2000', 'green', 18), ('rl_h1000_20k', 'blue', 4)],
 }
 
 
 @pytest.mark.parametrize("seed", sorted(GOLDEN))
-def test_a_default_run_still_plays_the_games_it_always_did(seed):
-    assert seats_of(run_league(2, seed=seed)) == GOLDEN[seed]
+def test_a_pinned_pool_still_plays_the_games_pinned_here(seed):
+    """The pool is spelled out, not derived - see the comment on `GOLDEN_POOL`.
+
+    What a default run does is still covered, just not by this test: it is the
+    composition of `test_no_pool_at_all_means_all` (no pool means
+    `league_options()`), `test_the_pinned_pool_is_still_the_registry_s_pool`
+    (the registry's pool is this list) and this one. Three separate claims that
+    each fail loudly, rather than one claim that quietly follows the roster.
+    """
+    assert seats_of(run_league(2, seed=seed, options=GOLDEN_POOL)) == GOLDEN[seed]
 
 
 @pytest.mark.parametrize("seed", sorted(GOLDEN))
@@ -353,6 +378,18 @@ def test_pool_all_is_identical_to_no_pool_at_all(seed):
         == GOLDEN[seed]
     assert seats_of(run_league(2, seed=seed)) == \
         seats_of(run_league(2, seed=seed, options=expand_pool("all")))
+
+
+def test_the_pinned_pool_is_still_the_registry_s_pool():
+    """The one place GOLDEN and the roster meet.
+
+    Written as its own test rather than inside the GOLDEN ones so that a roster
+    edit fails here - with a message about the roster - instead of failing three
+    seeds of seating data with no hint which of the two moved.
+    """
+    assert GOLDEN_POOL == expand_pool("all") == expand_pool(None)
+    assert GOLDEN_POOL == list(league_options())
+    assert GOLDEN_POOL == sorted(GOLDEN_POOL)
 
 
 def test_all_equals_the_three_presets_that_partition_it():
@@ -507,10 +544,111 @@ def test_the_help_says_how_the_union_weights():
     out = subprocess.run([sys.executable, "match.py", "--help"],
                          capture_output=True, text=True).stdout
     assert "--pool" in out
+    assert "--pool-order" in out
     assert "no_imitation" in out and "imitation_only" in out and "all" in out
     # the weighting rule and the de-duplication are both documented
     assert "1/n" in out
     assert "去重" in out
+
+
+# --------------------------------------------------------------- literal
+
+
+def test_literal_keeps_the_order_the_duplicates_and_the_spelling():
+    """Everything sorted mode takes away, given back - on purpose."""
+    given = "hunter,wolf,hunter,optimizer"
+    assert expand_pool(given, order="literal") == \
+        ["hunter", "wolf", "hunter", "optimizer"]
+    # the sorted default does the opposite on all three counts
+    assert expand_pool(given) == ["hunter", "optimizer", "wolf"]
+    # and a retired spelling is a spelling here, not something to improve
+    assert expand_pool("rl_1000_20k", order="literal") == ["rl_1000_20k"]
+    assert expand_pool("rl_1000_20k") == ["rl_h1000_20k"]
+
+
+def test_literal_is_refused_beside_a_preset():
+    """A preset's order *is* the registry's - the one thing literal assumes away.
+
+    Checked for a bare preset and for one buried in a name list, because the
+    second is the easy one to let through: the names on either side are legal,
+    so only the preset itself can be the tell.
+    """
+    for text in ("no_imitation", "wolf,no_imitation", "all,wolf"):
+        with pytest.raises(ValueError) as exc:
+            expand_pool(text, order="literal")
+        msg = str(exc.value)
+        assert "literal" in msg and "preset" in msg, text
+
+
+def test_literal_is_refused_without_an_explicit_pool():
+    """`literal` has no default, because a default is a derived order."""
+    with pytest.raises(ValueError) as exc:
+        expand_pool(None, order="literal")
+    assert "explicit" in str(exc.value)
+    for text in ("", " , "):
+        with pytest.raises(ValueError):
+            expand_pool(text, order="literal")
+
+
+def test_literal_still_refuses_a_name_that_is_not_a_league_option():
+    """No sort, no dedup, no `enabled` filter - but a typo is still a typo, and
+    a human seat is not something a league can draw for."""
+    for text in ("wizard", "hc_9999"):
+        with pytest.raises(ValueError) as exc:
+            expand_pool(text, order="literal")
+        assert text in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        expand_pool("human", order="literal")
+    assert "human" in str(exc.value)
+
+
+def test_the_cli_turns_a_literal_violation_into_a_usage_error(tmp_path):
+    out = str(tmp_path / "o.json")
+    for argv in (["--pool-order", "literal"],
+                 ["--pool-order", "literal", "--pool", "no_imitation"],
+                 ["--pool-order", "literal", "--pool", "wolf,all"]):
+        with pytest.raises(SystemExit) as exc:
+            main(argv + ["--games", "1", "--seed", "1", "--dry", "--out", out])
+        assert exc.value.code == 2, argv
+        assert not os.path.exists(out)
+
+
+# ------------------------------------------- replaying a batch from before
+
+
+def test_literal_replays_a_batch_committed_before_the_sort(tmp_path):
+    """Stage 3 check (a): an old batch still plays, game for game.
+
+    `eval/plan9/argmax-hc_1000-games.json.gz` was written while the pool was
+    ordered by the registry; after the switch to key order the same command
+    draws different opponents from the same seed. Handing the recorded pool back
+    through `--pool-order literal` - no sort, no dedup, and the subject kept in
+    the spelling the batch used - is what makes the games come out identical.
+
+    Forty rather than the batch's two thousand: enough to reach game 0, which is
+    where sorted order first diverges, and cheap enough for the suite. The
+    committed file remains the authority for the other 1960; this guards the
+    mechanism, and it fails on the first differing seat rather than on a digest.
+    """
+    path = os.path.join(_ROOT, "eval", "plan9", "argmax-hc_1000-games.json.gz")
+    if not os.path.exists(path):
+        pytest.skip("the 0.5b batch is not in this checkout")
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        payload = json.load(fh)
+
+    n = 40
+    out = tmp_path / "replay.json"
+    rc = main(["--games", str(n), "--seed", str(payload["seed"]),
+               "--pool", ",".join(payload["pool"]),
+               "--pool-order", "literal",
+               "--paired-rng", "--subject", payload["subject"],
+               "--mode", payload["mode"], "--dry", "--out", str(out)])
+    assert rc == 0
+    got = json.loads(out.read_text(encoding="utf-8"))
+    assert got["pool_order"] == "literal"
+    assert got["pool"] == payload["pool"]          # same list, same order
+    assert got["subject"] == payload["subject"]    # the batch's spelling, kept
+    assert got["games_detail"] == payload["games_detail"][:n]
 
 
 SEED_RECORD = ('{"wolf": {"games": 9, "total_points": 20.0, '

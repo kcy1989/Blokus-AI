@@ -11,9 +11,12 @@ Five ways a rename like this quietly breaks, each with its own test below:
     were recorded as `--subject hc_1000`, with a `records.json` row under it;
   * the retired spelling becomes a *second* seat, so the pool grows and a league
     draws the same weights twice as often;
-  * the seat moves within the option list, so every same-seed game changes -
-    which is why `GOLDEN` in `test_match_pool` is allowed to change its name
-    column and nothing else;
+  * the seat moves within the option list - when the rename landed, the pool
+    was still in registration order, the key sat at the same index and only the
+    name column moved, which is what `GOLDEN` recorded. plan9a stage 3 then
+    ordered every pool by key, and a rename changes where the key *sorts*, so
+    this is no longer a thing a rename can avoid; what is still checkable is
+    that the set of seats did not change;
   * the two spellings reach different weights, which would be a rename that
     quietly changed the model;
   * a leaderboard row under the old key stops being readable.
@@ -78,16 +81,23 @@ def test_the_alias_does_not_enter_the_pool():
 
 
 def test_the_rename_left_every_other_seat_where_it_was():
-    """The pool is the same list with one string replaced.
+    """The pool is the same eleven keys, one of them spelled differently.
 
-    `rng.choice` draws an *index*, so the index-to-key mapping is what decides
-    a same-seed game. Pinning the whole tuple is what lets `GOLDEN` claim that
-    only its name column moved - if this tuple shifts, the rename has silently
-    reseated every league.
+    What is checkable is the *set*: nothing added, nothing removed, nothing
+    substituted beyond that one string. The order is `ai.registry.pool_order`
+    since plan9a stage 3, so pinning a tuple here would pin key order - and key
+    order deliberately *does* move when a key is renamed, because the sort key
+    is the name. That is a consequence worth stating rather than hiding: the
+    seat list a player sees reorders on a rename, and the games change with it.
     """
-    assert S.automated_options() == (
+    options = S.automated_options()
+    assert len(options) == 11
+    assert NEW in options
+    assert OLD not in options
+    assert options == tuple(sorted(options))
+    assert set(options) == {
         "wolf", "chess", "fox", "intruder", "optimizer", "builder", "hunter",
-        NEW, "hc_2000", "hc_10000", "rl_h1000_20k")
+        NEW, "hc_2000", "hc_10000", "rl_h1000_20k"}
 
 
 # --------------------------------------------------------------------------

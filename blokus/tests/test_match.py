@@ -157,8 +157,14 @@ def test_a_league_row_names_both_the_option_and_the_colour():
     rows = run_league(3, seed=11, options=opts)
     for row in rows:
         assert len(row) == 4
-        # rows come back in seat order, each carrying its own rank
-        assert sorted(rk for _k, _c, _r, rk, _p in row) == [1, 2, 3, 4]
+        # Rows come back in seat order, each carrying its own rank. `rank_rows`
+        # is competition ranking: seats level on remaining share a place, so
+        # [1, 2, 3, 3] is as legal as [1, 2, 3, 4]. Asserting the second form
+        # outright was true only for whichever game this seed happened to draw,
+        # and stage 3's re-sort drew a different one.
+        ranks = [rk for _k, _c, _r, rk, _p in row]
+        assert set(ranks) <= {1, 2, 3, 4} and min(ranks) == 1
+        assert all(p == 5 - rk for _k, _c, _r, rk, p in row)
         keys = [k for k, _c, _r, _rk, _p in row]
         colours = [c for _k, c, _r, _rk, _p in row]
         assert set(keys) <= set(opts)
@@ -197,6 +203,11 @@ def test_the_league_draws_its_seats_through_setup_seats():
 
 
 def test_only_imitation_options_can_be_asked_for():
+    """The three H-C2 checkpoints and nothing else.
+
+    Compared sorted: since plan9a stage 3 every pool is in key order, and key
+    order is not step order - `hc_10000` sorts before `hc_2000`.
+    """
     steps = [k for k in league_options() if seats_mod.is_imitation_key(k)]
-    assert steps == [seats_mod.imitation_key(s)
-                     for s in seats_mod.IMITATION_STEPS]
+    assert steps == sorted(seats_mod.imitation_key(s)
+                           for s in seats_mod.IMITATION_STEPS)

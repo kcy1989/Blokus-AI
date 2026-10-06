@@ -155,18 +155,23 @@ def test_both_names_choose_the_same_move_on_the_same_position():
 
 
 def test_the_rename_did_not_change_a_single_game():
-    """A rename is a change of name, not of seating.
+    """The old spelling never reaches a game; the new one always does.
 
-    `automated_options()` order is what `rng.choice` draws indices into, so the
-    same policy at the same position draws the same seat every game. Renaming the
-    string therefore cannot move anything - and `test_match_pool`'s recaptured
-    `GOLDEN` is the evidence, since only its name column changed.
+    The designated seat is pinned rather than hoped for. This test used to lean
+    on a two-game sample landing on the renamed key by chance, which was a fact
+    about one seed and one pool order - plan9a stage 3 reordered every pool by
+    key, the renamed key sorts somewhere else, and the sample stopped landing.
+    Pinning it as the subject says the same thing without depending on a draw:
+    the name in the rows is the new one, in every game, and the retired one
+    appears nowhere.
     """
     rows = M.run_league(games=2, seed=20260928,
-                        options=tuple(S.automated_options()), mode="argmax")
+                        options=tuple(S.automated_options()), mode="argmax",
+                        paired_rng=True, subject=NEW)
     flat = [(k, c, r) for game in rows for k, c, r, _rk, _p in game]
     assert OLD not in {k for k, _c, _r in flat}
     assert NEW in {k for k, _c, _r in flat}
+    assert all(any(k == NEW for k, *_rest in game) for game in rows)
 
 
 def test_records_json_names_only_the_new_key():

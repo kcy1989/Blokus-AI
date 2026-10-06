@@ -65,6 +65,11 @@ md5 `9e788eab769f74b09cf8855da05afed6`),對照物為 `hc_1000`(其 0k 模仿版)
 六批,種子一律 `20261005`,每批 2000 局,`--paired-rng --subject <key>
 --pool no_imitation --gzip`:
 
+> **重現這六批要用 literal,不能再用 `--pool no_imitation`。** 階段 3 之後 preset
+> 的順序依 key 排序,與批次檔 `pool` 欄記的順序不同;指令與理由見文末
+> 「階段 3 之後:用 literal 重現」。上面這行是當初的**產出**方式,不是現在的
+> **重現**方式。
+
 | 批次 | rng_mode | md5 | bytes | 資料性質 |
 | --- | --- | --- | --- | --- |
 | `argmax-rl_h1000_20k-games.json.gz` | `paired-v1-subject` | `ba07c1a088885200053ae7c2d991ea3d` | 29,386 | 獨立 |
@@ -811,18 +816,31 @@ plan9a 階段 1。0k 檢查點的座位 key 改名,舊名永久作別名。**本
 
 | | 結果 |
 | --- | --- |
-| 池 | 同一個 11 長度清單,**只有第 7 個位置的字串換掉** → 同種子的座位、顏色、餘格、名次全部不變 |
+| 池 | 同一個 11 長度清單,**只有第 7 個位置的字串換掉**。當時池還是註冊表順序,所以同種子的座位、顏色、餘格、名次全部不變 —— **這句在階段 3 之後不再成立**,池改依 key 排序,見下面的「重跑確認」與主 README 的「GOLDEN 重採」 |
 | 別名 | `hc_1000` → `rl_h1000_0k`(`seats.ALIASES`),`--pool` 與 `--subject` 都寫入正式名 |
 | kind | 兩個拼法都是 `KIND_IMITATION`(同一個 `data/hc2/step_001000.pt`),`imitation_only` 仍是 3、`rl_only` 仍是 1、`no_imitation` 仍是 7 |
 | `records.json` | **未改寫**:`hc_1000` 那 1 局的舊列留著可讀,新的對局寫新 key(計畫要求「舊 key 可讀」) |
 | `eval/plan9/` | 未改寫 |
 
-`GOLDEN` 的**名稱欄**因此從 `hc_1000` 變成 `rl_h1000_0k`,其餘每一個字都相同——這正是
-`test_seat_rename` 那條「改名是改名,不是換座位」的性質,新增的
-`tests/test_seat_alias_hc.py::test_the_rename_left_every_other_seat_where_it_was`
-把整個 11 元組釘住,讓這句話可驗證。
+**下面是階段 3 之前的歷史。** 當時 `GOLDEN` 的**名稱欄**從 `hc_1000` 變成
+`rl_h1000_0k`、其餘每一個字都相同,`tests/test_seat_alias_hc.py::
+test_the_rename_left_every_other_seat_where_it_was` 把整個 11 元組釘住當證據。
+
+**階段 3(依 key 排序)之後那條證據換了形式。** key 排序的排序鍵就是名字本身,所以
+改名必然改變這個 key 排在哪裡 —— 舊的排序集合裡 `hc_1000` 排第 4,新的
+`rl_h1000_0k` 排第 9 —— 也必然改變同種子的對局。這是排序規則的後果,不是改名出錯。
+那條測試因此改釘**集合**(同一組十一個 key,只有一個字串換掉)加上「結果確實是 key
+排序」,不再釘元組順序。GOLDEN 三個種子的舊值與新值見主 README「GOLDEN 重採」。
 
 ### 重跑確認:0.5b 的 `argmax-hc_1000` 逐局相同
+
+> **⚠ 本指令在 plan9a 階段 3 之後失效,只保留為當次實測的記錄。**
+> `--pool no_imitation` 的順序來自 `automated_options()`,階段 3 之後那已是 **key
+> 排序**,不再是批次檔 `pool` 欄記的順序,所以同一個種子會抽出不同的對手。
+> 現行的重現方式見下一小節「階段 3 之後:用 literal 重現」。
+
+<details>
+<summary>階段 1 當時用的指令與結果(歷史)</summary>
 
 ```
 .venv-rl/bin/python match.py --pool no_imitation --games 2000 \
@@ -843,11 +861,55 @@ plan9a 階段 1。0k 檢查點的座位 key 改名,舊名永久作別名。**本
 `records.json` 重跑前後 md5 皆 `84a44115a9a6eead9c55f8dd9997db95`(`--paired-rng`
 不寫排行榜)。
 
+</details>
+
+### 階段 3 之後:用 literal 重現
+
+`--pool-order literal` 照 `--pool` 給的原樣使用 —— 不排序、不去重、不看 `enabled`,
+連 `--subject` 的拼法都不正規化。它**只為重現歷史證據存在**,日常評測一律用預設的
+`sorted`。preset 名稱不得與 literal 併用(preset 的順序就是註冊表的順序,正是
+literal 假定不存在的東西),所以池必須寫成明確名單。
+
+批次檔的 `pool` 欄記的就是這七個、這個順序:
+
+| 欄 | 值 |
+| --- | --- |
+| `--pool` | `wolf,chess,fox,intruder,optimizer,builder,hunter` |
+| `--pool-order` | `literal` |
+| `--games` | `2000` |
+| `--seed` | `20261005` |
+| `--paired-rng` | 開 |
+| `--subject` | `hc_1000`(批次檔裡的拼法,literal 不會改寫) |
+| `--mode` | `argmax` |
+
+```bash
+.venv-rl/bin/python match.py \
+    --pool wolf,chess,fox,intruder,optimizer,builder,hunter \
+    --pool-order literal \
+    --games 2000 --seed 20261005 --paired-rng --subject hc_1000 \
+    --mode argmax --gzip --out /tmp/kilo/rerun_hc1000.json
+```
+
+**能逐字比的是哪些欄位**:literal 不正規化 subject,所以 `games_detail`、`summary`、
+`appearances`、`subject` 四個欄位與已提交批次**逐字相同**,連階段 1 那次必須先把
+`hc_1000` 換成 `rl_h1000_0k` 才能比的功夫都省了。
+
+**整檔 md5 不會等於 `257177ec…`**,這是預期的:新寫出的 payload 多了
+`pool_order: "literal"` 欄,而 `pool_raw` 記的是本次實際輸入的字串
+(`wolf,chess,…`)而不是當年的 `no_imitation`。要比整檔,先補這兩個差異。
+
+**實測規模**:plan9a 階段 3 的 2a 驗收用同一份名單重放過 **2000/2000 局逐局相同、
+`summarise(replay)` 與記錄的 `summary` 相同**;套件裡的
+`tests/test_match_pool.py::test_literal_replays_a_batch_committed_before_the_sort`
+取前 **40 局**守這條路徑(2000 局要約 20 分鐘,不適合放進全套測試,而前 40 局已經
+包含 key 排序第一次分歧的第 0 局)。
+
+`records.json` 仍不變,md5 `84a44115a9a6eead9c55f8dd9997db95`(`--paired-rng` 不寫
+排行榜)。
+
 ### 這也回答了「證據還能不能重跑」
 
-能,而且是**逐局**相同。這件事在階段 3(抽籤改依 key 排序)會變,因為
-`no_imitation` 的**順序**來自 `automated_options()`:今天它是 `wolf, chess, fox,
-intruder, optimizer, builder, hunter`,與批次檔 `pool` 欄記的順序一致,所以 `--pool
-no_imitation` 就夠;改成 key 排序後同樣的指令會抽出不同的對手,必須改用「照給定順
-序、不排序」的旗標重現。**本節的重跑方式在階段 3 之後需要更新,屆時以該階段的回報
-為準。**
+能,而且是**逐局**相同 —— 但方式換了。`no_imitation` 的順序在階段 3 之後依 key
+排序,與批次檔 `pool` 欄記的順序不同,所以 `--pool no_imitation` **不再是**重現
+方式;literal 才是。判準很簡單:**批次檔記了順序的,就照那份順序給回去**,
+不讓今天的代碼替它重新決定。

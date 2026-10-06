@@ -234,15 +234,20 @@ def automated_options():
     roster is data now, not code - but what those eleven *are* is still decided
     here: `kind_of` answers from `personality_keys`, `IMITATION_STEPS` and
     `RL_SEATS`, and `tests/test_registry_json.py` fails if the JSON and those
-    three ever list different keys or list them in a different order.
+    three ever list different keys.
+
+    **The order is by key**, through `ai.registry.pool_order`, and it is the
+    only pool order in the project. `rng.choice` draws an index, so this tuple
+    is the index-to-key mapping every same-seed game depends on; key order is a
+    function of the set of keys, so adding, removing or reordering a roster row
+    changes it only when the set changes.
     """
     return registry_automated_options()
 
 
 def seat_options(include_humans=True):
-    """Every option a seat can be *set to*, in menu order: the AI pool, then
-    the imitation steps, then the trained policies, then (optionally) the two
-    human seats.
+    """Every option a seat can be *set to*, in menu order: the eleven automated
+    options by key, then (optionally) the two human seats.
 
     11 without humans, 13 with them. The deferred "random AI" is not here,
     because it is not something a seat stays set to - `seat_menu_options` is

@@ -72,11 +72,13 @@ def test_the_json_lists_the_trained_policies_in_table_order():
 def test_the_json_has_exactly_the_keys_the_seat_model_has():
     """No extra contestant, no missing one, no reshuffled one.
 
-    `automated_options()` is what `rng.choice` draws an index into, so the
-    order half of this is load-bearing: it is the same tuple the league, the
-    seat menu and `RANDOM_AI_KEY` all walk.
+    `automated_options()` is what `rng.choice` draws an index into, so the order
+    half of this is load-bearing: it is the same tuple the league, the seat menu
+    and `RANDOM_AI_KEY` all walk. Since stage 3 that order is `pool_order` - by
+    key - so what the test pins is "the registered keys, sorted", and the JSON's
+    own array order is free to be whatever the file says.
     """
-    assert R.keys() == S.automated_options()
+    assert tuple(sorted(R.keys())) == S.automated_options()
     assert set(R.keys()) == set(S.seat_options(include_humans=False))
 
 
@@ -139,6 +141,43 @@ def test_the_alias_table_is_the_one_seats_reads():
         # an alias is never a second seat
         assert old not in R.keys()
         assert old not in R.automated_options()
+
+
+def test_reordering_the_json_rows_changes_no_pool_and_no_game(monkeypatch):
+    """Stage 3 check (b): registration order stopped being observable.
+
+    The array order used to be the index-to-key mapping every same-seed game
+    depended on, so reordering the file reseated every committed batch. Now
+    every pool leaves `ai.registry` through `pool_order`, and the only thing a
+    reorder can change is the file.
+
+    `ENTRIES` is the live global, so reversing it is a faithful stand-in for
+    reordering the JSON and restarting: `automated_options()` and `pool()` read
+    it on every call. `match._ORDER` is deliberately not covered - it is built
+    once at import and would have to be rebuilt to see a change, which is a
+    property of `match`, not of the registry.
+    """
+    entries = R.ENTRIES
+    raw_before = tuple(e["key"] for e in entries)
+    pool_before = list(R.pool("no_imitation"))
+    options_before = list(S.automated_options())
+    assert raw_before != options_before, \
+        "the array order must differ from key order for this to mean anything"
+    games_before = M.run_league(3, seed=1701, options=pool_before)
+
+    monkeypatch.setattr(R, "ENTRIES", tuple(reversed(entries)))
+    raw_after = tuple(e["key"] for e in R.ENTRIES)
+    assert raw_after == tuple(reversed(raw_before)), "the reorder must land"
+    assert raw_after != raw_before
+
+    # what a draw reads - both the whole pool and one named preset
+    assert list(S.automated_options()) == options_before
+    assert list(R.pool("no_imitation")) == pool_before
+    assert list(R.pool("all")) == options_before
+
+    # and the games, not just the lists
+    games_after = M.run_league(3, seed=1701, options=pool_before)
+    assert games_after == games_before
 
 
 def test_the_four_pools_in_the_json_are_the_four_presets_in_match():
@@ -411,13 +450,22 @@ def test_validation_reports_every_problem_at_once():
 # the file itself
 # --------------------------------------------------------------------------
 
-def test_the_json_is_utf8_and_ordered_the_way_the_pool_is():
+def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
+    """Two orders, both pinned, on purpose.
+
+    The array keeps the registration order stage 3 deliberately did **not**
+    touch - proof that the re-sort of `GOLDEN` came from a rule and not from an
+    edit to the roster - while the pool is that same set sorted by key, which is
+    what every draw now reads.
+    """
     path = os.path.join(os.path.dirname(R.__file__), "registry.json")
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
-    assert [e["key"] for e in raw["entries"]] == list(S.automated_options())
-    assert raw["entries"][0]["key"] == "wolf"
-    assert raw["entries"][-1]["key"] == "rl_h1000_20k"
+    keys = [e["key"] for e in raw["entries"]]
+    assert keys == ["wolf", "chess", "fox", "intruder", "optimizer", "builder",
+                    "hunter", "rl_h1000_0k", "hc_2000", "hc_10000",
+                    "rl_h1000_20k"]
+    assert sorted(keys) == list(S.automated_options())
 
 
 def test_the_registry_file_is_committed():

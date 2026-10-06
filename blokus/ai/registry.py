@@ -9,11 +9,13 @@ then register it here. Nothing about a seat's *file*, or about whether it is
 *in a pool*, lives in this layer - only which class decides a move.
 
 **Lower layer - "who is a contestant".** `ai/registry.json` is the single
-source of truth for the roster: which keys exist, in which order, under which
-aliases, with which `label` / `desc_key`, and which of the four pools list
-them under `enabled` / `selectable`. `seats.automated_options()` and
-`seats.ALIASES` read it, so changing the opponent pool is a data edit rather
-than a code change.
+source of truth for the roster: which keys exist, under which aliases, with
+which `label` / `desc_key`, and which of the four pools list them under
+`enabled` / `selectable`. `seats.automated_options()` and `seats.ALIASES`
+read it, so changing the opponent pool is a data edit rather than a code
+change. The array's order is *registration* order and nothing else: every pool
+leaves this module through `pool_order`, which sorts by key, so reordering the
+rows reorders the file and not a single game.
 
 The split is transitional. The JSON *records* `module`, `checkpoint`,
 `source` and `sha256`, but at this stage the authority for a file and for a
@@ -278,14 +280,35 @@ for _e in ENTRIES:
 
 
 def keys():
-    """Every registered key, in registration order.
+    """Every registered key, in registration order - the JSON array's order.
 
-    This *is* the pool order: `seats.automated_options()` returns it, and
-    `rng.choice` draws an index into it, so moving a row in the JSON reseats
-    every same-seed league. That is why stage 3 sorts by key instead - but
-    until then, the file's array order is the behaviour.
+    Registration order is a property of the file, not of behaviour: since stage 3
+    no draw reads it. `rng.choice` draws an index into a pool, and every pool is
+    ordered by `pool_order` below, so moving a row in the JSON now changes
+    nothing anyone can observe. What still reads this order is the cross-check in
+    `tests/test_registry_json.py`, which compares it against `WEIGHTED_SPECS` and
+    `IMITATION_STEPS` - those tables are ordered too, and they have to agree.
     """
     return _KEYS
+
+
+def pool_order(keys):
+    """The one rule for the order of any pool: by key, ascending.
+
+    Plain `sorted` on the key string - no locale, no case folding, no natural
+    sort of the digits in `hc_1000` / `hc_10000`. It is written once, here,
+    because every pool in the project funnels through `automated_options()` or
+    `pool()`, and a second rule anywhere else would make a pool's order depend on
+    which function produced it.
+
+    Why key order and not registration order: `rng.choice` draws an *index*, so
+    a pool's order is the index-to-key mapping every same-seed game depends on.
+    Registration order belongs to `ai/registry.json`, which is edited when the
+    roster changes - so on registration order, adding an unrelated AI silently
+    reseated every committed batch. Key order is a function of the *set*, so it
+    changes only when the set does.
+    """
+    return tuple(sorted(keys))
 
 
 def resolve(key):
@@ -313,17 +336,18 @@ def entry(key):
 
 
 def automated_options():
-    """The selectable keys, in registration order.
+    """The selectable keys, in `pool_order` - by key, ascending.
 
-    What the seat menu shows, what `RANDOM_AI_KEY` draws and what a league
-    draws its four seats from - one list, because those three have always been
-    the same eleven things.
+    What the seat menu shows, what `RANDOM_AI_KEY` draws and what a league draws
+    its four seats from - one list, because those three have always been the same
+    eleven things, and because one order means a pool produced by any of the
+    three is the same pool.
     """
-    return tuple(e["key"] for e in ENTRIES if e["selectable"])
+    return pool_order(e["key"] for e in ENTRIES if e["selectable"])
 
 
 def pool(name):
-    """The keys of one named pool, in registration order.
+    """The keys of one named pool, in `pool_order` - by key, ascending.
 
     `enabled` gates every pool at once rather than only "the regular one",
     because at this stage the regular pool and the four presets are all the
@@ -334,12 +358,12 @@ def pool(name):
     if name not in POOL_NAMES:
         raise ValueError("no such pool: %r; known: %s"
                          % (name, ", ".join(POOL_NAMES)))
-    return tuple(e["key"] for e in ENTRIES
-                 if e["enabled"] and name in e["pools"])
+    return pool_order(e["key"] for e in ENTRIES
+                      if e["enabled"] and name in e["pools"])
 
 
 def pools():
-    """Every named pool, as `{name: keys}` in registration order."""
+    """Every named pool, as `{name: keys}` in `pool_order`."""
     return {name: pool(name) for name in POOL_NAMES}
 
 
