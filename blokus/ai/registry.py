@@ -1,8 +1,31 @@
-"""Personality registry: maps a key to a Brain class and a weight profile.
+"""Personality registry: one file, two layers, two different questions.
 
+**Upper layer - "how does it score".** `WEIGHTED_SPECS` and
+`RULE_BRAIN_CLASSES` map a personality key to the Python that evaluates a
+position, and `personality_keys()` reads that mapping out in a fixed order.
 Adding a personality takes three steps: define `KEY` / `PROFILE_SPEC`
 (weighted type) or a `Brain` subclass (rule-based type) in your own module,
-then register it here.
+then register it here. Nothing about a seat's *file*, or about whether it is
+*in a pool*, lives in this layer - only which class decides a move.
+
+**Lower layer - "who is a contestant".** `ai/registry.json` is the single
+source of truth for the roster: which keys exist, in which order, under which
+aliases, with which `label` / `desc_key`, and which of the four pools list
+them under `enabled` / `selectable`. `seats.automated_options()` and
+`seats.ALIASES` read it, so changing the opponent pool is a data edit rather
+than a code change.
+
+The split is transitional. The JSON *records* `module`, `checkpoint`,
+`source` and `sha256`, but at this stage the authority for a file and for a
+seat's kind is still `seats.IMITATION_STEPS` / `seats.RL_SEATS`;
+`tests/test_registry_json.py` fails the moment the two disagree. plan9a stage 4
+moves the file paths across to the JSON.
+
+Import-time validation is structural only: unique keys, aliases that collide
+with nothing, legal pool names, `label` / `desc_key` present in `config.I`.
+Touching the filesystem at import would make every `import seats` pay for a
+stat, so file existence and sha256 are left to `check_files()`, which
+`python -m ai.registry --check` and the test suite call.
 """
 from . import builder, chess, fox, hunter, intruder, optimizer, wolf
 from .base import (BUILDER_KEY, HUNTER_KEY, INTRUDER_KEY, OPTIMIZER_KEY,
@@ -69,3 +92,306 @@ def make_brain(key, rng, game_seed=None):
             return cls(key, profile, game_seed=game_seed, seed_rng=rng)
         return cls(key, profile)
     return WEIGHTED_BRAIN_CLASSES[key](key, make_profile(key, rng))
+
+
+# ==========================================================================
+# Lower layer: `ai/registry.json`, the data half of this module.
+#
+# The stdlib imports sit down here rather than at the top so that the layer
+# above stays exactly the code that answers "which Brain scores a move".
+# ==========================================================================
+import hashlib
+import json
+import os
+import sys
+
+from config import I
+
+REGISTRY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "registry.json")
+
+# The four pools `match.POOL_PRESETS` defines, named here rather than imported.
+# `match` imports `seats`, and `seats` imports this module, so importing `match`
+# back would close the loop; `tests/test_registry_json.py` is what keeps this
+# constant and `match.POOL_PRESETS` telling the same story.
+POOL_NAMES = ("all", "no_imitation", "imitation_only", "rl_only")
+
+KINDS = ("network", "heuristic")
+FAMILIES = ("personality", "imitation", "rl")
+
+# The fields that only a network entry may carry. They are recorded, not yet
+# obeyed: which file a key means is still `seats.RL_SEATS` /
+# `seats.IMITATION_STEPS`, and that is deliberate while `data/` is still the
+# training factory. plan9a stage 4 repoints them at `ai/checkpoints/`.
+NETWORK_FIELDS = ("checkpoint", "source", "sha256")
+
+_ENTRY_FIELDS = frozenset(("key", "aliases", "kind", "family", "module",
+                           "checkpoint", "source", "sha256", "pools",
+                           "enabled", "selectable", "label", "desc_key",
+                           "note"))
+
+# The seat PPO measures itself against: one, and it is the 0k checkpoint,
+# because that is where training starts and what stays frozen as the KL anchor.
+# Named as a *seat* rather than a file on purpose - `anchors()` answers with the
+# registered name, and the file still comes from `seats`. `hc_1000` is an alias
+# for the same seat and is never an anchor in its own right.
+RL_KL_ANCHOR = "rl_h1000_0k"
+
+
+def _validate(entries):
+    """Every structural complaint about `entries`, collected before raising.
+
+    Collected rather than raised on the first one because this runs at import:
+    an editor who mistypes two fields should see both mistakes at once, not
+    play whack-a-mole against a module that refuses to import.
+    """
+    problems = []
+    bad = problems.append
+    keys = []
+    alias_owner = {}
+    for i, e in enumerate(entries):
+        where = "entries[%d]" % i
+        if not isinstance(e, dict):
+            bad("%s: not an object" % where)
+            continue
+        unknown = set(e) - _ENTRY_FIELDS
+        if unknown:
+            bad("%s: unknown field(s) %s" % (where, sorted(unknown)))
+        key = e.get("key")
+        if not isinstance(key, str) or not key:
+            bad("%s: `key` must be a non-empty string" % where)
+            continue
+        where = key
+        keys.append(key)
+
+        kind, family = e.get("kind"), e.get("family")
+        if kind not in KINDS:
+            bad("%s: kind %r is not one of %s" % (where, kind, KINDS))
+        if family not in FAMILIES:
+            bad("%s: family %r is not one of %s" % (where, family, FAMILIES))
+        # A personality is the only thing scored by Python in this repository;
+        # everything else is a file. Getting this pair wrong is how a checkpoint
+        # ends up being handed to `make_brain`.
+        if kind is not None and family is not None:
+            if (kind == "heuristic") != (family == "personality"):
+                bad("%s: kind %r and family %r do not go together"
+                    % (where, kind, family))
+        if kind == "heuristic":
+            if not isinstance(e.get("module"), str) or not e.get("module"):
+                bad("%s: a heuristic entry needs `module`" % where)
+        elif kind == "network":
+            for f in NETWORK_FIELDS:
+                if not isinstance(e.get(f), str) or not e.get(f):
+                    bad("%s: a network entry needs `%s`" % (where, f))
+
+        aliases = e.get("aliases", [])
+        if not isinstance(aliases, list) or \
+                not all(isinstance(a, str) and a for a in aliases):
+            bad("%s: `aliases` must be a list of non-empty strings" % where)
+            aliases = []
+        if len(set(aliases)) != len(aliases):
+            bad("%s: duplicate alias in %r" % (where, aliases))
+        for a in aliases:
+            if a in alias_owner:
+                bad("alias %r is claimed by both %s and %s"
+                    % (a, alias_owner[a], key))
+            alias_owner[a] = key
+
+        pools = e.get("pools")
+        if not isinstance(pools, list):
+            bad("%s: `pools` must be a list" % where)
+        else:
+            if len(set(pools)) != len(pools):
+                bad("%s: duplicate pool in %r" % (where, pools))
+            for p in pools:
+                if p not in POOL_NAMES:
+                    bad("%s: pool %r is not one of %s" % (where, p, POOL_NAMES))
+
+        for f in ("enabled", "selectable"):
+            if not isinstance(e.get(f), bool):
+                bad("%s: `%s` must be true or false" % (where, f))
+        for f in ("label", "desc_key"):
+            v = e.get(f)
+            if not isinstance(v, str) or not v:
+                bad("%s: `%s` must be a non-empty string" % (where, f))
+            elif v not in I:
+                bad("%s: %s %r is not a key in config.I" % (where, f, v))
+        if "note" in e and not isinstance(e["note"], str):
+            bad("%s: `note` must be a string" % where)
+
+    unique = set(keys)
+    if len(unique) != len(keys):
+        bad("duplicate key(s) %s" % sorted({k for k in keys if keys.count(k) > 1}))
+    for a in alias_owner:
+        if a in unique:
+            bad("alias %r collides with a registered key" % a)
+
+    if problems:
+        raise ValueError("ai/registry.json is not valid:\n  - "
+                         + "\n  - ".join(problems))
+
+
+def _validate_roster(keys):
+    """Checks that only make sense against a whole roster, not one entry.
+
+    Split out so that `_validate` can be exercised entry by entry: the anchor
+    is a property of the roster, and demanding it of a single entry would make
+    every isolated validation report an unrelated complaint.
+    """
+    if keys and RL_KL_ANCHOR not in set(keys):
+        raise ValueError("ai/registry.json is not valid:\n  - "
+                         "RL_KL_ANCHOR %r is not a registered key"
+                         % RL_KL_ANCHOR)
+
+
+def _load():
+    with open(REGISTRY_PATH, encoding="utf-8") as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict) or not isinstance(raw.get("entries"), list):
+        raise ValueError("ai/registry.json must be an object with an "
+                         "`entries` list")
+    _validate(raw["entries"])
+    _validate_roster([e["key"] for e in raw["entries"]
+                      if isinstance(e, dict) and isinstance(e.get("key"), str)])
+    return tuple(raw["entries"])
+
+
+ENTRIES = _load()
+_BY_KEY = {e["key"]: e for e in ENTRIES}
+_KEYS = tuple(e["key"] for e in ENTRIES)
+_ALIASES = {}
+for _e in ENTRIES:
+    for _a in _e.get("aliases", ()):
+        _ALIASES[_a] = _e["key"]
+
+
+def keys():
+    """Every registered key, in registration order.
+
+    This *is* the pool order: `seats.automated_options()` returns it, and
+    `rng.choice` draws an index into it, so moving a row in the JSON reseats
+    every same-seed league. That is why stage 3 sorts by key instead - but
+    until then, the file's array order is the behaviour.
+    """
+    return _KEYS
+
+
+def resolve(key):
+    """The registered name for `key`, following the JSON's alias table.
+
+    One hop, deliberately - see `seats.canonical_key`, which is the same lookup
+    read from the seat side.
+    """
+    return _ALIASES.get(key, key)
+
+
+def aliases():
+    """The alias table as a fresh dict: `{old spelling: registered name}`."""
+    return dict(_ALIASES)
+
+
+def entry(key):
+    """The JSON object for `key`, resolving an alias first."""
+    key = resolve(key)
+    try:
+        return _BY_KEY[key]
+    except KeyError:
+        raise ValueError("no registered seat %r; known: %s"
+                         % (key, ", ".join(_KEYS)))
+
+
+def automated_options():
+    """The selectable keys, in registration order.
+
+    What the seat menu shows, what `RANDOM_AI_KEY` draws and what a league
+    draws its four seats from - one list, because those three have always been
+    the same eleven things.
+    """
+    return tuple(e["key"] for e in ENTRIES if e["selectable"])
+
+
+def pool(name):
+    """The keys of one named pool, in registration order.
+
+    `enabled` gates every pool at once rather than only "the regular one":
+    `enabled` is documented as *進常規池*, and at this stage the regular pool
+    and the four presets are all the same eleven keys, so one flag in one place
+    is what keeps the two views from drifting apart later.
+    """
+    if name not in POOL_NAMES:
+        raise ValueError("no such pool: %r; known: %s"
+                         % (name, ", ".join(POOL_NAMES)))
+    return tuple(e["key"] for e in ENTRIES
+                 if e["enabled"] and name in e["pools"])
+
+
+def pools():
+    """Every named pool, as `{name: keys}` in registration order."""
+    return {name: pool(name) for name in POOL_NAMES}
+
+
+def anchors():
+    """The seats an RL run measures itself against, by registered name.
+
+    One seat, and `rl_h1000_0k` - the 0k checkpoint PPO starts from and keeps
+    frozen as its KL anchor. It answers with the *registered* name and never
+    with `hc_1000`: that spelling is an alias for the same seat, and an anchor
+    recorded two ways is how an eval log grows a second column for one model.
+    """
+    return (RL_KL_ANCHOR,)
+
+
+def label_key(key):
+    """The `config.I` key naming `key`."""
+    return entry(key)["label"]
+
+
+def desc_key(key):
+    """The `config.I` key describing `key`."""
+    return entry(key)["desc_key"]
+
+
+def check_files(verify_sha256=True):
+    """Every complaint about the files the JSON names. Empty means all good.
+
+    Deliberately not called at import: it stats and hashes, and a game that
+    never plays a checkpoint should not pay for that. `python -m ai.registry
+    --check` and the test suite are its callers.
+    """
+    problems = []
+    for e in ENTRIES:
+        if e["kind"] != "network":
+            continue
+        path = e["checkpoint"]
+        if not os.path.isfile(path):
+            problems.append("%s: checkpoint %s does not exist"
+                            % (e["key"], path))
+            continue
+        if not verify_sha256:
+            continue
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        got = h.hexdigest()
+        if got != e["sha256"]:
+            problems.append("%s: %s sha256 %s, registry says %s"
+                            % (e["key"], path, got, e["sha256"]))
+    return problems
+
+
+def _main(argv):
+    if argv == ["--check"]:
+        problems = check_files()
+        for p in problems:
+            print("FAIL %s" % p)
+        for name in POOL_NAMES:
+            print("%-15s %s" % (name, ", ".join(pool(name))))
+        return 1 if problems else 0
+    print("usage: python -m ai.registry --check")
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main(sys.argv[1:]))
+

@@ -1328,6 +1328,30 @@ def test_the_league_pool_is_unchanged_by_the_new_option():
     assert seats_mod.RANDOM_AI_KEY not in league_options()
 
 
+def test_the_registry_describes_exactly_what_the_seat_screen_shows():
+    """plan9a stage 2 wrote `label` and `desc_key` into `ai/registry.json`,
+    while the screen still renders names itself.
+
+    Neither side reads the other, so nothing breaks if they drift - which is
+    exactly the problem: a hand-edited `desc_key` would sit there doing nothing
+    until stage 6 wired it up and the stale value came back to life. This binds
+    the two by rendering the JSON's keys the way the screen does and comparing.
+    """
+    from ai import registry as R
+
+    for e in R.ENTRIES:
+        key, family = e["key"], e["family"]
+        if family == "personality":
+            label, desc = I[e["label"]], I[e["desc_key"]]
+        elif family == "imitation":
+            step = seats_mod.imitation_step(key)
+            label, desc = I[e["label"]].format(step), I[e["desc_key"]].format(step)
+        else:
+            label, desc = I[e["label"]].format(key), I[e["desc_key"]]
+        assert ui.seat_label(key) == label, key
+        assert ui.seat_desc(key) == desc, key
+
+
 # --------------------------------- two seats on the same option, results screen
 
 def _finish_with_remaining(u, targets, options, colours):

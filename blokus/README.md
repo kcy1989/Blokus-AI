@@ -377,7 +377,8 @@ ai/
 ├── formulas.py     共用的計算公式：位元幾何、量化指標、權重表
 ├── base.py         Brain 介面、Profile 權重檔型別
 ├── chooser.py      選棋流水線，不認識任何人格
-├── registry.py     key → Brain 類別／權重檔的對照表
+├── registry.py     key → Brain 類別／權重檔的對照表；下層載入 registry.json
+├── registry.json   名冊：誰是選手、順序、別名、池（資料層，見「名冊」一節）
 │
 ├── wolf.py         ┐
 ├── chess.py        ├ 權重式：只有權重不同，評分路徑完全相同
@@ -410,7 +411,38 @@ ai/
 
 - **`chooser.py`** 跑完整條流水線，但只認 `Brain` 的三個 method，不認人格。
   所以拆檔不改變任何一手的結果。
-- **`registry.py`** 是唯一的對照表，也是新增人格時要改的地方。
+- **`registry.py`** 是對照表，也是新增人格時要改的地方；它同時載入
+  `registry.json`，見下一節。
+
+### `ai/registry.json`：名冊（資料層）
+
+`ai/registry.py` 一個檔案兩層，回答兩個不同的問題：
+
+| 層 | 檔案 | 回答什麼 |
+|---|---|---|
+| 上層 | `ai/registry.py` 的 `WEIGHTED_SPECS` / `RULE_BRAIN_CLASSES` | 這一手棋**怎麼評分**（JSON 裝不下 `Brain`） |
+| 下層 | `ai/registry.json` | **誰是選手**：key、順序、別名、label、desc_key、pools、enabled、selectable |
+
+`seats.automated_options()` 與 `seats.ALIASES` 讀下層，所以「換對手池」是改資料不是
+改程式碼。`python -m ai.registry --check` 會印出四個池的內容並檢查權重檔。
+
+**欄位與權責（階段 2 的過渡設計）**
+
+| 欄位 | 誰說了算 |
+|---|---|
+| `key`、`aliases`、`pools`、`enabled`、`selectable`、`label`、`desc_key` | **JSON** |
+| `module`、`checkpoint`、`source`、`sha256` | JSON 只**記錄**，權威仍在上層與 `seats.IMITATION_STEPS` / `seats.RL_SEATS` |
+
+檔案路徑的權威**階段 4 之後改歸 JSON**（權重複製進 `ai/checkpoints/` 時一併搬過去），
+屆時 `source` 保留原始訓練路徑當作複製來源的證明。在那之前兩邊同時寫死，由
+`tests/test_registry_json.py` 逐欄比對，任何一邊單獨改動都會失敗而不是靜默分歧。
+
+**驗證時機**：import 只做結構驗證（key 唯一、別名不衝突、pools 名稱合法、
+`label`／`desc_key` 存在於 `config.I`）；**檔案存在與 sha256 只在 `--check` 與測試**
+跑，否則每一次 `import seats` 都要多 stat 二十 megabyte。
+
+**池的順序 = JSON 陣列順序**。`rng.choice` 抽的是 index，所以把一列往上挪就會重排
+同種子的所有對局。階段 3 會改成依 key 排序，與註冊順序脫鉤。
 
 ### 選棋流水線
 
@@ -612,9 +644,13 @@ AI 要在幾百毫秒內對 21 種棋塊、數千個候選做決策，所以每�
    遊戲隨機流的原因。**
 
 2. 在 `ai/registry.py` 登記（`WEIGHTED_SPECS` 或 `RULE_BRAIN_CLASSES`）。
-3. 在 `ai/__init__.py` 匯出。
-4. 在 `config.py` 的 `I` 字典加上中文名與描述，並加進 `PERSONALITY_ORDER`。
-5. 寫測試。
+3. 在 `ai/registry.json` 的 `entries` **最後**加一列（`key`／`kind`／`family`／
+   `module`／`pools`／`label`／`desc_key` 等）。**漏加或加在中間**都會被
+   `tests/test_registry_json.py` 擋下來：名冊與類別表必須是同一份清單、同一個順序，
+   因為順序就是抽籤順序。
+4. 在 `ai/__init__.py` 匯出。
+5. 在 `config.py` 的 `I` 字典加上中文名與描述，並加進 `PERSONALITY_ORDER`。
+6. 寫測試。
 
 改動人格順序會影響 `personality_keys()` 的抽籤順序，進而改變既有種子下的對局
 結果。要保持可重現性就把新的人格加在最後。

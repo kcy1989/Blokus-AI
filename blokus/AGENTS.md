@@ -169,13 +169,25 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
      `context` / `restrict` / `rescore`，並設 `uses_lookahead = False`、
      `self.mistake_rate = 0.0`。
 2. 在 `ai/registry.py` 登記（`WEIGHTED_SPECS` 或 `RULE_BRAIN_CLASSES`）。
-3. 在 `ai/__init__.py` 匯出。
-4. 在 `config.py` 的 `I` 加中文名與描述，並把 key 加進
+3. 在 `ai/registry.json` 的 `entries` **最後**加一列。**加在中間或漏加**都會讓
+   `tests/test_registry_json.py` 失敗：名冊與類別表必須是同一份清單、同一個順序，
+   而順序就是抽籤順序。
+4. 在 `ai/__init__.py` 匯出。
+5. 在 `config.py` 的 `I` 加中文名與描述，並把 key 加進
    `config.PERSONALITY_ORDER`（`ui.py` 的 `PERSONA_ZH` 靠它產生）。
-5. 寫測試。
+6. 寫測試。
 
 分層原則：`formulas.py` 只回答「落子換算成數字」，人格模組只負責三個 method，
 `chooser.py` 跑流水線但**不認識任何人格**。
+
+`ai/registry.py` 一個檔案兩層：**上層**（`WEIGHTED_SPECS`／`RULE_BRAIN_CLASSES`）
+回答「這一手怎麼評分」，**下層**載入 `ai/registry.json` 回答「誰是選手」。
+JSON 管 key／順序／別名／`label`／`desc_key`／`pools`／`enabled`／`selectable`；
+`module`／`checkpoint`／`source`／`sha256` 在階段 4 之前只是**記錄**，檔案與 kind 的
+權威仍是 `seats.IMITATION_STEPS`／`seats.RL_SEATS`。兩邊由
+`tests/test_registry_json.py` 逐欄交叉驗證 —— 改任何一邊都要讓另一邊跟上。
+import 只做結構驗證；**檔案存在與 sha256 只在 `python -m ai.registry --check`
+與測試**跑，不要掛到 import 上。
 
 ---
 

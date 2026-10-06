@@ -25,7 +25,9 @@ This module imports neither torch nor pygame: `rl.imitation` is imported inside
 the league and the tests can all use the same seat model.
 """
 from ai import make_brain
-from ai.registry import personality_keys
+from ai.registry import (aliases as registry_aliases,
+                         automated_options as registry_automated_options,
+                         personality_keys)
 from config import CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER
 
 # The four colours, in the order the menus list them.
@@ -99,11 +101,28 @@ RL_SEATS = (
     ("rl_h1000_20k", "data/rl1/step_000040.pt"),
 )
 
-# The key this seat carried before plan9 step 1 renamed it, kept resolving to the
-# same policy. An alias rather than a second row in `RL_SEATS`: a second row would
-# put the same weights in the pool twice, taking the pool from eleven options to
-# twelve and giving every league a doubled chance of drawing one model - which
-# would silently change what a pool size means.
+# Every alias, the imitation ones and the trained-policy ones alike. This is
+# what `canonical_key` reads, and since plan9a stage 2 it is *read out of*
+# `ai/registry.json` rather than assembled here, so there is one place in the
+# repository where a name can be retired: two tables would mean a name retired
+# in one of them resolves in one place and not another, and which place that is
+# would depend on which table the reader happened to look at.
+#
+# `hc_1000` is the spelling the 0k checkpoint was published and measured under;
+# it stays valid for ever, because `--subject hc_1000` names two committed
+# evidence batches and `records.json` still has a row under it.
+ALIASES = dict(registry_aliases())
+
+# The old spelling of `rl_h1000_20k`, from before plan9 step 1 renamed it, kept
+# resolving to the same policy. An alias rather than a second row in
+# `RL_SEATS`: a second row would put the same weights in the pool twice, taking
+# the pool from eleven options to twelve and giving every league a doubled
+# chance of drawing one model - which would silently change what a pool size
+# means.
+#
+# A *view* of `ALIASES` rather than a table of its own - the aliases whose target
+# is one of `RL_SEATS`' own rows - so that asking "which old names name a trained
+# policy" does not become a second place to forget when a name goes.
 #
 # The alias resolves on the way *in* and never appears in `automated_options()`,
 # so the pool still lists eleven and the leaderboard still has one row per
@@ -111,20 +130,7 @@ RL_SEATS = (
 # name: a result recorded through the alias lands in its own row, because
 # `records.json` is keyed by the name a game was played under and knows nothing
 # about aliases. `records.json` was renamed in step 1 rather than left to split.
-RL_ALIASES = {
-    "rl_1000_20k": "rl_h1000_20k",
-}
-
-# Every alias, the imitation ones and the trained-policy ones alike. This is
-# what `canonical_key` reads, and it is *built* from `RL_ALIASES` rather than
-# written beside it so the two cannot drift: two tables would mean a name
-# retired in one of them resolves in one place and not another, and which place
-# that is would depend on which table the reader happened to look at.
-#
-# `hc_1000` is the spelling the 0k checkpoint was published and measured under;
-# it stays valid for ever, because `--subject hc_1000` names two committed
-# evidence batches and `records.json` still has a row under it.
-ALIASES = dict(RL_ALIASES, **{"hc_1000": IMITATION_KEYS[1000]})
+RL_ALIASES = {a: v for a, v in ALIASES.items() if v in dict(RL_SEATS)}
 
 RL_KEY_PREFIX = "rl_"
 
@@ -222,11 +228,15 @@ _IMITATION_KEYS = frozenset(imitation_key(s) for s in IMITATION_STEPS)
 def automated_options():
     """The eleven options something can be played by: seven personalities, three
     checkpoints and one trained policy. This is the pool `RANDOM_AI_KEY` draws
-    from, and the same pool the league draws its four seats from."""
-    out = [k for k in personality_keys()]
-    out += [imitation_key(s) for s in IMITATION_STEPS]
-    out += list(rl_keys())
-    return tuple(out)
+    from, and the same pool the league draws its four seats from.
+
+    The list itself comes from `ai/registry.json` as of plan9a stage 2 - the
+    roster is data now, not code - but what those eleven *are* is still decided
+    here: `kind_of` answers from `personality_keys`, `IMITATION_STEPS` and
+    `RL_SEATS`, and `tests/test_registry_json.py` fails if the JSON and those
+    three ever list different keys or list them in a different order.
+    """
+    return registry_automated_options()
 
 
 def seat_options(include_humans=True):
