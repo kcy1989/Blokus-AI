@@ -71,8 +71,21 @@ DATA_DIR = os.path.join(HERE, "data")
 # disjoint from everything already used to produce a published number, so a
 # dataset can be regenerated and compared without reusing a position a result
 # was measured on.
-TRAIN_SEED_BASE = 1_000_000
-VALID_SEED_BASE = 2_000_000
+#
+# plan9 step 2b correction (2026-10-06): these two constants were 1_000_000 /
+# 2_000_000 for a while, which does **not** reproduce `data/hc1`. That dataset -
+# and therefore `hc_1000`, and therefore `rl_h1000_20k` - was collected from
+# 6,000,000 / 6,100,000. The manifest's own shard list says so:
+# `hb1_train_6000000_6000508.npz` / `hb1_valid_6100000_6100128.npz`. Reading the
+# code cannot recover the values used, because the code is what changed.
+#
+# Both blocks sit inside `rl.paired3.RESERVED_RANGES`'s
+# ('H-B1/H-C1 imitation train', 6000000, 6029378) and
+# ('H-B1/H-C1 imitation valid', 6100000, 6101545) entries, which were reserved
+# *for* the imitation data, not against it. `check_seed_ranges` below only
+# guards the bench ranges and does not consult that table.
+TRAIN_SEED_BASE = 6_000_000
+VALID_SEED_BASE = 6_100_000
 
 # `bench_engine.py` used 0..199 for F1/F1b/F3, 0..99 for the per-function
 # timings, 0..199 for the optimizer trace check and 0..99 for the randomness

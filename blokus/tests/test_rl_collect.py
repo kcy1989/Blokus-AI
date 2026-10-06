@@ -578,3 +578,66 @@ def test_the_manifest_records_the_teacher_actually_used():
         assert payload["stats"]["teacher_seats"] >= payload["stats"]["games"]
     finally:
         shutil.rmtree(out, ignore_errors=True)
+
+
+def test_the_seed_bases_reproduce_data_hc1():
+    """plan9 step 2b: the bases were wrong, and the manifest is what says so.
+
+    These two constants were 1_000_000 / 2_000_000 for a while, which collected
+    from a range that is not `data/hc1`'s. The manifest's shard names carry the
+    real bases; the code cannot, because the code is what changed. Pinned here
+    so the next edit cannot quietly move the starting point of a dataset and
+    have the only symptom be a training curve.
+    """
+    import json
+    import os
+    import re
+    import rl.collect as C
+
+    manifest_path = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "data", "hc1", "manifest.json")
+    if not os.path.exists(manifest_path):
+        pytest.skip("data/hc1 is not present; its manifest is the reference")
+
+    with open(manifest_path, encoding="utf-8") as fh:
+        m = json.load(fh)
+
+    train_lo = valid_lo = None
+    for shard in m["shards"]:
+        name = shard["path"].split("/")[-1]
+        lo = int(re.search(r"_(\d+)_", name).group(1))
+        if name.startswith("hb1_train_") and (train_lo is None or lo < train_lo):
+            train_lo = lo
+        if name.startswith("hb1_valid_") and (valid_lo is None or lo < valid_lo):
+            valid_lo = lo
+
+    assert train_lo is not None and valid_lo is not None
+    assert C.TRAIN_SEED_BASE == train_lo, (
+        "TRAIN_SEED_BASE is %d but data/hc1's train shards start at %d"
+        % (C.TRAIN_SEED_BASE, train_lo))
+    assert C.VALID_SEED_BASE == valid_lo, (
+        "VALID_SEED_BASE is %d but data/hc1's valid shards start at %d"
+        % (C.VALID_SEED_BASE, valid_lo))
+
+
+def test_the_new_ranges_do_not_collide_with_a_published_result():
+    """Where the seeds may and may not be.
+
+    `check_seed_ranges` covers the bench ranges only, so this checks the rest by
+    name: the RL stage's own blocks are what a later stage must not reuse, and
+    they are far from the imitation blocks but worth asserting at the same time
+    as the bases move.
+    """
+    import rl.collect as C
+    from rl import paired3
+
+    new = {"train": (C.TRAIN_SEED_BASE, C.TRAIN_SEED_BASE + 1999),
+           "valid": (C.VALID_SEED_BASE, C.VALID_SEED_BASE + 199)}
+    for label, (lo, hi) in new.items():
+        C.check_seed_ranges(list(range(lo, hi + 1)), [])
+        for name, rlo, rhi in paired3.RESERVED_RANGES:
+            if "imitation" in name:
+                continue          # reserved *for* this use, not against it
+            assert hi < rlo or lo > rhi, (
+                "%s seeds %d..%d overlap reserved %s %d..%d"
+                % (label, lo, hi, name, rlo, rhi))
