@@ -392,7 +392,7 @@ def as_brain(net, key=None):
 
     The profile is chess's, because that is what `rl.imitation._chess_profile`
     hands an `ImitationBrain` - so an opponent's lookahead scores the RL learner
-    with exactly the weights it would score `hc_1000` with. The RL seat is an
+    with exactly the weights it would score `rl_h1000_0k` with. The RL seat is an
     imitation seat as far as the opponents are concerned, which is what it is.
     """
     from rl.imitation import _chess_profile
@@ -416,15 +416,16 @@ def seat_for(net, learner_key=None):
     stands in under the first H-C2 seat key and the brain is replaced
     immediately afterwards with `needs_swap` saying so.
 
-    `hc_1000`'s weights are loaded in passing. That is nearly free -
+    `rl_h1000_0k`'s weights are loaded in passing. That is nearly free -
     `rl.imitation._BLOB_CACHE` reads the file once per process, not once per
     game - and it buys not touching `Game.setup_seats`, which is the seat-layout
     code `plan8-A` found should stay the single definition.
 
-    The stand-in is `hc_1000` rather than a personality on purpose: if the swap
-    were ever missed, a personality would silently play the learner's moves and
-    the run would look fine. A wrong `hc_1000` moves are at least a different
-    policy from round one.
+    The stand-in is the first H-C2 seat - `rl_h1000_0k`, which the retired
+    `hc_1000` still resolves to - rather than a personality on purpose: if the
+    swap were ever missed, a personality would silently play the learner's moves
+    and the run would look fine. A wrong stand-in's moves are at least a
+    different policy from round one.
     """
     import seats
     candidates = []
@@ -487,7 +488,7 @@ def make_specs(start_seed, n, rng_seed=None, own=None):
         seat = rng.randrange(4)
         seat_counts[seat] += 1
         keys = list(names)
-        keys.insert(seat, "hc_1000")
+        keys.insert(seat, "rl_h1000_0k")
         specs.append(Spec(seed, seat, names))
     manifest = {
         "start_seed": start_seed,
@@ -602,12 +603,12 @@ def _worker(job):
 def _key_for(weights_path, meta):
     """The seat key for a checkpoint file, or `None` when it has no name yet.
 
-    `hc_1000` when the file is one of the pool's. A training checkpoint has no
-    registered seat name, and that is not this module's to invent - so it returns
-    `None` and `seat_for` substitutes the stand-in. Inventing `rl_<step>` here
-    would put a name in the logs and in `Game.owner_key` that no seat registry
-    knows about, which is how a rollout ends up asking for a seat that does not
-    exist.
+    `rl_h1000_0k` / `hc_2000` / `hc_10000` when the file is one of the pool's.
+    A training checkpoint has no registered seat name, and that is not this
+    module's to invent - so it returns `None` and `seat_for` substitutes the
+    stand-in. Inventing `rl_<step>` here would put a name in the logs and in
+    `Game.owner_key` that no seat registry knows about, which is how a rollout
+    ends up asking for a seat that does not exist.
     """
     base = os.path.basename(weights_path)
     import seats
