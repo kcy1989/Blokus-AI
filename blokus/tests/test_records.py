@@ -132,8 +132,16 @@ def test_a_repeated_key_is_recorded_as_two_appearances(tmp_path):
     r = Records(str(tmp_path / "records.json"))
     r.record([("wolf", 10), ("wolf", 30), ("fox", 20), ("human", 0)])
     # human(0) 1st, wolf(10) 2nd, fox(20) 3rd, wolf(30) 4th
-    assert r.entries["wolf"] == {"games": 2, "total_points": 4.0,
-                                 "total_remaining": 40.0}
+    # The three scoring fields, exactly. plan9 step 1.5 added five more beside
+    # them, and they are asserted separately below rather than folded in here -
+    # this test is about the arithmetic, and a dict equality that grows a field
+    # every time the schema does stops being about the arithmetic.
+    scoring = ("games", "total_points", "total_remaining")
+    assert {k: r.entries["wolf"][k] for k in scoring} == {
+        "games": 2, "total_points": 4.0, "total_remaining": 40.0}
+    assert all(r.entries["wolf"][f] is None
+               for f in ("history", "train_seed", "teacher",
+                         "pool_contains_teacher", "commit"))
     # both seats' squares, not one seat's - the bug was `dict(standings)[key]`,
     # which kept only the last
     assert r.entries["wolf"]["total_remaining"] == 40.0
