@@ -446,3 +446,135 @@ def test_one_worker_and_four_workers_produce_the_same_samples(tmp_path):
     for key in a:
         for name in C.FIELD_ORDER:
             assert same(a[key][name], b[key][name]), (key, name)
+
+
+# --------------------------------------------------------------------------
+# --teacher
+# --------------------------------------------------------------------------
+
+def test_the_defaults_reproduce_the_setup_data_hc1_was_collected_with():
+    """No flag means the dataset that produced `hc_1000`.
+
+    That chain is worth spelling out: `data/hc1` was collected with the teacher
+    at `hunter`, distilled into `data/hc2/step_001000.pt` (`hc_1000`), and that
+    checkpoint is the init and the KL anchor for `rl_h1000_20k`. So "the default
+    teacher" is not a convenience default - changing it would silently move the
+    starting point of every model trained from the hunter line, and the change
+    would show up as a difference in training results with nothing to point at.
+
+    Compared against the manifest rather than restated here, because the manifest
+    is the record of the run that actually happened.
+    """
+    import json
+    import os
+    import rl.collect as C
+
+    manifest_path = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "data", "hc1", "manifest.json")
+    if not os.path.exists(manifest_path):
+        pytest.skip("data/hc1 is not present; its manifest is the reference")
+
+    with open(manifest_path, encoding="utf-8") as fh:
+        m = json.load(fh)
+
+    assert C.TEACHER == m["teacher"] == "hunter"
+    assert {k: w for k, w in C.controller_weights(C.TEACHER)} == \
+        m["controller_weights"]
+    assert list(C.PREFIX_CHOICES) == m["prefix_choices"]
+    assert C.MAX_SAMPLES_PER_SHARD == m["max_samples_per_shard"]
+    assert C.SHORTLIST_PAD == m["shortlist_pad"]
+    assert C.action_table_hash() == m["action_table_hash"]
+    # The manifest records the seed ranges this collector was *keeping clear of*,
+    # not its own train/valid bases, so the bases are asserted against the
+    # comment that states them rather than against the file.
+    assert m["excluded_seed_ranges"] == {"bench_engine": [0, 199],
+                                         "tools_benchmark": [20240101, 20336965]}
+
+
+def test_the_weight_table_is_the_same_shape_for_every_teacher():
+    """Half the seats, the rest spread over the other six, all seven in play.
+
+    Checked for every personality rather than the default alone, because the
+    thing that could break is the *other* teacher: a table built by filtering a
+    module constant would silently keep `hunter` at 0.50 and drop the new
+    teacher, and the dataset would then seat the teacher 0% of the time.
+    """
+    import rl.collect as C
+    for teacher in C.PERSONALITY_KEYS:
+        w = dict(C.controller_weights(teacher))
+        assert set(w) == set(C.PERSONALITY_KEYS), teacher
+        assert w[teacher] == 0.5, teacher
+        assert all(abs(v - 0.5 / 6) < 1e-12 for k, v in w.items()
+                   if k != teacher), teacher
+        assert abs(sum(w.values()) - 1.0) < 1e-12, teacher
+
+
+def test_draw_setup_seats_the_teacher_it_is_given():
+    """The end-to-end consequence, on every teacher and many seeds.
+
+    `draw_setup` redraws until it sees a teacher, so a table that never contained
+    the requested teacher would not fail - it would raise after 1000 attempts,
+    which is a slow way to say nothing.
+    """
+    import rl.collect as C
+    for teacher in C.PERSONALITY_KEYS:
+        for seed in range(200):
+            _prefix, controllers = C.draw_setup(seed, teacher)
+            assert teacher in controllers, (teacher, seed, controllers)
+            assert len(controllers) == 4, (teacher, seed, controllers)
+            # Note what is *not* asserted: that the teacher occupies exactly one
+            # seat. It is a per-seat weighted draw, so the teacher can be seated
+            # twice in one game - and for `hunter` that already happens, which is
+            # the collision plan9 step 4 has to state. "Exactly once" is a
+            # property of the *weight table* (one entry per key), tested above,
+            # not of the draw.
+
+
+def test_the_prefix_draw_does_not_depend_on_the_teacher():
+    """Same seed, same prefix length, whichever teacher is asked for.
+
+    Worth pinning because the two draws share one generator: giving the seat
+    table a different shape or order would shift what `rng.choice` lands on for
+    the prefix, and the prefix is what decides which plies are thrown away.
+    """
+    import rl.collect as C
+    for seed in range(200):
+        base = C.draw_setup(seed, C.TEACHER)[0]
+        for teacher in C.PERSONALITY_KEYS:
+            assert C.draw_setup(seed, teacher)[0] == base, (teacher, seed)
+
+
+def test_an_unknown_teacher_is_refused_before_anything_is_collected():
+    """Not after 1000 redraws per game."""
+    import rl.collect as C
+    with pytest.raises(SystemExit):
+        C.main(["--teacher", "optimiser", "--train-games", "1",
+                "--valid-games", "1", "--out", "/tmp/never-written"])
+
+
+def test_the_manifest_records_the_teacher_actually_used():
+    """Read back from what was written, not from the argument."""
+    import json
+    import os
+    import shutil
+    import tempfile
+    import rl.collect as C
+
+    out = tempfile.mkdtemp(prefix="collect-teacher-")
+    try:
+        C.main(["--teacher", "optimizer", "--train-games", "4",
+                "--valid-games", "2", "--workers", "1", "--prefix", "hb1",
+                "--out", out, "--json", os.path.join(out, "summary.json")])
+        with open(os.path.join(out, "summary.json"), encoding="utf-8") as fh:
+            payload = json.load(fh)
+        assert payload["manifest"]["teacher"] == "optimizer"
+        assert payload["manifest"]["controller_weights"]["optimizer"] == 0.5
+        assert abs(payload["manifest"]["controller_weights"]["hunter"]
+                   - 0.5 / 6) < 1e-12
+        # Every game really seated the teacher that was asked for. The count is
+        # not `games`: the teacher is a per-seat weighted draw, so a game may seat
+        # it twice and `teacher_seats` counts seats. One per game is the
+        # guarantee `draw_setup` makes by redrawing.
+        assert payload["stats"]["teacher_seats"] >= payload["stats"]["games"]
+    finally:
+        shutil.rmtree(out, ignore_errors=True)

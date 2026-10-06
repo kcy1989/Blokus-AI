@@ -83,6 +83,14 @@ BENCHMARK_SEED_BASE = 20240101
 BENCHMARK_SEED_STRIDE = 1009
 BENCHMARK_MAX_GAMES = 96          # 4 games x 24 permutations, its defaults
 
+# The seven personalities a seat may hold, in the order `config` and `ai`
+# agree on. Imported rather than written out again here: the weight table
+# below has to contain exactly these keys minus the teacher, and a second
+# copy of the list would be free to drift from the first.
+PERSONALITY_KEYS = tuple(ai.personality_keys())
+
+# The teacher when `--teacher` is not given, which is the one `data/hc1`
+# - and therefore `hc_1000`, and therefore `rl_h1000_20k` - was built with.
 TEACHER = "hunter"
 
 # Opening prefix lengths. Even numbers only: a prefix of 6 real moves leaves the
@@ -90,28 +98,37 @@ TEACHER = "hunter"
 # as an even one while changing which of them moves next.
 PREFIX_CHOICES = (0, 2, 4, 6, 8, 10, 12)
 
-# Seat controllers. The teacher is half of all seats, on purpose: it is the only
-# label this dataset carries, so a game in which the teacher sits out
-# contributes nothing. The rest spread over the other six so the positions the
-# teacher is asked about are reached by opponents that behave differently.
+# The teacher is a parameter (`--teacher`), so the weight table is built per run
+# rather than frozen at import. It used to be a module constant, which is why
+# this comment sits above a function: the *teacher* moves, the *rule* does not.
 #
-# All seven personalities are in the pool. Hunter is the teacher and appears
-# exactly once: a weight table is a per-seat draw, so listing it twice would put
-# two Hunters in one game - one of them the teacher - and turn the pool into six
+#   teacher      0.50
+#   the other six personalities   0.50/6 each
+#
+# Half the seats are the teacher on purpose: it is the only label this dataset
+# carries, so a game in which the teacher sits out contributes nothing. The
+# other six personalities split the rest, so the positions the teacher is asked
+# about are reached by opponents that behave differently.
+#
+# All seven personalities are in play. The teacher appears **exactly once**: a
+# weight table is a per-seat draw, so listing it twice would put two of the same
+# personality in one game - one of them the teacher - and turn the pool into six
 # personalities plus a duplicate. One entry at 0.50 already puts all seven keys
 # in play.
 #
 # The redraw rate is `1 - 0.5 ** 4 = 6.25%`, which depends only on the teacher's
-# weight and not on how many keys there are.
-CONTROLLER_WEIGHTS = (
-    (TEACHER, 0.50),
-    ("wolf", 0.50 / 6),
-    ("chess", 0.50 / 6),
-    ("fox", 0.50 / 6),
-    ("intruder", 0.50 / 6),
-    ("optimizer", 0.50 / 6),
-    ("builder", 0.50 / 6),
-)
+# weight and not on how many keys there are, so it is the same for every
+# teacher.
+def controller_weights(teacher):
+    """`(key, weight)` for the four seats of one game, teacher first."""
+    others = [k for k in PERSONALITY_KEYS if k != teacher]
+    return ((teacher, 0.50),) + tuple((k, 0.50 / len(others)) for k in others)
+
+
+# Kept for the default, so a caller that wants "the one this repository used"
+# does not have to remember the string. `controller_weights(TEACHER)` is the
+# table `data/hc1` was collected with.
+CONTROLLER_WEIGHTS = controller_weights(TEACHER)
 CONTROLLER_KEYS = tuple(k for k, _w in CONTROLLER_WEIGHTS)
 CONTROLLER_TOTAL = sum(w for _k, w in CONTROLLER_WEIGHTS)
 
@@ -129,7 +146,7 @@ MAX_SAMPLES_PER_SHARD = 20_000
 # the game setup
 # --------------------------------------------------------------------------
 
-def draw_setup(seed):
+def draw_setup(seed, teacher=TEACHER):
     """The prefix length and the four seat controllers for one game.
 
     A single `random.Random(seed)` per game, and the whole setup is redrawn if
@@ -137,22 +154,29 @@ def draw_setup(seed):
     only the seats keeps the draw simple: the alternative - keeping the prefix
     and re-rolling seats until one is the teacher - would bias the prefix
     towards the games that needed fewer attempts.
+
+    `teacher` defaults to `TEACHER`. The weight table is built from it rather
+    than read from the module constant, so the same seed produces the same
+    prefix for every teacher while the seats are drawn from that teacher's own
+    table.
     """
     rng = random.Random(seed)
+    weights = controller_weights(teacher)
+    total = sum(w for _k, w in weights)
     for _attempt in range(1000):
         prefix = rng.choice(PREFIX_CHOICES)
         controllers = []
         for _seat in range(4):
-            r = rng.random() * CONTROLLER_TOTAL
+            r = rng.random() * total
             acc = 0.0
-            for key, weight in CONTROLLER_WEIGHTS:
+            for key, weight in weights:
                 acc += weight
                 if r < acc:
                     controllers.append(key)
                     break
             else:                                   # pragma: no cover
-                controllers.append(CONTROLLER_KEYS[-1])
-        if TEACHER in controllers:
+                controllers.append(weights[-1][0])
+        if teacher in controllers:
             return prefix, tuple(controllers)
     raise RuntimeError("no setup with a teacher in it after 1000 draws")
 
@@ -247,7 +271,7 @@ def teacher_move(state, brain):
 # one game
 # --------------------------------------------------------------------------
 
-def collect_game(seed, prefix_len, controllers):
+def collect_game(seed, prefix_len, controllers, teacher=TEACHER):
     """Play one game, returning its samples and its own summary.
 
     Samples come back sorted by `(game_id, ply)` and the game is a pure
@@ -260,7 +284,7 @@ def collect_game(seed, prefix_len, controllers):
     # The teacher of each seat, and the brain each seat actually plays with.
     # Both come from the same seed and never from a shared generator, so two
     # workers cannot interfere with each other.
-    teacher_brains = {o: ai.make_brain(TEACHER, random.Random(seed * 8 + o + 1))
+    teacher_brains = {o: ai.make_brain(teacher, random.Random(seed * 8 + o + 1))
                       for o in range(4)}
     play_brains = {o: ai.make_brain(controllers[o], random.Random(seed * 8 + o + 101))
                    for o in range(4)}
@@ -311,9 +335,9 @@ def collect_game(seed, prefix_len, controllers):
             # teacher's first three moves stop being book moves at all. Measured on
             # the optimizer table this displaced 79.9% / 49.8% / 21.0% of book steps
             # 0/1/2. The prefix still does its job on the other three seats.
-            in_prefix = ply < prefix_len and controllers[owner] != TEACHER
+            in_prefix = ply < prefix_len and controllers[owner] != teacher
 
-            if controllers[owner] == TEACHER:
+            if controllers[owner] == teacher:
                 chosen, record = teacher_move(s, teacher_brains[owner])
                 if chosen is None:
                     raise RuntimeError("seed %d: the teacher found no move where "
@@ -330,7 +354,7 @@ def collect_game(seed, prefix_len, controllers):
             if in_prefix:
                 index = int(legal[rng.randrange(n_legal)])
             else:
-                if controllers[owner] != TEACHER:
+                if controllers[owner] != teacher:
                     mv = ai.choose_move(g.board, g.hands[owner].names, owner,
                                         play_brains[owner], play_rngs[owner],
                                         other_brains=g.brains,
@@ -515,15 +539,15 @@ def action_table_hash():
         return json.load(fh)["hash"]
 
 
-def collect_range(seeds, prefix="imit"):
+def collect_range(seeds, prefix="imit", teacher=TEACHER):
     """Collect one contiguous seed range into one shard."""
     seeds = list(seeds)
     rows = []
     games = []
     t0 = time.perf_counter()
     for seed in seeds:
-        prefix_len, controllers = draw_setup(seed)
-        game_rows, summary = collect_game(seed, prefix_len, controllers)
+        prefix_len, controllers = draw_setup(seed, teacher)
+        game_rows, summary = collect_game(seed, prefix_len, controllers, teacher)
         rows.extend(game_rows)
         games.append(summary)
     return rows, games, time.perf_counter() - t0
@@ -539,9 +563,9 @@ def _worker(args):
     Games are grouped back together before writing, so a shard never splits a
     game across two files even when the sample cap falls in the middle of one.
     """
-    lo, hi, prefix, out_dir = args
+    lo, hi, prefix, out_dir, teacher = args
     seeds = split_seeds(lo, hi)
-    rows, games, seconds = collect_range(seeds, prefix)
+    rows, games, seconds = collect_range(seeds, prefix, teacher)
 
     by_game = {}
     for row in rows:
@@ -578,7 +602,8 @@ def _worker(args):
             "per_game": games}
 
 
-def run(trains, valids, out_dir=DATA_DIR, workers=12, prefix="imit"):
+def run(trains, valids, out_dir=DATA_DIR, workers=12, prefix="imit",
+        teacher=TEACHER):
     """Collect the training and validation sets in parallel.
 
     Each worker takes a contiguous run of seeds. No RNG is shared between
@@ -599,7 +624,7 @@ def run(trains, valids, out_dir=DATA_DIR, workers=12, prefix="imit"):
     os.makedirs(out_dir, exist_ok=True)
 
     payload = [(chunk[0], chunk[-1],
-                "%s_%s" % (prefix, group), out_dir)
+                "%s_%s" % (prefix, group), out_dir, teacher)
                for group, chunk in jobs]
     t0 = time.perf_counter()
     if workers == 1:
@@ -620,9 +645,9 @@ def run(trains, valids, out_dir=DATA_DIR, workers=12, prefix="imit"):
         "created_by": "rl/collect.py",
         "code": code_hash(),
         "action_table_hash": action_table_hash(),
-        "teacher": TEACHER,
+        "teacher": teacher,
         "prefix_choices": list(PREFIX_CHOICES),
-        "controller_weights": {k: w for k, w in CONTROLLER_WEIGHTS},
+        "controller_weights": {k: w for k, w in controller_weights(teacher)},
         "shortlist_pad": SHORTLIST_PAD,
         "max_samples_per_shard": MAX_SAMPLES_PER_SHARD,
         "field_spec": {k: {"dtype": v[0], "shape": list(v[1])}
@@ -651,7 +676,7 @@ def run(trains, valids, out_dir=DATA_DIR, workers=12, prefix="imit"):
 # the statistics the plan asks for
 # --------------------------------------------------------------------------
 
-def summarise(rows, games):
+def summarise(rows, games, teacher=TEACHER):
     """The numbers section G4 of the report has to carry.
 
     Every one is computed from the rows and the per-game summaries the run
@@ -701,7 +726,7 @@ def summarise(rows, games):
     teacher_remaining = []
     for g in games:
         for owner, key in enumerate(g["controllers"]):
-            if key == TEACHER:
+            if key == teacher:
                 teacher_util.append(g["utilities"][owner])
                 teacher_remaining.append(g["remaining"][owner])
     return {
@@ -732,16 +757,26 @@ def summarise(rows, games):
     }
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description="collect imitation data")
     ap.add_argument("--train-games", type=int, default=2000)
     ap.add_argument("--valid-games", type=int, default=200)
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--out", default=DATA_DIR)
     ap.add_argument("--prefix", default="imit")
+    ap.add_argument("--teacher", default=TEACHER,
+                    help="which personality supplies the moves being recorded; "
+                         "one of the seven. Default %r, which is what data/hc1 "
+                         "was collected with." % TEACHER)
     ap.add_argument("--json", default=None,
                     help="write the summary statistics here")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
+    if args.teacher not in PERSONALITY_KEYS:
+        # A typo here would otherwise collect a dataset whose seats are never
+        # the teacher: `draw_setup` redraws until it sees one, and if it never
+        # can it raises after 1000 attempts - a long, misleading wait.
+        ap.error("unknown --teacher %r. Options: %s"
+                 % (args.teacher, ", ".join(PERSONALITY_KEYS)))
 
     trains = split_seeds(TRAIN_SEED_BASE,
                          TRAIN_SEED_BASE + args.train_games - 1)
@@ -749,7 +784,8 @@ def main():
                          VALID_SEED_BASE + args.valid_games - 1)
     check_seed_ranges(trains, valids)
     manifest, results = run(trains, valids, out_dir=args.out,
-                            workers=args.workers, prefix=args.prefix)
+                            workers=args.workers, prefix=args.prefix,
+                            teacher=args.teacher)
 
     # Read the shards back rather than reusing the rows the workers held. That
     # makes the statistics a statement about what was *written*, which is the
@@ -762,7 +798,7 @@ def main():
             rows.extend(_rows_from_shard(shard))
         games.extend(r["per_game"])
     rows.sort(key=lambda row: (int(row["game_id"]), int(row["ply"])))
-    stats = summarise(rows, games)
+    stats = summarise(rows, games, args.teacher)
     disk = _disk_usage(args.out)
     out = {"manifest": manifest, "stats": stats, "disk": disk}
     print(json.dumps(stats, indent=1, sort_keys=True))
