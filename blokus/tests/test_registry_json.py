@@ -18,6 +18,7 @@ None of these assertions pin a composition. Each one reads one side from the
 JSON and the other from the code, so a stage-6 pool change that moves both
 together still passes and one that moves only one does not.
 """
+import hashlib
 import json
 import os
 import subprocess
@@ -193,65 +194,116 @@ def test_anchors_names_one_seat_and_it_is_the_registered_spelling():
 
 
 # --------------------------------------------------------------------------
-# files: checked here and by --check, never at import
+# files: existence is a suite concern, bytes are --check's
 # --------------------------------------------------------------------------
 
-def test_check_files_finds_nothing_wrong_with_the_registered_weights():
-    assert R.check_files() == []
+def test_every_registered_checkpoint_file_exists():
+    """Existence is a suite-level fact; the digest is not - yet.
 
-
-def test_check_files_reports_a_missing_or_rewritten_checkpoint(tmp_path,
-                                                               monkeypatch):
-    """The check has to be able to fail, or it is decoration."""
-    broken = dict(R.ENTRIES[0])
-    broken.update({"key": "ghost", "kind": "network", "family": "rl",
-                   "checkpoint": str(tmp_path / "nope.pt"), "source": "x",
-                   "sha256": "0" * 64})
-    monkeypatch.setattr(R, "ENTRIES", R.ENTRIES + (broken,))
-    problems = R.check_files()
-    assert len(problems) == 1
-    assert "ghost" in problems[0] and "does not exist" in problems[0]
-
-    # a real file with the wrong digest is caught too
-    real = str(tmp_path / "weights.pt")
-    with open(real, "wb") as f:
-        f.write(b"not the weights")
-    broken["checkpoint"] = real
-    problems = R.check_files()
-    assert len(problems) == 1
-    assert "sha256" in problems[0]
-
-    # and `verify_sha256=False` is the "does it even exist" mode
+    Until plan9a stage 4 publishes the weights into `ai/checkpoints/`, the
+    files the registry names still live under `data/`, which is the training
+    factory and may be rewritten by a retrain. Asserting their sha256 here
+    would turn a routine retrain into a red suite, so the suite asserts only
+    what a fresh clone needs: the file is there. Stage 4 moves the weights into
+    the repository proper and puts the digest assertion back.
+    """
     assert R.check_files(verify_sha256=False) == []
 
 
-def test_importing_the_seat_model_never_hashes_a_checkpoint():
-    """Structure at import, bytes only on demand.
+def test_check_files_reports_a_missing_checkpoint(tmp_path, monkeypatch):
+    """The check has to be able to fail, or it is decoration.
 
-    The subprocess is the only way to observe an import: patching
-    `hashlib.sha256` from inside an already-imported module would prove
-    nothing. If this fails, something started calling `check_files()` from
-    module scope and every `import seats` in the game began hashing
-    twenty megabytes.
+    `ENTRIES` is replaced outright rather than extended: leaving the real
+    entries in place would make this test hash `data/` again, which is the very
+    coupling the test above avoids.
     """
-    code = ("import hashlib\n"
-            "def boom(*a, **k):\n"
-            "    raise AssertionError('hashed at import time')\n"
-            "hashlib.sha256 = boom\n"
-            "import seats\n"
-            "print(len(seats.automated_options()))\n")
-    r = subprocess.run([sys.executable, "-c", code], cwd=_ROOT,
+    ghost = {"key": "ghost", "kind": "network", "family": "rl",
+             "checkpoint": str(tmp_path / "nope.pt"), "source": "x",
+             "sha256": "0" * 64}
+    monkeypatch.setattr(R, "ENTRIES", (ghost,))
+    problems = R.check_files(verify_sha256=False)
+    assert len(problems) == 1
+    assert "ghost" in problems[0] and "does not exist" in problems[0]
+
+
+def test_check_files_detects_a_rewritten_checkpoint(tmp_path, monkeypatch):
+    """The sha256 mode, exercised against a scratch file and nothing else."""
+    weights = tmp_path / "weights.pt"
+    blob = b"the weights"
+    weights.write_bytes(blob)
+    entry = {"key": "scratch", "kind": "network", "family": "rl",
+             "checkpoint": str(weights), "source": "x", "sha256": "0" * 64}
+    monkeypatch.setattr(R, "ENTRIES", (entry,))
+
+    problems = R.check_files()
+    assert len(problems) == 1 and "sha256" in problems[0]
+    assert "scratch" in problems[0]
+
+    entry["sha256"] = hashlib.sha256(blob).hexdigest()
+    assert R.check_files() == []
+    # `verify_sha256=False` is the "does it even exist" mode
+    assert R.check_files(verify_sha256=False) == []
+
+
+def test_importing_never_hashes_a_checkpoint_and_never_warns():
+    """Structure at import, bytes only on demand - and no runpy noise.
+
+    Two facts, one subprocess each. The first is why `check_files` is a
+    function and not a module-level call: patching `hashlib.sha256` from
+    inside an already-imported module would prove nothing, so the import has
+    to be observed from outside. The second is why the entry point is
+    `python -m ai` rather than `python -m ai.registry`: the package re-exports
+    `ai.registry`, so running the submodule executes it twice and runpy warns.
+    """
+    hash_code = ("import hashlib\n"
+                 "def boom(*a, **k):\n"
+                 "    raise AssertionError('hashed at import time')\n"
+                 "hashlib.sha256 = boom\n"
+                 "import seats\n"
+                 "print(len(seats.automated_options()))\n")
+    r = subprocess.run([sys.executable, "-c", hash_code], cwd=_ROOT,
                        capture_output=True)
     assert r.returncode == 0, r.stderr.decode()
     assert r.stdout.strip() == b"11"
+    assert b"RuntimeWarning" not in r.stderr
+
+    r = subprocess.run([sys.executable, "-c", "import ai, seats"],
+                       cwd=_ROOT, capture_output=True)
+    assert r.returncode == 0, r.stderr.decode()
+    assert b"RuntimeWarning" not in r.stderr, r.stderr.decode()
 
 
-def test_the_check_command_reports_the_pools_and_exits_zero(capsys):
-    assert R._main(["--check"]) == 0
+def test_the_package_entry_point_runs_without_the_duplicate_module_warning():
+    """`python -m ai --check` is the command; `python -m ai.registry` warns.
+
+    The exit code is deliberately not asserted: `--check` verifies digests,
+    and a digest mismatch against `data/` is a stage-4 concern, not this
+    suite's. What is under test here is the wiring - `ai/__main__.py` reaches
+    `registry.main`, all four pools are printed, and runpy has nothing to
+    complain about.
+    """
+    r = subprocess.run([sys.executable, "-m", "ai", "--check"],
+                       cwd=_ROOT, capture_output=True)
+    assert r.returncode != 2, r.stderr.decode()      # not a usage error
+    assert b"RuntimeWarning" not in r.stderr, r.stderr.decode()
+    out = r.stdout.decode()
+    for name in R.POOL_NAMES:
+        assert name in out, name
+
+
+def test_the_check_command_reports_the_pools_and_exits_zero(capsys,
+                                                            monkeypatch):
+    """The digest path is stubbed for the same reason as above: `data/` may be
+    rewritten by a retrain, and this test asserts the CLI, not the weights.
+    The digest itself is covered by
+    `test_check_files_detects_a_rewritten_checkpoint`."""
+    monkeypatch.setattr(R, "check_files", lambda verify_sha256=True: [])
+    assert R.main(["--check"]) == 0
     out = capsys.readouterr().out
     for name in R.POOL_NAMES:
         assert name in out
-    assert R._main([]) == 2
+    assert R.main([]) == 2
+    assert "python -m ai --check" in capsys.readouterr().out
 
 
 # --------------------------------------------------------------------------
@@ -302,6 +354,34 @@ def test_an_alias_that_collides_with_a_key_is_refused():
     with pytest.raises(ValueError) as exc:
         R._validate([_entry(), _entry(key="chess", aliases=["wolf"])])
     assert "collides with a registered key" in str(exc.value)
+
+
+def test_enabled_and_selectable_must_agree_and_the_message_names_the_key():
+    """Risk 4 of stage 2: one flag flipped alone is a silent split-brain.
+
+    `enabled` and `selectable` document two different questions, but today
+    they gate two views of the same eleven keys - `pool()` reads one,
+    `automated_options()` the other. Flipping only `selectable` would take a
+    key out of the seat menu while leaving it in every league, with nothing
+    failing anywhere. The message has to name the key, because a bare
+    "flags disagree" in a file with eleven rows is not actionable.
+    """
+    for enabled, selectable in ((True, False), (False, True)):
+        with pytest.raises(ValueError) as exc:
+            R._validate([_entry(enabled=enabled, selectable=selectable)])
+        msg = str(exc.value)
+        assert "wolf" in msg, msg
+        assert "enabled=%s and selectable=%s disagree" % (enabled, selectable) \
+            in msg, msg
+
+    # agreeing, either way, is fine
+    R._validate([_entry(enabled=True, selectable=True)])
+    R._validate([_entry(enabled=False, selectable=False)])
+
+    # and the disagreement is caught alongside any other complaint
+    with pytest.raises(ValueError) as exc:
+        R._validate([_entry(pools=["weekly"], selectable=False)])
+    assert "not one of" in str(exc.value) and "wolf" in str(exc.value)
 
 
 def test_one_alias_claimed_by_two_seats_is_refused():

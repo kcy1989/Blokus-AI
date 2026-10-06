@@ -104,7 +104,7 @@
 - 文字走 config.I。獨立提交。
 
 ## 階段 8:換 AI 的工作流與工具
-- `python -m ai.registry --check`:執行全部驗證,列出各池內容。
+- `python -m ai --check`:執行全部驗證,列出各池內容。(原寫 `python -m ai.registry --check`;`ai/__init__` 匯出 `ai.registry`,跑子模組會重複執行同一個模組並噴 runpy 的 `RuntimeWarning`,所以入口掛在套件上。)
 - `python -m ai.registry --list`:顯示全部 AI、所屬池、enabled/selectable、sha256 前綴。
 - README 新增「如何新增或更換對手」:
   1. `--publish` 複製權重並產生草稿

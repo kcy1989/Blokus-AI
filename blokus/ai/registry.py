@@ -22,10 +22,10 @@ seat's kind is still `seats.IMITATION_STEPS` / `seats.RL_SEATS`;
 moves the file paths across to the JSON.
 
 Import-time validation is structural only: unique keys, aliases that collide
-with nothing, legal pool names, `label` / `desc_key` present in `config.I`.
-Touching the filesystem at import would make every `import seats` pay for a
-stat, so file existence and sha256 are left to `check_files()`, which
-`python -m ai.registry --check` and the test suite call.
+with nothing, legal pool names, `label` / `desc_key` present in `config.I`,
+and `enabled` agreeing with `selectable`. Touching the filesystem at import
+would make every `import seats` pay for a stat, so file existence and sha256
+are left to `check_files()`, which `python -m ai --check` calls.
 """
 from . import builder, chess, fox, hunter, intruder, optimizer, wolf
 from .base import (BUILDER_KEY, HUNTER_KEY, INTRUDER_KEY, OPTIMIZER_KEY,
@@ -210,6 +210,18 @@ def _validate(entries):
         for f in ("enabled", "selectable"):
             if not isinstance(e.get(f), bool):
                 bad("%s: `%s` must be true or false" % (where, f))
+        # The two flags document two different questions - "is it in the
+        # regular pool" and "can the seat menu and the random draw offer it" -
+        # but today they gate two views of the same eleven keys, so flipping
+        # one without the other would give the league and the seat menu two
+        # different answers with no failure to show for it. They are flipped
+        # together, and a disagreement is refused here rather than discovered
+        # when a pool comes out one key short.
+        if isinstance(e.get("enabled"), bool) and \
+                isinstance(e.get("selectable"), bool) and \
+                e["enabled"] != e["selectable"]:
+            bad("%s: enabled=%s and selectable=%s disagree; the two are "
+                "flipped together" % (where, e["enabled"], e["selectable"]))
         for f in ("label", "desc_key"):
             v = e.get(f)
             if not isinstance(v, str) or not v:
@@ -313,10 +325,11 @@ def automated_options():
 def pool(name):
     """The keys of one named pool, in registration order.
 
-    `enabled` gates every pool at once rather than only "the regular one":
-    `enabled` is documented as *進常規池*, and at this stage the regular pool
-    and the four presets are all the same eleven keys, so one flag in one place
-    is what keeps the two views from drifting apart later.
+    `enabled` gates every pool at once rather than only "the regular one",
+    because at this stage the regular pool and the four presets are all the
+    same eleven keys. `_validate` refuses an entry whose `enabled` and
+    `selectable` disagree, so this view and `automated_options()` cannot drift
+    apart behind a half-flipped flag.
     """
     if name not in POOL_NAMES:
         raise ValueError("no such pool: %r; known: %s"
@@ -337,6 +350,11 @@ def anchors():
     frozen as its KL anchor. It answers with the *registered* name and never
     with `hc_1000`: that spelling is an alias for the same seat, and an anchor
     recorded two ways is how an eval log grows a second column for one model.
+
+    Nothing reads it yet. `rl/rl_train.py` still spells the anchor `hc_1000`
+    itself, because that spelling is what `data/rl1/eval.jsonl` rows are keyed
+    by and changing it would split one baseline into two columns. Wiring the RL
+    side to this function is a later-stage decision, not done here.
     """
     return (RL_KL_ANCHOR,)
 
@@ -355,8 +373,10 @@ def check_files(verify_sha256=True):
     """Every complaint about the files the JSON names. Empty means all good.
 
     Deliberately not called at import: it stats and hashes, and a game that
-    never plays a checkpoint should not pay for that. `python -m ai.registry
-    --check` and the test suite are its callers.
+    never plays a checkpoint should not pay for that. `python -m ai --check`
+    is its only caller outside the unit tests of this function itself - the
+    suite deliberately does **not** assert the real checkpoints' digests until
+    stage 4 publishes them into `ai/checkpoints/`.
     """
     problems = []
     for e in ENTRIES:
@@ -380,7 +400,8 @@ def check_files(verify_sha256=True):
     return problems
 
 
-def _main(argv):
+def main(argv):
+    """`python -m ai --check`: run every check, then print the four pools."""
     if argv == ["--check"]:
         problems = check_files()
         for p in problems:
@@ -388,10 +409,15 @@ def _main(argv):
         for name in POOL_NAMES:
             print("%-15s %s" % (name, ", ".join(pool(name))))
         return 1 if problems else 0
-    print("usage: python -m ai.registry --check")
+    print("usage: python -m ai --check")
     return 2
 
 
 if __name__ == "__main__":
-    raise SystemExit(_main(sys.argv[1:]))
+    # `python -m ai.registry` executes this module a second time, beside the
+    # copy `ai/__init__` already imported, and runpy warns about the duplicate
+    # before a line here runs. The package entry point does not have that
+    # problem, so this branch only exists to say where the real command is.
+    print("use `python -m ai --check` instead", file=sys.stderr)
+    raise SystemExit(2)
 

@@ -424,7 +424,10 @@ ai/
 | 下層 | `ai/registry.json` | **誰是選手**：key、順序、別名、label、desc_key、pools、enabled、selectable |
 
 `seats.automated_options()` 與 `seats.ALIASES` 讀下層，所以「換對手池」是改資料不是
-改程式碼。`python -m ai.registry --check` 會印出四個池的內容並檢查權重檔。
+改程式碼。**健康檢查的指令是 `python -m ai --check`**（不是 `python -m ai.registry
+--check`）：`ai/__init__.py` 匯出 `ai.registry`，跑子模組會把同一個模組執行兩次，
+runpy 會先噴一條 `RuntimeWarning`；掛在套件上就沒有這個問題。指令會印出四個池的
+內容並檢查權重檔。
 
 **欄位與權責（階段 2 的過渡設計）**
 
@@ -437,9 +440,26 @@ ai/
 屆時 `source` 保留原始訓練路徑當作複製來源的證明。在那之前兩邊同時寫死，由
 `tests/test_registry_json.py` 逐欄比對，任何一邊單獨改動都會失敗而不是靜默分歧。
 
-**驗證時機**：import 只做結構驗證（key 唯一、別名不衝突、pools 名稱合法、
-`label`／`desc_key` 存在於 `config.I`）；**檔案存在與 sha256 只在 `--check` 與測試**
-跑，否則每一次 `import seats` 都要多 stat 二十 megabyte。
+**驗證分三層，時機不同：**
+
+| 檢查 | 什麼時候跑 |
+|---|---|
+| 結構：key 唯一、別名不衝突、pools 名稱合法、`label`／`desc_key` 在 `config.I`、`enabled` 與 `selectable` 一致 | **import**（失敗就是模組載入失敗） |
+| 檔案**存在** | **測試** |
+| 檔案 **sha256** | **只有 `python -m ai --check`** |
+
+`enabled` 與 `selectable` 文案上是兩個問題（進常規池 vs. 出現在 UI 與隨機抽籤），
+但它們今天切的是同一組十一個 key 的兩種視圖，所以**兩個必須一起翻**；不一致會在
+import 就被拒絕，錯誤訊息指名那個 key。
+
+**sha256 為什麼還不在測試裡**：現在四個檢查點仍在 `data/`，那是訓練工廠，重訓
+會覆寫它。把雜湊斷言寫進測試，等於「誰重訓誰紅燈」。
+**階段 4 權重搬進 `ai/checkpoints/`（入版控）之後，sha256 驗證要重新納入測試** ——
+這是階段 4 的待辦，不是遺漏。
+
+**`anchors()` 目前只有測試呼叫**。它回傳 `("rl_h1000_0k",)`，但 `rl/rl_train.py`
+還自己寫死 `hc_1000`：那是 `data/rl1/eval.jsonl` 的列名，改了會把同一條基線切成
+兩欄。RL 端要不要改接這個函式，是後續階段的決定。
 
 **池的順序 = JSON 陣列順序**。`rng.choice` 抽的是 index，所以把一列往上挪就會重排
 同種子的所有對局。階段 3 會改成依 key 排序，與註冊順序脫鉤。

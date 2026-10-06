@@ -186,8 +186,14 @@ JSON 管 key／順序／別名／`label`／`desc_key`／`pools`／`enabled`／`s
 `module`／`checkpoint`／`source`／`sha256` 在階段 4 之前只是**記錄**，檔案與 kind 的
 權威仍是 `seats.IMITATION_STEPS`／`seats.RL_SEATS`。兩邊由
 `tests/test_registry_json.py` 逐欄交叉驗證 —— 改任何一邊都要讓另一邊跟上。
-import 只做結構驗證；**檔案存在與 sha256 只在 `python -m ai.registry --check`
-與測試**跑，不要掛到 import 上。
+import 只做結構驗證（含 **`enabled` 與 `selectable` 必須一致**，不一致的錯誤訊息
+指名那個 key）；**檔案「存在」在測試裡驗，sha256 只在 `python -m ai --check` 驗**，
+不要掛到 import 上。測試**刻意不**斷言 `data/` 內檢查點的雜湊 —— 那裡是訓練工廠，
+重訓會覆寫；**階段 4 權重搬進 `ai/checkpoints/` 之後要把 sha256 斷言加回測試**。
+健康檢查的指令是 `python -m ai --check`：`python -m ai.registry --check` 會把同一個
+模組執行兩次（`ai/__init__` 已經匯出它），runpy 會噴 `RuntimeWarning`。
+`anchors()` 目前**只有測試呼叫**，`rl/rl_train.py` 仍自己寫死 `hc_1000`（
+`eval.jsonl` 的列名），RL 端接入與否是後續階段的決定。
 
 ---
 
