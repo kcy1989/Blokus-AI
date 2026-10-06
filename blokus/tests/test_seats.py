@@ -134,13 +134,17 @@ def test_the_checkpoint_seats_are_the_hc2_run():
     """
     assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
     assert seats.IMITATION_STEPS == (1000, 2000, 10000)
-    assert seats.IMITATION_KEY_PREFIX == "hc_"
+    assert seats.IMITATION_KEYS == {1000: "rl_h1000_0k", 2000: "hc_2000",
+                                    10000: "hc_10000"}
     for step in seats.IMITATION_STEPS:
         key = seats.imitation_key(step)
-        assert key == "hc_%d" % step
         assert seats.imitation_step(key) == step
         assert os.path.exists(os.path.join(
             seats.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step))
+    # A step with no registered name is refused rather than given a key of the
+    # right shape and no file behind it - the `hc_9999` the prefix scheme made.
+    with pytest.raises(ValueError):
+        seats.imitation_key(9999)
 
 
 def test_an_unknown_option_is_refused():

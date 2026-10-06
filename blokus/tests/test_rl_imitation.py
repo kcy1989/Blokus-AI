@@ -95,16 +95,19 @@ def test_the_module_does_not_import_torch():
 
 
 def test_the_seat_pool_lists_the_three_hc2_checkpoints():
-    """The pool is H-C2, named `hc_*`, pointed at `data/hc2`.
+    """The pool is H-C2's three checkpoints, pointed at `data/hc2`.
 
-    Pinning the directory as well as the names matters: a pool carrying the new
-    key names but the old directory would pass every key-shape check here and
-    serve networks trained on a `stuck` column that disagreed with the rules.
+    Step 1000 is named `rl_h1000_0k` - the 0k point of the `rl_h1000` chain,
+    which is the same file the retired `hc_1000` spelled - while 2000 and 10000
+    keep the `hc_` prefix they were published under. Pinning the directory as
+    well as the names matters: a pool carrying the new key names but the old
+    directory would pass every key-shape check here and serve networks trained
+    on a `stuck` column that disagreed with the rules.
     """
     assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
     assert seats.IMITATION_STEPS == (1000, 2000, 10000)
     assert [seats.imitation_key(s) for s in seats.IMITATION_STEPS] == \
-        ["hc_1000", "hc_2000", "hc_10000"]
+        ["rl_h1000_0k", "hc_2000", "hc_10000"]
     for key in ("step_2000", "step_10000", "step_22000", "step_38000"):
         assert not seats.is_imitation_key(key)
 

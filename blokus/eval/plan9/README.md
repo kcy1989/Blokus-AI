@@ -799,3 +799,55 @@ step 500 又創了新低——兩種讀法(逐步最低點 / 整條曲線的最�
 **停下,回報,不動規則、不動資料、不動步數。**下一步怎麼走是決定,不是推論:可選的
 方向(僅列出,本節不執行)包括加大模仿步數、換種子重跑一次、或以「校準錯誤 + 獨立證據」
 的方式修訂 2.93 本身——最後一項與 0.063 的廢止同型,沒有獨立證據就不成立。
+
+---
+
+## 階段 1 改名:`hc_1000` → `rl_h1000_0k`(2026-10-06)
+
+plan9a 階段 1。0k 檢查點的座位 key 改名,舊名永久作別名。**本目錄的證據檔案一個都沒
+動**——它們仍記著 `subject: hc_1000`,那是它們產出當下的事實。
+
+### 改了什麼、沒改什麼
+
+| | 結果 |
+| --- | --- |
+| 池 | 同一個 11 長度清單,**只有第 7 個位置的字串換掉** → 同種子的座位、顏色、餘格、名次全部不變 |
+| 別名 | `hc_1000` → `rl_h1000_0k`(`seats.ALIASES`),`--pool` 與 `--subject` 都寫入正式名 |
+| kind | 兩個拼法都是 `KIND_IMITATION`(同一個 `data/hc2/step_001000.pt`),`imitation_only` 仍是 3、`rl_only` 仍是 1、`no_imitation` 仍是 7 |
+| `records.json` | **未改寫**:`hc_1000` 那 1 局的舊列留著可讀,新的對局寫新 key(計畫要求「舊 key 可讀」) |
+| `eval/plan9/` | 未改寫 |
+
+`GOLDEN` 的**名稱欄**因此從 `hc_1000` 變成 `rl_h1000_0k`,其餘每一個字都相同——這正是
+`test_seat_rename` 那條「改名是改名,不是換座位」的性質,新增的
+`tests/test_seat_alias_hc.py::test_the_rename_left_every_other_seat_where_it_was`
+把整個 11 元組釘住,讓這句話可驗證。
+
+### 重跑確認:0.5b 的 `argmax-hc_1000` 逐局相同
+
+```
+.venv-rl/bin/python match.py --pool no_imitation --games 2000 \
+    --seed 20261005 --paired-rng --subject hc_1000 --mode argmax --gzip \
+    --out /tmp/kilo/rerun_hc1000.json
+```
+
+把已提交批次的 payload 裡所有字串 `hc_1000` 換成 `rl_h1000_0k` 之後,與重跑輸出
+**完全相等**:`games_detail` 2000/2000 局逐局相同、`summary` 相同、`appearances`
+相同、其餘欄位相同。唯一的差異就是 `subject` 欄本身——`--subject hc_1000` 經
+`validate_subject` 正規化後寫入 `rl_h1000_0k`,這正是別名該有的行為(舊拼法不進證據)。
+
+| 檔案 | md5 |
+| --- | --- |
+| `argmax-hc_1000-games.json.gz`(已提交,**未變**) | `257177ec1bec403e35c47bcd11ef5009` |
+| 重跑輸出(差在 subject 字串) | `a153bb04fbdbc74d04f5b36dd2ac59aa` |
+
+`records.json` 重跑前後 md5 皆 `84a44115a9a6eead9c55f8dd9997db95`(`--paired-rng`
+不寫排行榜)。
+
+### 這也回答了「證據還能不能重跑」
+
+能,而且是**逐局**相同。這件事在階段 3(抽籤改依 key 排序)會變,因為
+`no_imitation` 的**順序**來自 `automated_options()`:今天它是 `wolf, chess, fox,
+intruder, optimizer, builder, hunter`,與批次檔 `pool` 欄記的順序一致,所以 `--pool
+no_imitation` 就夠;改成 key 排序後同樣的指令會抽出不同的對手,必須改用「照給定順
+序、不排序」的旗標重現。**本節的重跑方式在階段 3 之後需要更新,屆時以該階段的回報
+為準。**

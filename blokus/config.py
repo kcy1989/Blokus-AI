@@ -117,10 +117,10 @@ I = {
     "imitation_mode_fmt": "模仿選步：{0}",
     "imitation_desc_fmt": "H-C2 第 {0} 步的檢查點",
     # A trained policy's name already says what it is - `rl_h1000_20k` is PPO
-    # from hc_1000 over 20,000 games - so there is nothing to interpolate and
-    # nothing to translate. The label is the name.
+    # from the 0k checkpoint over 20,000 games - so there is nothing to
+    # interpolate and nothing to translate. The label is the name.
     "rl_fmt": "強化學習 {0}",
-    "rl_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；比啟動它的 hc_1000 強",
+    "rl_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；比啟動它的 rl_h1000_0k 強",
     "ai_pool": "AI",
     "human_pool": "人類",
     "imitation_pool": "模仿",

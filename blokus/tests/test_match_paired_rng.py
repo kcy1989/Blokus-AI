@@ -476,7 +476,7 @@ def test_an_unknown_subject_names_the_legal_options():
     # Read the names from the pool rather than writing them out, so that a
     # rename does not turn this into a test of the rename.
     legal = S.automated_options()
-    for key in ("rl_h1000_20k", "hc_1000", "wolf"):
+    for key in ("rl_h1000_20k", "rl_h1000_0k", "wolf"):
         assert key in legal
         assert key in str(e.value)
     assert len(legal) == 11

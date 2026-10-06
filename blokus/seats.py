@@ -67,26 +67,34 @@ HUMAN_LOG_KEY = "human_log"
 IMITATION_STEPS = (1000, 2000, 10000)
 IMITATION_CHECKPOINT_DIR = "data/hc2"
 
-# The option-key prefix. `seats` owns this naming; `rl.imitation` asks for a key
-# rather than inventing one, so an old `step_*` name has no path to a network.
-IMITATION_KEY_PREFIX = "hc_"
+# The option key each step is registered under, and its inverse. A table rather
+# than a prefix, because two naming conventions coexist on purpose: step 1000 is
+# the 0k starting point of the `rl_h1000` chain and is named for it, while 2000
+# and 10000 keep the `hc_` prefix they were published under. `rl.imitation` asks
+# this module for a key rather than inventing one, so an old `step_*` name has
+# no path to a network - and `imitation_key` now refuses a step that has no
+# registered name instead of manufacturing `hc_9999` for it.
+IMITATION_KEYS = {1000: "rl_h1000_0k", 2000: "hc_2000", 10000: "hc_10000"}
+IMITATION_KEY_STEPS = {key: step for step, key in IMITATION_KEYS.items()}
 
 # Trained policies, as `(option key, checkpoint file)` pairs.
 #
 # Written out as a table rather than derived, because a trained policy's identity
-# *is* its file. H-C2's three checkpoints live in one directory under one naming
-# convention, so a step number identifies a file and `imitation_key` can build
-# the name. `data/rl1` has no such convention: `step_000040.pt` there means round
-# 40, not an imitation step, and `latest.pt` is a moving target that would make
-# the pool entry quietly mean a different policy after every retrain. So the file
-# is named, and pinning it is the friction that keeps a league result
-# interpretable.
+# *is* its file. H-C2's three checkpoints live in one directory under one
+# filename convention, so a step number identifies a file and `imitation_key`
+# looks up the name it was registered under. `data/rl1` has no such convention:
+# `step_000040.pt` there means round 40, not an imitation step, and `latest.pt`
+# is a moving target that would make the pool entry quietly mean a different
+# policy after every retrain. So the file is named, and pinning it is the
+# friction that keeps a league result interpretable.
 #
-# `rl_h1000_20k` = PPO from `hc_1000`, 20,000 episodes. The `h` names the
-# 0k model it started from, which was distilled from the `hunter` personality:
-# `data/hc1/manifest.json` records `teacher = hunter`, and the checkpoint's own
-# `init_checkpoint` field records `data/hc2/step_001000.pt`. The training curve
-# is in `data/rl1/rounds.jsonl`, which is where the 40 rounds of 500 games are.
+# `rl_h1000_20k` = PPO from the 0k checkpoint, 20,000 episodes. The `h` names
+# the personality that 0k model was distilled from: `data/hc1/manifest.json`
+# records `teacher = hunter`, and the checkpoint's own `init_checkpoint` field
+# records `data/hc2/step_001000.pt` - the file the seat `rl_h1000_0k` plays,
+# which plan9a stage 1 renamed out of its old `hc_1000` spelling. The training
+# curve is in `data/rl1/rounds.jsonl`, which is where the 40 rounds of 500
+# games are.
 RL_SEATS = (
     ("rl_h1000_20k", "data/rl1/step_000040.pt"),
 )
@@ -107,6 +115,17 @@ RL_ALIASES = {
     "rl_1000_20k": "rl_h1000_20k",
 }
 
+# Every alias, the imitation ones and the trained-policy ones alike. This is
+# what `canonical_key` reads, and it is *built* from `RL_ALIASES` rather than
+# written beside it so the two cannot drift: two tables would mean a name
+# retired in one of them resolves in one place and not another, and which place
+# that is would depend on which table the reader happened to look at.
+#
+# `hc_1000` is the spelling the 0k checkpoint was published and measured under;
+# it stays valid for ever, because `--subject hc_1000` names two committed
+# evidence batches and `records.json` still has a row under it.
+ALIASES = dict(RL_ALIASES, **{"hc_1000": IMITATION_KEYS[1000]})
+
 RL_KEY_PREFIX = "rl_"
 
 SEATS = 4
@@ -116,12 +135,12 @@ def canonical_key(key):
     """The registered name for `key`, following the alias table.
 
     Everything that has to *recognise* a seat goes through here, so an alias is
-    accepted anywhere a key is: `--pool rl_1000_20k`, `--subject rl_1000_20k`
-    and `build_brain("rl_1000_20k", ...)` all name the same policy as
-    `rl_h1000_20k`. Deliberately one hop - an alias naming another alias would
-    need a loop and nothing currently needs one.
+    accepted anywhere a key is: `--pool rl_1000_20k`, `--subject hc_1000` and
+    `build_brain("rl_1000_20k", ...)` all name the seat their canonical name
+    names. Deliberately one hop - an alias naming another alias would need a
+    loop and nothing currently needs one.
     """
-    return RL_ALIASES.get(key, key)
+    return ALIASES.get(key, key)
 
 
 def rl_keys():
@@ -157,15 +176,31 @@ _RL_KEYS = frozenset(rl_keys())
 
 
 def imitation_key(step):
-    """The option key for the checkpoint saved at `step`."""
-    return "%s%d" % (IMITATION_KEY_PREFIX, int(step))
+    """The option key the checkpoint saved at `step` is registered under.
+
+    Raises for a step that has no registered name. The prefix scheme this
+    replaced would have happily returned `hc_9999` - a key of the right shape
+    with no file behind it - which is the exact thing `is_imitation_key` exists
+    to refuse.
+    """
+    key = IMITATION_KEYS.get(int(step))
+    if key is None:
+        raise ValueError("step %r has no registered imitation option; the pool "
+                         "names %s" % (step, sorted(IMITATION_KEYS)))
+    return key
 
 
 def imitation_step(key):
-    """The step an option key names. Inverse of `imitation_key`."""
-    if not key.startswith(IMITATION_KEY_PREFIX):
+    """The step an option key names. Inverse of `imitation_key`.
+
+    Goes through `canonical_key`, so the retired `hc_1000` still answers 1000 -
+    which is what lets a game set up with the old spelling reach the same
+    weights as one set up with `rl_h1000_0k`.
+    """
+    step = IMITATION_KEY_STEPS.get(canonical_key(key))
+    if step is None:
         raise ValueError("%r is not an imitation option" % (key,))
-    return int(key[len(IMITATION_KEY_PREFIX):])
+    return step
 
 
 def is_imitation_key(key):
@@ -174,9 +209,11 @@ def is_imitation_key(key):
     Deliberately a set membership rather than a prefix test: `hc_9999` has the
     right shape and no file behind it, and the old `step_*` names have the wrong
     shape and a perfectly good file behind them. Matching the set is what stops
-    either of those from being treated as a playable seat.
+    either of those from being treated as a playable seat. Aliases count, the
+    same way `is_rl_key` counts them, so `hc_1000` keeps answering True now that
+    the seat it names is registered as `rl_h1000_0k`.
     """
-    return key in _IMITATION_KEYS
+    return key in _IMITATION_KEYS or canonical_key(key) in _IMITATION_KEYS
 
 
 _IMITATION_KEYS = frozenset(imitation_key(s) for s in IMITATION_STEPS)

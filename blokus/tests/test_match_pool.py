@@ -240,7 +240,7 @@ def test_whitespace_and_quoting_are_tolerated():
 def test_no_option_outside_the_pool_ever_appears():
     for text, allowed in (("no_imitation", set(PERSONALITIES)),
                           ("imitation_only", set(STEPS)),
-                          ("hc_1000,hc_10000", {"hc_1000",
+                          ("hc_1000,hc_10000", {"rl_h1000_0k",
                                                  "hc_10000"}),
                           ("no_imitation,hc_2000",
                            set(PERSONALITIES) | {"hc_2000"})):
@@ -314,6 +314,11 @@ def test_no_pool_at_all_means_all():
 # trained policy `rl_h1000_20k` was registered, taking it to eleven. Either way
 # `rng.choice` draws different indices and every seat in these games changes.
 #
+# **And touched once, without recapturing.** plan9a stage 1 renamed `hc_1000` to
+# `rl_h1000_0k`. The key sits at the same index of the same eleven-long list, so
+# the draws are unchanged and only the name column moved - which is the point of
+# the check in `test_seat_rename`: a rename is a change of name, not of seating.
+#
 # What the test still guards is the property that survives: a default run and an
 # explicit `--pool all` play exactly the same games, and that pair keeps doing so
 # as the pool changes. The absolute numbers below are pinned to the current pool,
@@ -327,11 +332,11 @@ GOLDEN = {
     7: [('builder', 'green', 4), ('fox', 'red', 25),
         ('hunter', 'yellow', 12), ('rl_h1000_20k', 'blue', 15),
         ('rl_h1000_20k', 'green', 18), ('builder', 'yellow', 4),
-        ('wolf', 'blue', 32), ('hc_1000', 'red', 16)],
+        ('wolf', 'blue', 32), ('rl_h1000_0k', 'red', 16)],
     99: [('hunter', 'yellow', 12), ('hunter', 'red', 32),
          ('intruder', 'blue', 15), ('hc_10000', 'green', 16),
          ('fox', 'yellow', 38), ('builder', 'blue', 0),
-         ('hc_1000', 'red', 13), ('wolf', 'green', 13)],
+         ('rl_h1000_0k', 'red', 13), ('wolf', 'green', 13)],
 }
 
 
