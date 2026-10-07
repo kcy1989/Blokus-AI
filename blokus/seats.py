@@ -24,9 +24,12 @@ This module imports neither torch nor pygame: `rl.imitation` is imported inside
 `build_brain` so a game with no imitation seat never loads torch, and the UI,
 the league and the tests can all use the same seat model.
 """
+import os
+
 from ai import make_brain
 from ai.registry import (aliases as registry_aliases,
                          automated_options as registry_automated_options,
+                         checkpoint as registry_checkpoint,
                          personality_keys)
 from config import CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER
 
@@ -66,6 +69,12 @@ HUMAN_LOG_KEY = "human_log"
 # and are still loadable by step number; they are simply no longer *named*, so
 # that a stale key cannot silently resolve to a checkpoint trained on data whose
 # `stuck` column disagreed with the rules.
+#
+# Since plan9a stage 4 this directory is where H-C2 **trained**, not where the
+# product reads: step 1000 was published into `ai/checkpoints/rl_h1000_0k/`,
+# while 2000 and 10000 are still this run's own output. Which path a key loads
+# from is `ai/registry.json`'s `checkpoint`; this constant stays because the
+# source is still true and `source` cross-checks against it.
 IMITATION_STEPS = (1000, 2000, 10000)
 IMITATION_CHECKPOINT_DIR = "data/hc2"
 
@@ -97,6 +106,13 @@ IMITATION_KEY_STEPS = {key: step for step, key in IMITATION_KEYS.items()}
 # which plan9a stage 1 renamed out of its old `hc_1000` spelling. The training
 # curve is in `data/rl1/rounds.jsonl`, which is where the 40 rounds of 500
 # games are.
+#
+# Since plan9a stage 4 the *load* path is `ai/registry.json`'s `checkpoint` -
+# `ai/checkpoints/rl_h1000_20k/step_000040.pt`, beside the code that reads it.
+# What this table still names is where the policy was *trained*, which is what
+# `source` records and what `tests/test_registry_json.py` cross-checks against.
+# The table itself stays: which option keys are trained policies is still
+# decided here, because that is a fact about the code and not about a file.
 RL_SEATS = (
     ("rl_h1000_20k", "data/rl1/step_000040.pt"),
 )
@@ -155,17 +171,20 @@ def rl_keys():
 
 
 def rl_checkpoint(key):
-    """The checkpoint file for a trained-policy key.
+    """The checkpoint file a trained-policy key loads from.
+
+    The path comes from `ai/registry.json` as of plan9a stage 4 - the weights
+    live in `ai/checkpoints/` beside the code that reads them - while
+    `RL_SEATS` above keeps naming where the policy was trained.
 
     Raises for anything else, including a key of the right shape that is not
     registered - `rl_9999` would otherwise be a name that resolves to nothing, or
     worse, to whatever a future table happens to put at that slot.
     """
     key = canonical_key(key)
-    for registered, path in RL_SEATS:
-        if registered == key:
-            return path
-    raise ValueError("%r is not a trained-policy seat" % (key,))
+    if not is_rl_key(key):
+        raise ValueError("%r is not a trained-policy seat" % (key,))
+    return registry_checkpoint(key)
 
 
 def is_rl_key(key):
@@ -207,6 +226,23 @@ def imitation_step(key):
     if step is None:
         raise ValueError("%r is not an imitation option" % (key,))
     return step
+
+
+def imitation_checkpoint(key):
+    """The checkpoint file an imitation key loads from.
+
+    The path comes from `ai/registry.json` as of plan9a stage 4. `imitation_step`
+    still says *which* checkpoint, and the filename still follows H-C2's
+    `step_%06d.pt` convention - but the directory is per key now, because step
+    1000 was published into `ai/checkpoints/rl_h1000_0k/` while 2000 and 10000
+    are still H-C2's own output under `data/hc2`. One directory for all three
+    stopped being true at that moment, which is why this exists rather than
+    `os.path.join(IMITATION_CHECKPOINT_DIR, ...)`.
+    """
+    key = canonical_key(key)
+    if not is_imitation_key(key):
+        raise ValueError("%r is not an imitation-checkpoint seat" % (key,))
+    return registry_checkpoint(key)
 
 
 def is_imitation_key(key):
@@ -391,15 +427,19 @@ def build_brain(key, rng, kind=None, checkpoint_dir=None,
         raise ValueError(
             "seat option %r is a deferred choice; call resolve_random_ai "
             "before building a game" % (key,))
-    if checkpoint_dir is None:
-        # Resolved here rather than as a default argument, which would bind the
-        # directory once at import and quietly ignore a later rebinding - the
-        # same trap `records.Records.__init__` sets with its path.
-        checkpoint_dir = IMITATION_CHECKPOINT_DIR
     if kind == KIND_AI:
         return make_brain(key, rng)
     if kind == KIND_IMITATION:
         from rl.imitation import load_brain
+        if checkpoint_dir is None:
+            # Resolved here rather than as a default argument, which would bind
+            # the directory once at import and quietly ignore a later
+            # rebinding - the same trap `records.Records.__init__` sets with its
+            # path. It is per *key* rather than one constant for the three,
+            # because plan9a stage 4 published step 1000 into
+            # `ai/checkpoints/rl_h1000_0k/` while 2000 and 10000 stayed under
+            # `data/hc2`: one directory for all three stopped being true there.
+            checkpoint_dir = os.path.dirname(imitation_checkpoint(key))
         # The seat key is handed to the brain rather than rebuilt from the step:
         # `choose_move` traces and `test_seats` both require
         # `brains[owner].key == owner_key[owner]`, and two places formatting the
@@ -410,8 +450,9 @@ def build_brain(key, rng, kind=None, checkpoint_dir=None,
         from rl.imitation import load_brain_at
         # `checkpoint_dir` is deliberately not consulted: it names where the
         # H-C2 checkpoints live, and a trained policy is not one of those. Its
-        # file is named in `RL_SEATS`, which is the only place that decides which
-        # weights this key means.
+        # file is `ai/registry.json`'s `checkpoint`, read through
+        # `rl_checkpoint` - the only place that decides which weights this key
+        # means since plan9a stage 4.
         return load_brain_at(rl_checkpoint(key), key=key, device=device,
                              mode=mode)
     return None

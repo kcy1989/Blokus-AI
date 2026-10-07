@@ -51,15 +51,16 @@ N_ORIENT = 91
 
 
 def default_checkpoint_dir():
-    """The directory the seat pool points at, asked of `seats`.
+    """H-C2's own training directory, asked of `seats`.
 
-    Not a module constant, and not a second hard-coded path. A game set up
-    through `Game.setup_seats` passes `checkpoint_dir=None` down here, so
-    whatever this resolves to is the directory the product actually reads - and
-    when it was a constant of its own it said `data/hb2` while the pool said
-    something else. `seats` owns which checkpoints are playable, so it owns the
-    directory; the import is inside the function so `rl` still does not depend
-    on the game layer at import time.
+    A *fallback* for a caller that names a step and not a file. No single
+    directory describes the pool any more: step 1000 was published into
+    `ai/checkpoints/rl_h1000_0k/` at plan9a stage 4 while 2000 and 10000 stay
+    under `data/hc2`, so `seats.build_brain` resolves per key through
+    `ai/registry.json` and does not land here. What still belongs to `seats` is
+    *which run* this is - a second hard-coded path is how the pool once said
+    `data/hc2` while this function said `data/hb2`. The import stays inside the
+    function so `rl` still does not depend on the game layer at import time.
     """
     import seats
     return seats.IMITATION_CHECKPOINT_DIR

@@ -81,15 +81,24 @@
   - ai/registry.json、ai/registry.py
   - ai/checkpoints/<key>/…(入版控)
   - ai/heuristics/(Python 算法型 AI,見階段 5)
-- 發布對象:rl_h1000_20k、rl_h1000_0k、rl_o1000_0k、rl_b1000_0k、rl_i1000_0k。
+- 發布對象:**2 個** —— `rl_h1000_20k`、`rl_h1000_0k`。
+  (原列的 `rl_o1000_0k`、`rl_b1000_0k`、`rl_i1000_0k` **留到階段 6**:它們還沒註冊,
+  先搬進 `ai/checkpoints/` 會撞上同階段的「無未登記權重」驗證 —— 兩者互斥,
+  依裁決 B2-(甲) 先讓已註冊的兩個到位。)
 - 複製不搬移,`data/` 不動;複製後 sha256 逐檔比對並列表回報。
 - registry 的 checkpoint 指向 ai/ 內路徑;source 記錄原路徑。
 - .gitignore:`data/*` 維持忽略,僅 `ai/checkpoints/` 入版控;以 `git ls-files` 確認。
+  **實際狀態是過渡的**:已撤 `step_001000.pt` 與 `step_000040.pt` 的反白,
+  `step_002000.pt`／`step_010000.pt` 的反白**保留**(裁決 B1 選 1,它們沒發布),
+  階段 6 兩者設 `enabled:false` 時再回來處理。
 - 「每個網路座位的權重都在版控」測試改指 ai/ 內路徑。
 - 驗證新增:ai/checkpoints/ 內無未登記權重;無登記缺檔。
 - 說明:sha256 是複製的來源證明,不要求與 data/ 同步;data/ 之後被覆蓋不算錯。
+  (注意 `hc_2000`／`hc_10000` 仍在 `data/`,它們的 sha256 **仍在測試裡** ——
+  這是刻意的,見 AGENTS「權重檔案放哪」。)
 - 新增發布命令:`python -m ai.registry --publish <key> --from <path>`
   - 複製、算雜湊、寫入 enabled:false 的草稿項,由使用者手動改為 true。
+  - **尚未實作**:階段 4 的裁決清單沒列這項,待使用者決定是否補做。
 
 ## 階段 5:Python 算法型 AI 搬入 ai/heuristics/
 - 只改 import 路徑,不改邏輯。

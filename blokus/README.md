@@ -429,33 +429,29 @@ ai/
 runpy 會先噴一條 `RuntimeWarning`；掛在套件上就沒有這個問題。指令會印出四個池的
 內容並檢查權重檔。
 
-**欄位與權責（階段 2 的過渡設計）**
+**欄位與權責**
 
 | 欄位 | 誰說了算 |
 |---|---|
 | `key`、`aliases`、`pools`、`enabled`、`selectable`、`label`、`desc_key` | **JSON** |
-| `module`、`checkpoint`、`source`、`sha256` | JSON 只**記錄**，權威仍在上層與 `seats.IMITATION_STEPS` / `seats.RL_SEATS` |
+| `checkpoint`（**從哪裡載入**，階段 4 起） | **JSON**；`seats.rl_checkpoint` / `seats.imitation_checkpoint` 只是它的讀者 |
+| `source`（**在哪裡訓練**） | JSON 記錄，權威仍在 `seats.RL_SEATS` / `seats.IMITATION_CHECKPOINT_DIR` |
+| `module`、`kind` | 上層／`seats`，JSON 同步一份 |
+| `sha256` | **JSON**，由 `check_files()` 對實際檔案比對 |
 
-檔案路徑的權威**階段 4 之後改歸 JSON**（權重複製進 `ai/checkpoints/` 時一併搬過去），
-屆時 `source` 保留原始訓練路徑當作複製來源的證明。在那之前兩邊同時寫死，由
+路徑權威已在**階段 4** 移交 JSON（見下面的「階段 4 完成狀態」）。
 `tests/test_registry_json.py` 逐欄比對，任何一邊單獨改動都會失敗而不是靜默分歧。
 
-**驗證分三層，時機不同：**
+**驗證分兩層，時機不同：**
 
 | 檢查 | 什麼時候跑 |
 |---|---|
 | 結構：key 唯一、別名不衝突、pools 名稱合法、`label`／`desc_key` 在 `config.I`、`enabled` 與 `selectable` 一致 | **import**（失敗就是模組載入失敗） |
-| 檔案**存在** | **測試** |
-| 檔案 **sha256** | **只有 `python -m ai --check`** |
+| 檔案**存在** + **sha256** | **測試** 與 **`python -m ai --check`** |
 
 `enabled` 與 `selectable` 文案上是兩個問題（進常規池 vs. 出現在 UI 與隨機抽籤），
 但它們今天切的是同一組十一個 key 的兩種視圖，所以**兩個必須一起翻**；不一致會在
 import 就被拒絕，錯誤訊息指名那個 key。
-
-**sha256 為什麼還不在測試裡**：現在四個檢查點仍在 `data/`，那是訓練工廠，重訓
-會覆寫它。把雜湊斷言寫進測試，等於「誰重訓誰紅燈」。
-**階段 4 權重搬進 `ai/checkpoints/`（入版控）之後，sha256 驗證要重新納入測試** ——
-這是階段 4 的待辦，不是遺漏。
 
 **`anchors()` 目前只有測試呼叫**。它回傳 `("rl_h1000_0k",)`，但 `rl/rl_train.py`
 還自己寫死 `hc_1000`：那是 `data/rl1/eval.jsonl` 的列名，改了會把同一條基線切成
@@ -464,6 +460,32 @@ import 就被拒絕，錯誤訊息指名那個 key。
 **池的順序 = 依 key 排序**（plan9a 階段 3）。排序規則只有一處 ——
 `ai.registry.pool_order()`，見 `## 測試` 底下的「池的順序」。註冊表陣列順序
 因此不再是任何行為的一部分：重排 `ai/registry.json` 的列不會動到任何一場對局。
+
+### 階段 4 完成狀態：權重搬進 `ai/checkpoints/`
+
+**只搬了兩個。** 依裁決 B2-(甲)，`rl_o1000_0k` / `rl_b1000_0k` / `rl_i1000_0k`
+還沒有註冊（它們要到階段 6 才進名冊），所以「`ai/checkpoints/` 內無未登記權重」
+這條驗證要求**先搬已註冊的兩個**；三個學生等階段 6 註冊時一起搬。
+
+| key | 來源（`source`，仍在 `data/`） | 載入路徑（`checkpoint`，已入版控） | sha256（來源 == 目的地） |
+|---|---|---|---|
+| `rl_h1000_20k` | `data/rl1/step_000040.pt` | `ai/checkpoints/rl_h1000_20k/step_000040.pt` | `e1dc6230…4801636` |
+| `rl_h1000_0k` | `data/hc2/step_001000.pt` | `ai/checkpoints/rl_h1000_0k/step_001000.pt` | `fc0052d3…cd11b74` |
+
+複製前後逐檔 `sha256` 比對通過才繼續；`hc_2000` / `hc_10000` 依裁決 B **不搬**，
+`checkpoint` 仍是 `data/hc2/step_002000.pt` / `step_010000.pt`。
+
+**`.gitignore` 是過渡狀態，不是終點。** 已撤銷 `!data/hc2/step_001000.pt` 與
+`!data/rl1/step_000040.pt`（並 `git rm --cached`，檔留在磁碟上），所以那兩份
+`data/` 副本不再入版控 —— 乾淨 clone 靠 `ai/checkpoints/`。
+`!data/hc2/step_002000.pt` 與 `!data/hc2/step_010000.pt` **保留**：這兩個檔是
+`hc_2000` / `hc_10000` 僅有的權重，撤了就會讓乾淨 clone 連 `--pool hc_2000` 都開
+不了。**階段 6 把它們設成 `enabled: false` 之後要回來處理這兩行**，那時它們既不
+在常規池也不該佔版控。
+
+**行為零變更的證據**：換路徑前後各跑一次 `run_league(2, seed=20260928)`，
+`cmp` 逐位元相同（md5 `31952a49913b7f393b9d1e77c3aa72e9`）—— 改的是檔案從哪裡
+來，不是檔案是什麼。
 
 ### 選棋流水線
 

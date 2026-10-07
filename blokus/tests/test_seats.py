@@ -65,11 +65,16 @@ def test_a_trained_policy_seat_names_a_file_that_exists():
     table, so the table is what has to be checked - and it is checked here
     rather than at the first game, where the failure would look like a training
     problem.
+
+    The path is under `ai/` since plan9a stage 4 and under `data/` only for a
+    seat that was never published, so both prefixes are legal here; what is not
+    legal is a path outside the repository, where a fresh clone would have
+    neither the seat nor the weights.
     """
     for key in seats.rl_keys():
         path = seats.rl_checkpoint(key)
         assert os.path.exists(path), (key, path)
-        assert os.path.isabs(path) or path.startswith("data/")
+        assert path.startswith(("data/", "ai/")), path
 
 
 def _is_gitignored(path):
@@ -92,22 +97,20 @@ def _repo_root():
 def test_every_network_seat_is_actually_in_the_repository():
     """A seat whose weights are not committed is not a seat.
 
-    The four checkpoints are gitignored as a class, with each one named back by a
-    negation - and a negation cannot re-include a file whose parent directory the
-    pattern matched, so the whole arrangement fails silently and leaves a pool
-    that works on the machine that trained it and nowhere else. The symptom is a
-    fresh clone that cannot start a game, which reads as a broken checkout rather
-    than as a missing blob.
+    The paths come from the accessors the product itself uses, because that is
+    the thing under test: whatever `build_brain` will open has to survive
+    `git check-ignore`. Stage 4 published two of the four into
+    `ai/checkpoints/` beside the code; `hc_2000` and `hc_10000` were never
+    published and still ride on a negation in `.gitignore`, which is a
+    transitional state stage 6 revisits.
 
-    So the agreement between the tables is the thing under test: every
-    registered checkpoint file has to survive `git check-ignore`.
+    The failure mode this guards is not a red assertion but a fresh clone that
+    cannot start a game - which reads as a broken checkout rather than as a
+    missing blob, and is the sort of thing nobody connects to a `data/*` line.
     """
-    seen = []
-    for key in seats.rl_keys():
-        seen.append((key, seats.rl_checkpoint(key)))
-    for key in (seats.imitation_key(s) for s in seats.IMITATION_STEPS):
-        seen.append((key, os.path.join(seats.IMITATION_CHECKPOINT_DIR,
-                                       "step_%06d.pt" % seats.imitation_step(key))))
+    seen = [(key, seats.rl_checkpoint(key)) for key in seats.rl_keys()]
+    seen += [(key, seats.imitation_checkpoint(key))
+             for key in (seats.imitation_key(s) for s in seats.IMITATION_STEPS)]
     checked = 0
     for key, path in seen:
         ignored = _is_gitignored(path)
@@ -132,19 +135,31 @@ def test_the_checkpoint_seats_are_the_hc2_run():
     """The pool names H-C2, and only H-C2.
 
     H-B2's four checkpoints are still on disk and `load_brain` would still open
-    one, so this pins the *directory* as well as the steps: a pool that pointed
+    one, so this pins the *source run* as well as the steps: a pool that pointed
     at `data/hb2` with the new key names would pass every key-shape test above
     and quietly serve networks trained on the old `stuck` column.
+
+    Since plan9a stage 4 `IMITATION_CHECKPOINT_DIR` is where H-C2 **trained**,
+    not necessarily where a seat loads from - step 1000 was published into
+    `ai/checkpoints/rl_h1000_0k/`. What has to hold either way: the source is
+    H-C2's run for all three, the filename still follows its `step_%06d`
+    convention (which `build_brain` rebuilds the path from), and the file the
+    seat actually opens is there.
     """
     assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
     assert seats.IMITATION_STEPS == (1000, 2000, 10000)
     assert seats.IMITATION_KEYS == {1000: "rl_h1000_0k", 2000: "hc_2000",
                                     10000: "hc_10000"}
+    from ai import registry as reg
     for step in seats.IMITATION_STEPS:
         key = seats.imitation_key(step)
         assert seats.imitation_step(key) == step
-        assert os.path.exists(os.path.join(
-            seats.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step))
+        entry = reg.entry(key)
+        assert os.path.dirname(entry["source"]) == \
+            seats.IMITATION_CHECKPOINT_DIR, key
+        assert os.path.basename(entry["source"]) == "step_%06d.pt" % step
+        assert os.path.basename(entry["checkpoint"]) == "step_%06d.pt" % step
+        assert os.path.exists(seats.imitation_checkpoint(key)), key
     # A step with no registered name is refused rather than given a key of the
     # right shape and no file behind it - the `hc_9999` the prefix scheme made.
     with pytest.raises(ValueError):

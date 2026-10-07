@@ -28,8 +28,12 @@ import seats
 from config import CLOCKWISE_OWNERS, PLAYER_OWNER
 from game import Game
 
-CHECKPOINT_DIR = seats.IMITATION_CHECKPOINT_DIR
 STEP = seats.IMITATION_STEPS[0]
+# Where step 1000 was *published* to, not where H-C2 trained: plan9a stage 4
+# copied it into `ai/checkpoints/rl_h1000_0k/` and untracked the `data/`
+# original, so `IMITATION_CHECKPOINT_DIR` would name a file a fresh clone lacks.
+CHECKPOINT_DIR = os.path.dirname(
+    seats.imitation_checkpoint(seats.imitation_key(STEP)))
 
 
 def _have_checkpoint(step=STEP):

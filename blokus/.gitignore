@@ -58,15 +58,21 @@ env/
 # directory `data/hc2`, and everything under an excluded directory stays
 # excluded no matter what follows. The directory has to be un-ignored first,
 # then its contents re-excluded, and only then can the one file be named.
+#
+# plan9a stage 4 published two of these four into `ai/checkpoints/` (verified
+# sha256 against the source first), so their negations are gone: the weights a
+# seat loads from now live with the code. `hc_2000` and `hc_10000` are the
+# deliberate exception - they were never published, so their two negations stay
+# and `data/` still carries them in the repository. That is a transitional
+# state, not a plan: stage 6 turns both `enabled` off, and this block gets a
+# third look when it does. See README, 「階段 4 完成狀態」.
 data/*
 !data/hc2/
 data/hc2/*
-!data/hc2/step_001000.pt
 !data/hc2/step_002000.pt
 !data/hc2/step_010000.pt
 !data/rl1/
 data/rl1/*
-!data/rl1/step_000040.pt
 
 # Runtime-generated game data (recreated on first play)
 records.json

@@ -537,8 +537,11 @@ def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
     if not options:
         raise ValueError("run_league needs at least one option to draw from")
     validate_subject(subject, options, paired_rng)
-    if checkpoint_dir is None:
-        checkpoint_dir = seats_mod.IMITATION_CHECKPOINT_DIR
+    # `checkpoint_dir` is passed through as-is, `None` included. Since plan9a
+    # stage 4 the directory is per key and comes from the registry, so defaulting
+    # it to `IMITATION_CHECKPOINT_DIR` here would point *every* imitation seat at
+    # H-C2's training output - including the one published into `ai/checkpoints/`
+    # and now absent from a fresh clone's `data/`.
     rng = random.Random(seed)
     rows = []
     for i in range(games):

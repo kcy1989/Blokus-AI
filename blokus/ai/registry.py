@@ -17,17 +17,18 @@ change. The array's order is *registration* order and nothing else: every pool
 leaves this module through `pool_order`, which sorts by key, so reordering the
 rows reorders the file and not a single game.
 
-The split is transitional. The JSON *records* `module`, `checkpoint`,
-`source` and `sha256`, but at this stage the authority for a file and for a
-seat's kind is still `seats.IMITATION_STEPS` / `seats.RL_SEATS`;
-`tests/test_registry_json.py` fails the moment the two disagree. plan9a stage 4
-moves the file paths across to the JSON.
+As of plan9a stage 4 the JSON owns `checkpoint` - the path a key is *loaded
+from* - while `source` records where it was trained and `seats.IMITATION_STEPS`
+/ `seats.RL_SEATS` still decide which keys are network seats in the first
+place. `tests/test_registry_json.py` fails the moment the two disagree.
+`module` and `kind` are mirrored from the code tables for the same reason.
 
 Import-time validation is structural only: unique keys, aliases that collide
 with nothing, legal pool names, `label` / `desc_key` present in `config.I`,
 and `enabled` agreeing with `selectable`. Touching the filesystem at import
 would make every `import seats` pay for a stat, so file existence and sha256
-are left to `check_files()`, which `python -m ai --check` calls.
+are left to `check_files()`, which `python -m ai --check` and the test suite
+call.
 """
 from . import builder, chess, fox, hunter, intruder, optimizer, wolf
 from .base import (BUILDER_KEY, HUNTER_KEY, INTRUDER_KEY, OPTIMIZER_KEY,
@@ -391,6 +392,22 @@ def label_key(key):
 def desc_key(key):
     """The `config.I` key describing `key`."""
     return entry(key)["desc_key"]
+
+
+def checkpoint(key):
+    """The file a network seat loads from - the authority since stage 4.
+
+    `source` still records where it was trained, and `seats.IMITATION_STEPS` /
+    `seats.RL_SEATS` still decide *which keys are network seats at all*; but
+    which path a key means is read from here. A published weight's identity is
+    the file, and the file belongs with the code that reads it - that is the
+    whole reason `ai/checkpoints/` exists.
+    """
+    e = entry(key)
+    if e["kind"] != "network":
+        raise ValueError("%r is a %s seat; it has no checkpoint"
+                         % (key, e["kind"]))
+    return e["checkpoint"]
 
 
 def check_files(verify_sha256=True):

@@ -41,8 +41,14 @@ def _blob():
 # --------------------------------------------------------------------------
 
 def test_both_names_resolve_to_one_file():
+    """One file, one path, two spellings.
+
+    The path moved to `ai/checkpoints/` at plan9a stage 4, because that is the
+    file the pool reads and it belongs with the code; `ai/registry.json`'s
+    `source` still records `data/rl1/step_000040.pt` as where it came from.
+    """
     assert S.rl_checkpoint(OLD) == S.rl_checkpoint(NEW) == \
-        "data/rl1/step_000040.pt"
+        "ai/checkpoints/rl_h1000_20k/step_000040.pt"
     assert os.path.exists(S.rl_checkpoint(NEW))
 
 

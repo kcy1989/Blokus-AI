@@ -39,8 +39,12 @@ from rl import policy as P
 from rl.actions import (index_to_move, legal_indices, legal_mask_view,
                         real_to_view, seat_of_mover)
 
-CHECKPOINT_DIR = seats.IMITATION_CHECKPOINT_DIR
 STEP = seats.IMITATION_STEPS[0]
+# Where step 1000 was *published* to, not where H-C2 trained: plan9a stage 4
+# copied it into `ai/checkpoints/rl_h1000_0k/` and untracked the `data/`
+# original, so `IMITATION_CHECKPOINT_DIR` would name a file a fresh clone lacks.
+CHECKPOINT_DIR = os.path.dirname(
+    seats.imitation_checkpoint(seats.imitation_key(STEP)))
 CHECKPOINT = os.path.join(CHECKPOINT_DIR, "step_%06d.pt" % STEP)
 SEED = 7_770_201
 N_POSITIONS = 40

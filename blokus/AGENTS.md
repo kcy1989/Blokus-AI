@@ -201,13 +201,30 @@ JSON 管 key／順序／別名／`label`／`desc_key`／`pools`／`enabled`／`s
 權威仍是 `seats.IMITATION_STEPS`／`seats.RL_SEATS`。兩邊由
 `tests/test_registry_json.py` 逐欄交叉驗證 —— 改任何一邊都要讓另一邊跟上。
 import 只做結構驗證（含 **`enabled` 與 `selectable` 必須一致**，不一致的錯誤訊息
-指名那個 key）；**檔案「存在」在測試裡驗，sha256 只在 `python -m ai --check` 驗**，
-不要掛到 import 上。測試**刻意不**斷言 `data/` 內檢查點的雜湊 —— 那裡是訓練工廠，
-重訓會覆寫；**階段 4 權重搬進 `ai/checkpoints/` 之後要把 sha256 斷言加回測試**。
+指名那個 key）；**檔案存在與 sha256 在測試與 `python -m ai --check` 驗**，不要掛到
+import 上。**階段 4 已把 `rl_h1000_20k`、`rl_h1000_0k` 搬進 `ai/checkpoints/`，
+sha256 斷言因此重新納入測試**（`test_every_registered_checkpoint_hashes_as_recorded`）；
+`hc_2000`／`hc_10000` 仍在 `data/`，重訓覆寫它們**會**讓這條紅 —— 那是刻意的，
+它們的數字不能在引用它們的證據底下悄悄改變。
 健康檢查的指令是 `python -m ai --check`：`python -m ai.registry --check` 會把同一個
 模組執行兩次（`ai/__init__` 已經匯出它），runpy 會噴 `RuntimeWarning`。
 `anchors()` 目前**只有測試呼叫**，`rl/rl_train.py` 仍自己寫死 `hc_1000`（
 `eval.jsonl` 的列名），RL 端接入與否是後續階段的決定。
+
+### 權重檔案放哪、誰說了算
+
+- **載入路徑 = `ai/registry.json` 的 `checkpoint`**，`seats.rl_checkpoint` 與
+  `seats.imitation_checkpoint` 只是它的讀者。`source` 記「在哪裡訓練」，權威是
+  `seats.RL_SEATS`／`seats.IMITATION_CHECKPOINT_DIR`。**不要**再讓第三處決定路徑。
+- **搬檔的順序不能反**：先比對 `sha256(來源) == sha256(目的地)` 通過 → 改 JSON →
+  改測試 → 最後才 `git rm --cached` 源檔（檔留在磁碟）。任何一步不一致就停下回報。
+- **`build_brain` 對模仿席位是「目錄跟著 key 走」**：`os.path.dirname(imitation_checkpoint(key))`，
+  因為三份檢查點已經不在同一個目錄。代價是 JSON 的 `checkpoint` 檔名**必須**繼續
+  符合 `step_%06d.pt`，`test_network_entries_name_the_files_the_seats_load` 釘住這點。
+- **`.gitignore` 目前是過渡狀態**：`step_001000.pt` 與 `step_000040.pt` 的反白已撤
+  （檔不入版控，靠 `ai/checkpoints/`）；`step_002000.pt`／`step_010000.pt` 的反白
+  **保留**，因為 `hc_2000`／`hc_10000` 沒有發布。**階段 6 把它們設 `enabled: false`
+  之後要回來處理這兩行**，詳見 README「階段 4 完成狀態」。
 
 ---
 

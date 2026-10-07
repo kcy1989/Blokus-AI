@@ -38,8 +38,12 @@ from rl.caches import states_from_rows
 from rl.policy import (N_ACTIONS, forward_batched, load_policy,
                        log_prob_entropy)
 
-CHECKPOINT_DIR = seats.IMITATION_CHECKPOINT_DIR
 STEP = seats.IMITATION_STEPS[0]
+# Where step 1000 was *published* to, not where H-C2 trained: plan9a stage 4
+# copied it into `ai/checkpoints/rl_h1000_0k/` and untracked the `data/`
+# original, so `IMITATION_CHECKPOINT_DIR` would name a file a fresh clone lacks.
+CHECKPOINT_DIR = os.path.dirname(
+    seats.imitation_checkpoint(seats.imitation_key(STEP)))
 CHECKPOINT = os.path.join(CHECKPOINT_DIR, "step_%06d.pt" % STEP)
 LEARNER_KEY = seats.imitation_key(STEP)
 

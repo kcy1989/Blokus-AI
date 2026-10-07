@@ -103,22 +103,38 @@ def test_kind_and_family_agree_with_kind_of():
 
 
 def test_network_entries_name_the_files_the_seats_load():
-    """The JSON records a path; `seats` still decides the path.
+    """Since stage 4 the JSON *is* the path, and `seats` reads it.
 
-    Until plan9a stage 4 these are deliberately two sources, so the only safe
-    state is that they say the same thing. A checkpoint moved by editing one
-    side alone fails here rather than at first use.
+    Two separate claims. The first is one-authority: `rl_checkpoint` and
+    `imitation_checkpoint` hand back exactly what the JSON says, so there is no
+    second table for a path to drift in. The second keeps the training record
+    honest - `source` still says where the weights were trained, and it has to
+    agree with `RL_SEATS` and with H-C2's own directory, because those two are
+    the only surviving evidence that a published copy is the right file.
+
+    The imitation filename is pinned too: `build_brain` reopens the path as
+    `<dirname>/step_%06d.pt` built from `imitation_step`, so a checkpoint whose
+    basename broke that convention would load a different file than the JSON
+    names and nothing else would notice.
     """
-    rl_paths = dict(S.RL_SEATS)
+    rl_sources = dict(S.RL_SEATS)
+    seen = 0
     for e in R.ENTRIES:
+        if e["kind"] != "network":
+            assert "checkpoint" not in e, e["key"]
+            continue
+        seen += 1
         if e["family"] == "rl":
-            assert e["checkpoint"] == rl_paths[e["key"]]
-        elif e["family"] == "imitation":
-            step = S.imitation_step(e["key"])
-            assert e["checkpoint"] == os.path.join(
-                S.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step)
-        else:
-            assert "checkpoint" not in e
+            assert S.rl_checkpoint(e["key"]) == e["checkpoint"], e["key"]
+            assert e["source"] == rl_sources[e["key"]], e["key"]
+            continue
+        assert S.imitation_checkpoint(e["key"]) == e["checkpoint"], e["key"]
+        step = S.imitation_step(e["key"])
+        assert e["source"] == os.path.join(
+            S.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step), e["key"]
+        assert os.path.basename(e["checkpoint"]) == "step_%06d.pt" % step, \
+            e["key"]
+    assert seen == 4
 
 
 def test_heuristic_entries_name_the_module_the_brain_class_lives_in():
@@ -236,17 +252,49 @@ def test_anchors_names_one_seat_and_it_is_the_registered_spelling():
 # files: existence is a suite concern, bytes are --check's
 # --------------------------------------------------------------------------
 
-def test_every_registered_checkpoint_file_exists():
-    """Existence is a suite-level fact; the digest is not - yet.
+def test_every_registered_checkpoint_hashes_as_recorded():
+    """Existence *and* digest, back in the suite as of plan9a stage 4.
 
-    Until plan9a stage 4 publishes the weights into `ai/checkpoints/`, the
-    files the registry names still live under `data/`, which is the training
-    factory and may be rewritten by a retrain. Asserting their sha256 here
-    would turn a routine retrain into a red suite, so the suite asserts only
-    what a fresh clone needs: the file is there. Stage 4 moves the weights into
-    the repository proper and puts the digest assertion back.
+    The digest assertion was pulled at stage 2 because the files lived under
+    `data/` - the training factory, which a retrain rewrites - so a routine
+    retrain would have turned the suite red for no reason. Stage 4 published the
+    two published weights into `ai/checkpoints/`, where nothing but a deliberate
+    re-publication can touch them, and `check_files()` runs in full again.
+
+    `hc_2000` and `hc_10000` are the remaining case, and hashing them on purpose:
+    they are still under `data/` and still in the registry, so a retrain that
+    overwrote one *should* fail here - it would mean the pool's numbers moved
+    underneath the evidence that cites them.
     """
-    assert R.check_files(verify_sha256=False) == []
+    assert R.check_files() == []
+
+
+def test_ai_checkpoints_holds_nothing_unpublished():
+    """Stage 4's other half: the repository proper holds only registered weights.
+
+    The mirror of `check_files` - that one asks "does every registered seat have
+    a file", this one asks "does every file belong to a registered seat". Without
+    it, a stray copy left in `ai/checkpoints/` ships forever: it weighs 5.6 MB,
+    it looks official because of where it sits, and nothing names it.
+
+    This is also why stage 4 published two weights and not five. The three
+    `rl_*1000_0k` students are not in the roster until stage 6, so moving them
+    here first would put exactly this file on disk with nothing to say what it
+    is.
+    """
+    root = os.path.join(os.path.dirname(R.__file__), "checkpoints")
+    if not os.path.isdir(root):
+        pytest.skip("ai/checkpoints/ does not exist in this checkout")
+    published = sorted(
+        os.path.relpath(os.path.join(dirpath, name), root)
+        for dirpath, _dirs, names in os.walk(root)
+        for name in names)
+    registered = sorted(
+        os.path.relpath(e["checkpoint"], root)
+        for e in R.ENTRIES
+        if e["kind"] == "network"
+        and e["checkpoint"].startswith("ai/checkpoints/"))
+    assert published == registered
 
 
 def test_check_files_reports_a_missing_checkpoint(tmp_path, monkeypatch):
