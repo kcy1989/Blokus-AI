@@ -153,18 +153,30 @@ def test_a_league_row_names_both_the_option_and_the_colour():
     """Needed to tell two seats apart when the same option is drawn twice, and
     to work out who played what later."""
     from match import league_options
+    from records import POINTS_FOR_RANK
     opts = [k for k in league_options() if not seats_mod.is_imitation_key(k)]
     rows = run_league(3, seed=11, options=opts)
     for row in rows:
         assert len(row) == 4
-        # Rows come back in seat order, each carrying its own rank. `rank_rows`
-        # is competition ranking: seats level on remaining share a place, so
-        # [1, 2, 3, 3] is as legal as [1, 2, 3, 4]. Asserting the second form
-        # outright was true only for whichever game this seed happened to draw,
-        # and stage 3's re-sort drew a different one.
-        ranks = [rk for _k, _c, _r, rk, _p in row]
-        assert set(ranks) <= {1, 2, 3, 4} and min(ranks) == 1
-        assert all(p == 5 - rk for _k, _c, _r, rk, p in row)
+        # Ranking is `records.rank_rows`, and this restates that rule from the
+        # row's own `remaining` rather than copying its answer: competition
+        # ranking over (remaining, key), a tie shares a place, the place after a
+        # tie skips, and points are `POINTS_FOR_RANK[rank - 1]`.
+        #
+        # Measured on this pool, seed 11, game 1: `fox/blue` and `intruder/red`
+        # both finish on 30 cells, both take rank 3 and **2 points**, there is
+        # no 4th place, and the 1 point 4th would have carried goes to nobody -
+        # 4 + 3 + 2 + 2 = 11, not 10. An earlier form of this assertion demanded
+        # `[1, 2, 3, 4]` with `5 - rank`, which forbids a tie outright and was
+        # true only for whichever game this seed happened to draw.
+        standing = sorted(row, key=lambda r: (r[2], r[0]))
+        prev_rem, prev_rank = None, 0
+        for pos, (_k, _c, rem, rk, p) in enumerate(standing):
+            if rem != prev_rem:
+                prev_rank = pos + 1
+                prev_rem = rem
+            assert rk == prev_rank, (pos, rem, rk, prev_rank)
+            assert p == POINTS_FOR_RANK[rk - 1]
         keys = [k for k, _c, _r, _rk, _p in row]
         colours = [c for _k, c, _r, _rk, _p in row]
         assert set(keys) <= set(opts)

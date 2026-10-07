@@ -194,6 +194,12 @@ md5 `9e788eab769f74b09cf8855da05afed6`),對照物為 `hc_1000`(其 0k 模仿版)
    - 對 |t| ≤ 2 的比較,**可補跑到 2000 局一次,不再加**。補跑沿用同一種子
      `20261005` 與同一個 `--games 2000`——因此前 500 局與原批次逐局相同,不是
      另換種子的重跑。
+     **註(階段 3 之後):** 這裡的「原批次」是**本協議自己**的 500 局批次 ——
+     500 局與補跑的 2000 局都在階段 3 之後跑,池同為 key 排序,所以這句仍然成立。
+     但**與階段 3 之前的 0.5b 批次不再前綴相容**:那六批的池是註冊表順序
+     (`wolf, chess, fox, intruder, optimizer, builder, hunter`),而現在
+     `no_imitation` 展開成 key 排序,同一個種子會抽出不同的對手。要跟那六批對齊
+     只能走 literal,見文末「階段 3 之後:用 literal 重現」。
 
 4. **規則在看到任何學生結果之前固定,不得事後調整。**
 
@@ -889,6 +895,26 @@ literal 假定不存在的東西),所以池必須寫成明確名單。
     --games 2000 --seed 20261005 --paired-rng --subject hc_1000 \
     --mode argmax --gzip --out /tmp/kilo/rerun_hc1000.json
 ```
+
+**舊批次的池順序是什麼。** `pool_order` 這個欄是階段 3 才加的,所以本目錄六批
+**都沒有它**,讀的人必須自己補上那個資訊:
+
+> **無 `pool_order` 欄的舊批次,其池順序為階段 3 之前的註冊表順序:**
+>
+> ```
+> wolf, chess, fox, intruder, optimizer, builder, hunter
+> ```
+
+這就是上面 `--pool` 要逐字寫出的那份名單。對照一下階段 3 之後
+`--pool no_imitation` 展開成的 key 排序 —— **內容相同、順序不同**:
+
+| | 順序 |
+| --- | --- |
+| 舊批次（無 `pool_order` 欄，註冊表順序） | `wolf, chess, fox, intruder, optimizer, builder, hunter` |
+| 階段 3 之後的 `no_imitation`（key 排序） | `builder, chess, fox, hunter, intruder, optimizer, wolf` |
+
+所以「同一批名單、同一個種子」在兩種順序下會抽出不同的對手 —— 差別只在順序,不在
+內容。
 
 **能逐字比的是哪些欄位**:literal 不正規化 subject,所以 `games_detail`、`summary`、
 `appearances`、`subject` 四個欄位與已提交批次**逐字相同**,連階段 1 那次必須先把
