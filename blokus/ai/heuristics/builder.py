@@ -19,8 +19,8 @@ them only turns the thing into two sets of rules fighting each other.
 Likewise no mistake rolls and no opponent prediction, for the same reasons as
 `intruder`.
 """
-from . import formulas as F
-from .base import BUILDER_KEY, Brain
+from .. import formulas as F
+from ..base import BUILDER_KEY, Brain
 from pieces import MASTER
 
 # The builder's cap for stage 2. It has no stage filter, and what it scores is

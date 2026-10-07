@@ -414,7 +414,7 @@ def test_a_pass_leaves_every_players_move_count_untouched():
     """It has to count real moves, which is what the book step is defined against.
 
     A pass is not a move. If the count moved across one, a blocked seat's book
-    step would silently become a different book - the failure `ai/hunter.py`
+    step would silently become a different book - the failure `ai/heuristics/hunter.py`
     already documents for its own counter.
     """
     passes_seen = 0

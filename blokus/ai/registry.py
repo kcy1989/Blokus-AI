@@ -30,7 +30,8 @@ would make every `import seats` pay for a stat, so file existence and sha256
 are left to `check_files()`, which `python -m ai --check` and the test suite
 call.
 """
-from . import builder, chess, fox, hunter, intruder, optimizer, wolf
+from .heuristics import (builder, chess, fox, hunter, intruder, optimizer,
+                         wolf)
 from .base import (BUILDER_KEY, HUNTER_KEY, INTRUDER_KEY, OPTIMIZER_KEY,
                    RULE_KEYS)
 from .base import make_profile as _make_profile

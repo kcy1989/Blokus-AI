@@ -8,7 +8,7 @@ rule-based personalities borrow when they are predicted.
 
     python3 -c "import ai; print(ai.PROFILE_SPECS['chess'])"
 """
-from .base import WeightedBrain
+from ..base import WeightedBrain
 
 KEY = "chess"
 

@@ -199,7 +199,7 @@ commit 與 dirty 記進 checkpoint。那是訓練程式碼，屬於之後動訓�
 
 ### 規則式
 
-**入侵者**（`ai/intruder.py`）五個階段，**都是軟限制**——指定棋塊一格都下不了
+**入侵者**（`ai/heuristics/intruder.py`）五個階段，**都是軟限制**——指定棋塊一格都下不了
 就退回下一階段：
 
 1. 手上還有跨越棋（V5／W5／Z5）就只用跨越棋
@@ -208,15 +208,15 @@ commit 與 dirty 記進 checkpoint。那是訓練程式碼，屬於之後動訓�
 4. 這一手本身完成跨越 → 大幅加分，並要求跨過去之後還有地方可放
 5. 一般局面：5 格優先，戰略點放寬到 4 格、3 格
 
-**優化者**（`ai/optimizer.py`）目標函式只有一個量：落子後自己還有幾個可放空格。
+**優化者**（`ai/heuristics/optimizer.py`）目標函式只有一個量：落子後自己還有幾個可放空格。
 緊急規則是安全閥——某塊棋只剩唯一一個落點時先救它。開局不適用（那時落點少是
 角位規則壓出來的，不是棋盤變擠）。
 
-**築城者**（`ai/builder.py`）主項是 `pack_lost`：把剩餘手牌用 FFD 裝進落子後
+**築城者**（`ai/heuristics/builder.py`）主項是 `pack_lost`：把剩餘手牌用 FFD 裝進落子後
 的活區塊，裝不進去的格數以負權重計。大小偏好與可放空間總數只是次要項，都刻意
 小到讓不過主項，所以它不設階段也不設緊急規則。
 
-**獵手**（`ai/hunter.py`）是優化者的後代，兩件事疊在一起：
+**獵手**（`ai/heuristics/hunter.py`）是優化者的後代，兩件事疊在一起：
 
 1. **開局定式**：前三手走固定的標準開局 —— Z5 覆蓋自己的角與該對角線往內第二
    格，然後 V5、W5 各往前兩格。每一步在該步的候選裡**均勻抽一個**（共 2 個候選，
@@ -380,18 +380,19 @@ ai/
 ├── registry.py     key → Brain 類別／權重檔的對照表；下層載入 registry.json
 ├── registry.json   名冊：誰是選手、順序、別名、池（資料層，見「名冊」一節）
 │
-├── wolf.py         ┐
-├── chess.py        ├ 權重式：只有權重不同，評分路徑完全相同
-├── fox.py          ┘
-│
-├── intruder.py     ┐
-├── optimizer.py    ├ 規則式：各自的目標函式
-├── builder.py      │
-└── hunter.py       ┘ 規則式 + 前三手開局定式（繼承優化者）
+└── heuristics/     Python 算法型 AI：一種人格一個模組
+    ├── wolf.py         ┐
+    ├── chess.py        ├ 權重式：只有權重不同，評分路徑完全相同
+    ├── fox.py          ┘
+    │
+    ├── intruder.py     ┐
+    ├── optimizer.py    ├ 規則式：各自的目標函式
+    ├── builder.py      │
+    └── hunter.py       ┘ 規則式 + 前三手開局定式（繼承優化者）
 ```
 
 **`ai/` 不 import `rl/`、`engine`、`numpy`、`torch` 或 `pygame`。** 獵手的定式因此
-在 `ai/hunter.py` 內重新實作，而不是從 `rl/opening.py` 匯入 —— 那會把依賴方向
+在 `ai/heuristics/hunter.py` 內重新實作，而不是從 `rl/opening.py` 匯入 —— 那會把依賴方向
 反過來並把 numpy 拉進 `ai/`。代價是同一本定式在樹上有兩份實作，由
 `tests/test_hunter.py` 交叉比對（96 次局面 × 書本步）把關。
 
@@ -742,7 +743,7 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
 
 1. 選一類：
 
-   **權重式**（只需要不同的取捨傾向）——建 `ai/<name>.py`：
+   **權重式**（只需要不同的取捨傾向）——建 `ai/heuristics/<name>.py`：
 
    ```python
    from .base import WeightedBrain
@@ -758,7 +759,7 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
        key = KEY
    ```
 
-   **規則式**（有自己的目標函式）——建 `ai/<name>.py`，繼承 `Brain`，實作
+   **規則式**（有自己的目標函式）——建 `ai/heuristics/<name>.py`，繼承 `Brain`，實作
    `context` / `restrict` / `rescore`，並設 `uses_lookahead = False`、
    `self.mistake_rate = 0.0`。
 
@@ -801,7 +802,7 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
   為了避免一開局就為了一小塊地做昂貴的 BFS。
 - **權重有隨機擾動**。同一個人格每局權重差 ±30%，這是為了讓排行榜有意義，但
   也代表單局結果有隨機成分，要比較人格請跑足夠多局。
-- **開局定式有兩份實作**（`ai/hunter.py` 與 `rl/opening.py`），因為 `ai/` 不得
+- **開局定式有兩份實作**（`ai/heuristics/hunter.py` 與 `rl/opening.py`），因為 `ai/` 不得
   import `rl/`。兩份由 `tests/test_hunter.py` 交叉比對，但它們仍可能各自演化 ——
   改其中一份而忘記另一份，測試會抓到，只是不會在你改的當下就抓到。
 - **定式的種子決定前兩手走哪一個候選，而那個數在一般遊戲裡沒有對應的特徵**。

@@ -24,8 +24,8 @@ checkable. It also does no opponent prediction, because prediction runs on
 the weighted score, whose magnitude is completely different from the
 objective function used here.
 """
-from . import formulas as F
-from .base import INTRUDER_KEY, Brain
+from .. import formulas as F
+from ..base import INTRUDER_KEY, Brain
 
 # Safety cap for stage 2 (the expensive evaluation). Once the stage limits
 # and the corner-diagonal rule are in play, the candidate list is usually

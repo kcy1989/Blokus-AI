@@ -33,7 +33,7 @@ Two decisions the book does not get to make:
     `choose_move`. Book and v1 are the same personality for every move after the
     opening, so any measured difference belongs to the opening alone.
 
-`choose_v2` is a wrapper, not a subclass: `ai/optimizer.py` is handed a brain to
+`choose_v2` is a wrapper, not a subclass: `ai/heuristics/optimizer.py` is handed a brain to
 call and is never subclassed or edited. `OptimizerBrain` holds no state that
 depends on the move count or on history - its `context` is a pure function of
 the board, its `restrict` reads piece sizes, `mistake_rate` is 0 and

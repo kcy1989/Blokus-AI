@@ -4,14 +4,14 @@ import random
 import pytest
 
 import ai
-from ai.hunter import HunterBrain
+from ai.heuristics.hunter import HunterBrain
 from game import Game
 from board import Board, neighbors_of
 from pieces import MASTER
 from config import (CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER)
 
 # What Hunter's first three moves are supposed to be. Written out here rather than
-# read back from `ai.hunter.BOOK`, because a check that compares the book against
+# read back from `ai.heuristics.hunter.BOOK`, because a check that compares the book against
 # itself only proves the book is consistent with the book. This is the statement
 # of what the opening is meant to be, and it is the thing a regression would break.
 HUNTER_BOOK_PIECES = ("Z5", "V5", "W5")

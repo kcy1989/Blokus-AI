@@ -92,8 +92,8 @@ pipeline draws from the caller's `rng` on most turns.
 import hashlib
 import random
 
-from . import formulas as F
-from .base import HUNTER_KEY
+from .. import formulas as F
+from ..base import HUNTER_KEY
 from .optimizer import OPTIMIZER_SCAN, OptimizerBrain
 from config import B, CLOCKWISE_OWNERS, OWNER_CORNER
 
@@ -290,7 +290,7 @@ class HunterBrain(OptimizerBrain):
 
     A subclass of `OptimizerBrain`, so the urgent rule, the largest-piece
     restriction, the profile and `mistake_rate = 0` are inherited rather than
-    copied. `ai/optimizer.py` is neither edited nor shadowed.
+    copied. `ai/heuristics/optimizer.py` is neither edited nor shadowed.
     """
 
     # `ai/registry.py` reads this to decide whether a driver's `game_seed` can be

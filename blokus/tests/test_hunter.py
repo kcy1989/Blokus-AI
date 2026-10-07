@@ -1,4 +1,4 @@
-"""Tests for `ai/hunter.py`: the stage H teacher.
+"""Tests for `ai/heuristics/hunter.py`: the stage H teacher.
 
 Two things are defended here. First, that Hunter **is** the version stage H1
 measured: the same moves as `rl.v3.choose_v3` from the first move on, with the
@@ -23,7 +23,7 @@ import engine
 from ai import formulas as F
 from ai.base import HUNTER_KEY, OPTIMIZER_KEY
 from ai.chooser import _candidates
-from ai.hunter import (BOOK, BOOK_STEPS, HunterBrain, after_moves,
+from ai.heuristics.hunter import (BOOK, BOOK_STEPS, HunterBrain, after_moves,
                        bases_covering_all, book_candidates, book_draw,
                        book_piece, book_seed, book_squares, corner_and_direction,
                        make_brain, playable_before, strongest_opponent,
@@ -544,7 +544,7 @@ def test_a_book_step_whose_piece_is_gone_does_not_return_an_illegal_move():
 # --------------------------------------------------------------------------
 
 def test_hunter_names_neither_rl_nor_numpy_nor_torch_nor_pygame():
-    with open(os.path.join(ROOT, "ai", "hunter.py"), encoding="utf-8") as fh:
+    with open(os.path.join(ROOT, "ai", "heuristics", "hunter.py"), encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     names = set()
     for node in ast.walk(tree):
@@ -557,7 +557,7 @@ def test_hunter_names_neither_rl_nor_numpy_nor_torch_nor_pygame():
 
 def test_importing_ai_hunter_pulls_in_none_of_them():
     """Acceptance 4, in a clean subprocess."""
-    code = ("import sys; sys.path.insert(0, %r); import ai.hunter; "
+    code = ("import sys; sys.path.insert(0, %r); import ai.heuristics.hunter; "
             "bad = [m for m in ('rl', 'numpy', 'torch', 'pygame') "
             "if m in sys.modules]; "
             "print('LEAKED:' + ','.join(bad) if bad else 'clean')" % ROOT)
@@ -607,7 +607,7 @@ def test_an_injected_seed_is_reproducible_and_an_absent_one_is_not():
     assert a.game_seed_source == b.game_seed_source == "argument"
     # no seed and no rng of its own: ai.make_brain always passes one, so this is
     # the branch only a direct construction takes
-    from ai.hunter import make_brain as hunter_make_brain
+    from ai.heuristics.hunter import make_brain as hunter_make_brain
     v1 = ai.make_brain(OPTIMIZER_KEY, random.Random(1))
     loose_a = hunter_make_brain(v1.profile)
     loose_b = hunter_make_brain(v1.profile)
@@ -660,7 +660,7 @@ def test_the_book_seed_is_stable_across_processes_and_hash_seeds():
     program = (
         "import random, sys\n"
         "sys.path.insert(0, %r)\n"
-        "from ai.hunter import seed_from_rng\n"
+        "from ai.heuristics.hunter import seed_from_rng\n"
         "print(seed_from_rng(random.Random(20260930)))\n"
     ) % ROOT
     outputs = {}

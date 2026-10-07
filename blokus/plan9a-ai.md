@@ -105,6 +105,25 @@
 - 以全套測試與固定種子對局輸出不變為證。
 - 若搬遷牽涉面過大,先回報,讓使用者決定是否暫緩,只在註冊表登記 module 路徑。
 
+**已完成**(提交 hash 見提交訊息):
+- `git mv` 七個:`ai/{wolf,chess,fox,intruder,optimizer,builder,hunter}.py` →
+  `ai/heuristics/`,另加 `ai/heuristics/__init__.py`(僅 docstring)。
+  `formulas`/`base`/`chooser`/`registry`/`registry.json`/`checkpoints` **不搬**。
+- 改動面:七檔內的 `.base` → `..base`、`. import formulas` → `.. import formulas`;
+  `ai/__init__.py` 與 `ai/registry.py` 的匯入;`rl/v3.py` 一行;
+  `ai/registry.json` 七個 `module` 欄位 → `ai.heuristics.<name>`(測試比對
+  `cls.__module__`);`tests/{test_hunter,test_simulation,test_rl_v3,test_registry_json,
+  test_rl_features}.py` 的路徑字串;README/AGENTS 路徑與目錄樹。
+  歷史檔 `plan.md`、`plan6.md`、`reports/` 未動。
+- **零行為變化證據**:`run_league(2, seed=20260928, records=None)` 於 `8249f1a`
+  (搬移前)與搬移後各跑一次,md5 兩邊皆 `8166309cdcddb098bdc4c5b8233d6fcc`,
+  `diff` 無輸出。
+- 全套測試 `1003 passed in 524.10s`,`pytest exit=0`。
+- `GOLDEN_POOL` / `GOLDEN` / `LEGACY_GOLDEN_MD5` 所在兩檔未被改動,值不變。
+- `records.json`:本階段開始時 `14d0809e950fc3bbfc73216ca5900255`;
+  全套測試前後皆 `5ff6867c5bc98c8d3d2cf37711bb074c`(中間 22:22:11 有一筆
+  測試之外的寫入,見回報,測試本身不寫它)。
+
 ## 階段 6:新池組成與文案
 - 依「已定決策」更新註冊表:hc_2000、hc_10000 設 enabled:false、selectable:false(是否發布依階段 0 裁決)。
 - rl_only 與 imitation_only 依註冊表 pools 定義;加交集為空的測試。

@@ -216,7 +216,7 @@ def test_the_picked_move_has_the_best_score_according_to_an_independent_oracle()
             *ai.chooser.F.board_feats(board.grid), board.corner_regions,
             board.borders, board.empty_bits)
         cands.sort(key=lambda t: t[0], reverse=True)
-        from ai.optimizer import OPTIMIZER_SCAN
+        from ai.heuristics.optimizer import OPTIMIZER_SCAN
         v1_ctx = v1.context(board, hand_names(st, owner), owner,
                             must_cover(st, owner), reach(st, board, owner))
         prefix = v1.restrict(cands, v1_ctx)[:OPTIMIZER_SCAN]

@@ -400,7 +400,7 @@ def test_the_check_command_reports_the_pools_and_exits_zero(capsys,
 def _entry(**over):
     """A minimal entry the loader would accept, then mutated per test."""
     e = {"key": "wolf", "aliases": [], "kind": "heuristic",
-         "family": "personality", "module": "ai.wolf",
+         "family": "personality", "module": "ai.heuristics.wolf",
          "pools": ["all", "no_imitation"], "enabled": True,
          "selectable": True, "label": "wolf", "desc_key": "wolf_desc",
          "note": ""}
@@ -422,7 +422,7 @@ def test_a_sane_entry_validates():
     ({"label": "no_such_key"}, "config.I"),
     ({"enabled": "yes"}, "must be true or false"),
     ({"wat": 1}, "unknown field"),
-    ({"kind": "network", "family": "rl", "module": "ai.wolf",
+    ({"kind": "network", "family": "rl", "module": "ai.heuristics.wolf",
       "checkpoint": "p", "source": "s"}, "sha256"),
 ])
 def test_a_structurally_broken_entry_is_refused(mutate, needle):

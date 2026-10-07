@@ -15,8 +15,8 @@ for nothing.
 Likewise no mistake rolls and no opponent prediction, for the same reasons as
 `intruder`.
 """
-from . import formulas as F
-from .base import OPTIMIZER_KEY, Brain
+from .. import formulas as F
+from ..base import OPTIMIZER_KEY, Brain
 from pieces import MASTER
 
 # The optimizer's urgency threshold: when a piece is down to this many

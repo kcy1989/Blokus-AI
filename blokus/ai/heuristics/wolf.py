@@ -8,7 +8,7 @@ smothered by the opponent's.
 
     python3 -c "import ai; print(ai.PROFILE_SPECS['wolf'])"
 """
-from .base import WeightedBrain
+from ..base import WeightedBrain
 
 KEY = "wolf"
 

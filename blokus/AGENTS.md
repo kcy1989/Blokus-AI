@@ -177,9 +177,9 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
 ## 五、新增一種 AI
 
 1. 選一類：
-   - **權重式**（只需要不同取捨傾向）：建 `ai/<name>.py`，定義 `KEY`、
+   - **權重式**（只需要不同取捨傾向）：建 `ai/heuristics/<name>.py`，定義 `KEY`、
      `PROFILE_SPEC`（7 個數字）與一個繼承 `WeightedBrain` 的類別。
-   - **規則式**（有自己的目標函式）：建 `ai/<name>.py`，繼承 `Brain`，實作
+   - **規則式**（有自己的目標函式）：建 `ai/heuristics/<name>.py`，繼承 `Brain`，實作
      `context` / `restrict` / `rescore`，並設 `uses_lookahead = False`、
      `self.mistake_rate = 0.0`。
 2. 在 `ai/registry.py` 登記（`WEIGHTED_SPECS` 或 `RULE_BRAIN_CLASSES`）。

@@ -7,8 +7,8 @@ Architecture (three layers, bottom to top):
                   squares, live components, packing), and the weight table.
     base.py       The Brain interface and the profile type. Candidate
                   enumeration, opponent lookahead and the draw are not here.
-    <persona>.py  Wolf/chess/fox (weighted) and intruder/optimizer/builder
-                  (rule-based).
+    heuristics/   The personalities, one module each: wolf/chess/fox (weighted)
+                  and intruder/optimizer/builder/hunter (rule-based).
     chooser.py    The shared move pipeline, which knows no personality.
     registry.py   The key -> Brain class / weight profile lookup table.
 
@@ -20,18 +20,18 @@ from . import formulas
 from .base import Brain, Profile, WeightedBrain
 from .base import (BUILDER_KEY, HUNTER_KEY, INTRUDER_KEY, OPTIMIZER_KEY,
                    RULE_KEYS)
-from .builder import BuilderBrain
-from .builder import (BUILDER_SCAN, BUILDER_W_LOST, BUILDER_W_SIZE,
-                      BUILDER_W_TOTAL)
-from .chess import ChessBrain
-from .fox import FoxBrain
-from .hunter import HunterBrain, BOOK, BOOK_STEPS, book_candidates
-from .intruder import IntruderBrain, INTRUDER_SCAN
-from .optimizer import OptimizerBrain, OPTIMIZER_SCAN, URGENT_PLACES
+from .heuristics.builder import BuilderBrain
+from .heuristics.builder import (BUILDER_SCAN, BUILDER_W_LOST, BUILDER_W_SIZE,
+                                 BUILDER_W_TOTAL)
+from .heuristics.chess import ChessBrain
+from .heuristics.fox import FoxBrain
+from .heuristics.hunter import HunterBrain, BOOK, BOOK_STEPS, book_candidates
+from .heuristics.intruder import IntruderBrain, INTRUDER_SCAN
+from .heuristics.optimizer import OptimizerBrain, OPTIMIZER_SCAN, URGENT_PLACES
 from .registry import (PROFILE_SPECS, RULE_BRAIN_CLASSES, WEIGHTED_BRAIN_CLASSES,
                       WEIGHTED_SPECS, draw_personalities, make_brain,
                       make_profile, personality_keys)
-from .wolf import WolfBrain
+from .heuristics.wolf import WolfBrain
 from .chooser import _opponent_pool, choose_move
 from .formulas import (B, CENTER, LEAPERS, N, ODIRS, OPP_POOL_K, Reach,
                        SEAL_MIN, SHORTLIST_CORE, SQ_CAP, STRETCHERS, W_CROSS,

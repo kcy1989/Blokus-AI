@@ -9,7 +9,7 @@ so it almost never grabs corners.
 
     python3 -c "import ai; print(ai.PROFILE_SPECS['fox'])"
 """
-from .base import WeightedBrain
+from ..base import WeightedBrain
 
 KEY = "fox"
 

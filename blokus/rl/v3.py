@@ -6,7 +6,7 @@ term?
 The first term is v1's objective, unchanged: the count of empty squares that
 diagonally touch one of my own stones and share no edge with one of them, on the
 board after my move. It is `F.place_state(...)[4].bit_count()`
-(`ai/optimizer.py:91`), the same expression for the same candidate, so v3
+(`ai/heuristics/optimizer.py:91`), the same expression for the same candidate, so v3
 replaces exactly one number and leaves the rest of the pipeline alone.
 
 The second term needs a decision the plan pins down rather than leaves open:
@@ -48,14 +48,14 @@ testing rather than asserting: at 0 the score is `A_me - 0 * A_j*`, numerically
 `A_me`, and the same stable sort over the same candidate order must reproduce
 v1's pick move for move.
 
-`choose_v3` is a wrapper, not a subclass of anything in `ai/`: `ai/optimizer.py`
+`choose_v3` is a wrapper, not a subclass of anything in `ai/`: `ai/heuristics/optimizer.py`
 is never edited. It reuses the opening book from `rl/opening.py` unchanged - the
 same seeds, the same candidate filter and the same abandonment rule - so any
 measured difference belongs to the scoring change and nothing else.
 """
 import ai
 from ai import formulas as F
-from ai.optimizer import OPTIMIZER_SCAN, OptimizerBrain
+from ai.heuristics.optimizer import OPTIMIZER_SCAN, OptimizerBrain
 from config import CLOCKWISE_OWNERS
 from rl.actions import index_to_move, legal_indices
 from rl.opening import (act_to_engine_move, book_candidates, hand_names,
@@ -144,7 +144,7 @@ class V3Brain(OptimizerBrain):
 
     A subclass of `OptimizerBrain` rather than of `Brain`, so the urgent rule,
     the largest-piece restriction and the personality's key, profile and
-    `mistake_rate = 0` are inherited rather than copied. `ai/optimizer.py` itself
+    `mistake_rate = 0` are inherited rather than copied. `ai/heuristics/optimizer.py` itself
     is not edited or shadowed: this class adds `context` and replaces `rescore`,
     and `restrict` is untouched.
     """
