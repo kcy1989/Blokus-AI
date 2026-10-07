@@ -7,6 +7,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -39,6 +40,51 @@ def key(u, k=pygame.K_SPACE):
 
 def move_mouse(u, pos):
     u.tick([pygame.event.Event(pygame.MOUSEMOTION, pos=pos, buttons=(0, 0, 0), rel=(0, 0))])
+
+
+def wheel(u, dy=1):
+    """One wheel notch: `dy > 0` is the wheel being flicked upwards.
+
+    The direction is the one pygame documents, and stage 7 pins which way the
+    list moves as a result - see `test_the_wheel_scrolls_the_list_down`.
+    """
+    u.tick([pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=dy)])
+
+
+def menu_windows(u, kind="option"):
+    """Every distinct scroll position of the open picker, in order.
+
+    Scrolls one row at a time with the wheel until `menu_rects` stops handing
+    back something new, which is `max_scroll` clamping itself, so a caller can
+    walk the whole list without knowing the page size.
+    """
+    out, seen = [], None
+    for _ in range(64):
+        rects = u.menu_rects()
+        if rects == seen:
+            break
+        out.append(rects)
+        seen = rects
+        wheel(u, -1)
+    return out
+
+
+def open_fake_menu(monkeypatch, rows=24, scale=1.0):
+    """An option picker over `rows` made-up choices.
+
+    Stage 7 has to prove scrolling with more rows than any real pool produces,
+    and the real pool is deliberately not the subject: stage 6 changes it from
+    fourteen rows to seventeen, and a test built on that number would be a
+    test of the roster. The fake keys also let `seat_label` be stubbed, so
+    nothing here reads `config.I` for names that do not exist.
+    """
+    keys = ["fake_%02d" % i for i in range(rows)]
+    monkeypatch.setattr(seats_mod, "seat_menu_options", lambda: tuple(keys))
+    monkeypatch.setattr(ui, "seat_label", lambda k: k)
+    u = at_seat_screen(make_ui(scale=scale))
+    click(u, u.seat_rects()["0:option"].center)
+    assert u.seat_pick == (0, "option")
+    return u, keys
 
 
 def cell_pos(u, x, y):
@@ -623,9 +669,15 @@ def test_a_colour_another_seat_took_is_not_on_offer():
     # and the option list is untouched by repetition
     u.seat_keys = ["fox"] * 4
     u.seat_pick = (3, "option")
-    keys = {k.split(":", 1)[1] for k in u.menu_rects()
-            if k.startswith("option:")}
-    assert keys == set(seats_mod.seat_menu_options())
+    # Stage 7 turned the option list into a window, so "untouched" can no
+    # longer mean "all of it in the first window" - that was the old assertion.
+    # What it says now: walking every scroll position yields exactly the
+    # options, none missing and none invented, whatever the seats are set to.
+    offered = set()
+    for rects in menu_windows(u):
+        offered |= {k.split(":", 1)[1] for k in rects
+                    if k.startswith("option:")}
+    assert offered == set(seats_mod.seat_menu_options())
 
 
 def test_picking_from_the_menu_assigns_to_that_seat_only():
@@ -1282,6 +1334,147 @@ def test_switch_then_place_places_the_new_piece():
     assert u.game.placed[0] == 1
 
 
+
+# ----------------------------------------------- the scrolling picker (stage 7)
+
+def test_the_wheel_scrolls_the_list_down(monkeypatch):
+    """The direction, pinned: a wheel-down flick moves the list down.
+
+    pygame's `MOUSEWHEEL.y` is positive upwards, so this is the one place a
+    sign error could hide and still look right in a screenshot.
+    """
+    u, keys = open_fake_menu(monkeypatch, rows=24)
+    assert u.menu_scroll == 0
+    wheel(u, -1)                      # wheel down
+    assert u.menu_scroll == 1, "wheel down must increase menu_scroll"
+    wheel(u, 1)                       # wheel up
+    assert u.menu_scroll == 0
+    for _ in range(64):
+        wheel(u, -1)
+    at_end = u.menu_scroll
+    assert at_end > 0, "24 rows cannot all be on screen"
+    wheel(u, -1)
+    assert u.menu_scroll == at_end, "clamped at the end"
+    wheel(u, 1)
+    assert u.menu_scroll == at_end - 1
+    for _ in range(64):
+        wheel(u, 1)
+    assert u.menu_scroll == 0, "clamped at the top"
+
+
+def test_the_arrow_page_and_home_end_keys_drive_the_list(monkeypatch):
+    u, keys = open_fake_menu(monkeypatch, rows=24)
+    page = len(u.menu_rects()) - 1          # minus the cancel button
+    key(u, pygame.K_DOWN)
+    assert u.menu_scroll == 1
+    key(u, pygame.K_UP)
+    assert u.menu_scroll == 0
+    # a full page from the top is still clamped to `max_scroll`, which is the
+    # rest of the list rather than the page size
+    key(u, pygame.K_PAGEDOWN)
+    assert u.menu_scroll == min(page, len(keys) - page)
+    key(u, pygame.K_PAGEUP)
+    assert u.menu_scroll == 0
+    key(u, pygame.K_END)
+    assert u.menu_scroll == len(keys) - page
+    key(u, pygame.K_HOME)
+    assert u.menu_scroll == 0
+
+
+def test_a_long_menu_reaches_its_last_row_and_picks_it(monkeypatch):
+    """Stage 7's acceptance: with more rows than fit, the last one is still
+    reachable and still clickable."""
+    u, keys = open_fake_menu(monkeypatch, rows=24)
+    windows = menu_windows(u)
+    assert len(windows) > 1, "24 rows must need more than one screenful"
+    last = windows[-1]
+    assert ("option:" + keys[-1]) in last, "the last row is never reachable"
+    click(u, last["option:" + keys[-1]].center)
+    assert u.seat_pick is None
+    assert u.seat_keys[0] == keys[-1]
+
+
+def test_every_window_of_a_long_menu_sits_inside_the_list_area(monkeypatch):
+    """What the union claim rests on, checked at every scroll position.
+
+    Three properties per window - rows never overlap each other, every row
+    sits above the cancel button (inside the list area) and on screen, and no
+    key is listed twice - plus the union over positions being the whole list,
+    and no two positions showing the same window.
+    """
+    u, keys = open_fake_menu(monkeypatch, rows=24)
+    windows = menu_windows(u)
+    offered, signatures = set(), []
+    for rects in windows:
+        assert "menu_cancel" in rects, "the cancel button is never scrolled away"
+        cancel = rects["menu_cancel"]
+        assert 0 <= cancel.top and cancel.bottom <= u.L.H, cancel
+        rows = [(k, r) for k, r in rects.items() if k != "menu_cancel"]
+        names = [k for k, _r in rows]
+        assert len(set(names)) == len(names), names
+        for i, (_ka, a) in enumerate(rows):
+            for _kb, b in rows[i + 1:]:
+                assert not a.colliderect(b), (_ka, _kb)
+        for _k, r in rows:
+            assert r.top >= 0 and r.bottom <= cancel.top, r
+            assert r.bottom <= u.L.H and r.right <= u.L.W, r
+        offered |= set(names)
+        signatures.append(tuple(sorted(
+            (k, (r.x, r.y, r.w, r.h)) for k, r in rects.items())))
+    assert offered == {"option:" + k for k in keys}
+    assert len(set(signatures)) == len(signatures), \
+        "two scroll positions showed the same window"
+
+
+def test_the_cancel_button_stays_reachable_at_every_scroll_position(
+        monkeypatch):
+    u, keys = open_fake_menu(monkeypatch, rows=24)
+    # at the top: present, on screen, and a click closes the picker
+    rects = u.menu_rects()
+    cancel = rects["menu_cancel"]
+    assert 0 <= cancel.top and cancel.bottom <= u.L.H
+    # at the bottom: the same three properties, then the click that matters
+    for _ in range(64):
+        wheel(u, -1)
+    rects = u.menu_rects()
+    cancel = rects["menu_cancel"]
+    assert 0 <= cancel.top and cancel.bottom <= u.L.H, cancel
+    click(u, cancel.center)
+    assert u.seat_pick is None, "cancel must work at max scroll"
+    assert u.menu_scroll == 0, "closing resets the scroll"
+
+
+@pytest.mark.parametrize("height", [600, 720, 900])
+def test_the_page_and_the_scroll_range_follow_the_window_height(
+        monkeypatch, height):
+    """Both numbers come from `L.H`: the page is what fits, and `max_scroll`
+    is the rest of the list."""
+    u, keys = open_fake_menu(monkeypatch, rows=24, scale=height / 720.0)
+    assert u.L.H == height
+    windows = menu_windows(u)
+    page = len(windows[0]) - 1
+    assert 1 <= page < len(keys), page
+    for rects in windows:
+        assert "menu_cancel" in rects
+        cancel = rects["menu_cancel"]
+        assert 0 <= cancel.top and cancel.bottom <= u.L.H, (height, cancel)
+        for k, r in rects.items():
+            assert 0 <= r.top and r.bottom <= u.L.H, (height, k, r)
+            if k != "menu_cancel":
+                assert r.bottom <= cancel.top, (height, k, r)
+    # scrolled to the end by `menu_windows`, so this is `max_scroll` itself
+    assert u.menu_scroll == len(keys) - page, (height, u.menu_scroll, page)
+    assert ("option:" + keys[-1]) in windows[-1], height
+
+
+def test_a_shorter_window_never_shows_more_rows_than_a_taller_one(monkeypatch):
+    pages = []
+    for height in (600, 900):
+        u, _keys = open_fake_menu(monkeypatch, rows=24, scale=height / 720.0)
+        pages.append(len(u.menu_rects()) - 1)
+    assert pages[0] <= pages[1], pages
+
+
 def test_the_picker_offers_random_ai_and_it_resolves_at_start():
     """The seat screen offers it as a fourteenth choice, shows a name and a
     description for it, and turns it into a specific opponent when the game
@@ -1290,16 +1483,34 @@ def test_the_picker_offers_random_ai_and_it_resolves_at_start():
     at_seat_screen(u)
     click(u, u.seat_rects()["0:option"].center)
     assert u.seat_pick == (0, "option")
-    menu = u.menu_rects()
-    assert "option:random_ai" in menu
-    assert len([k for k in menu if k.startswith("option:")]) == 14
-    # all thirteen fit on screen without overlapping
-    rects = [r for k, r in menu.items() if k.startswith("option:")]
-    assert all(r.bottom <= u.L.H for r in rects), rects
-    named = list(menu.items())
-    for i, (_ka, a) in enumerate(named):
-        for _kb, b in named[i + 1:]:
-            assert not a.colliderect(b), (_ka, _kb)
+    # Stage 7, claim by claim:
+    #   `"option:random_ai" in menu` and `len(...) == 14`
+    #       -> the first window is only the first screenful. What the picker
+    #          offers is the union over scroll positions, and `random_ai` is
+    #          the last row, so it is read off the last window below.
+    #   `all(r.bottom <= u.L.H)`
+    #       -> kept, but per window: windowing is what makes it true at every
+    #          scroll position rather than only while the list happens to fit.
+    #          Whether the *last* row is reachable is asserted by
+    #          `test_a_long_menu_reaches_its_last_row_and_picks_it`.
+    #   (the cancel button was not checked at all)
+    #       -> new: present and on screen in every window.
+    windows = menu_windows(u)
+    offered = set()
+    for rects in windows:
+        assert "menu_cancel" in rects
+        cancel = rects["menu_cancel"]
+        assert 0 <= cancel.top and cancel.bottom <= u.L.H, cancel
+        rows = [(k, r) for k, r in rects.items() if k.startswith("option:")]
+        offered |= {k.split(":", 1)[1] for k, _r in rows}
+        assert all(0 <= r.top and r.bottom <= u.L.H for _k, r in rows), rows
+        named = list(rects.items())
+        for i, (_ka, a) in enumerate(named):
+            for _kb, b in named[i + 1:]:
+                assert not a.colliderect(b), (_ka, _kb)
+    assert offered == set(seats_mod.seat_menu_options())
+    menu = windows[-1]
+    assert "option:random_ai" in menu, "the last row is reached by scrolling"
 
     click(u, menu["option:random_ai"].center)
     assert u.seat_keys[0] == seats_mod.RANDOM_AI_KEY

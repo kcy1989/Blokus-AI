@@ -137,6 +137,21 @@
 - 以 20 個以上選項實測;若有測試框架,加選項數多時的測試。
 - 文字走 config.I。獨立提交。
 
+**已完成**(提交 hash 見提交訊息):
+- `ui.menu_rects` 改回「可見視窗」:每頁列數與 `max_scroll` 由 `L.H` 推導,
+  取消鍵先預算、永遠在畫面內且不隨捲動移動;超出的列根本不回傳,
+  所以畫圖與命中測試共用同一份答案。捲動狀態 `self.menu_scroll` 在開/關
+  picker 時歸 0,並在 `menu_rects` 內 clamp。
+- 輸入:滾輪(`MOUSEWHEEL`,向下 → `menu_scroll` 增加,已用測試釘住方向)、
+  `K_UP`/`K_DOWN` 逐列、`K_PAGEUP`/`K_PAGEDOWN` 整頁、`K_HOME`/`K_END`。
+  捲軸只畫位置、不在 `menu_rects` 裡,因此不可點、也不會被當成選項。
+- **未新增任何可見文字**,所以 `config.I` 沒動。
+- 測試:人造 24 列清單(不用真實池)驗證捲到最後一列並點中、取消鍵在每個
+  捲動位置都可點、列聯集完整、每窗內列互不重疊/全在列區內/無重複 key、
+  以及 `H=600` / `720` / `900` 三種高度。原 picker 測試與
+  `test_a_colour_another_seat_took_is_not_on_offer` 的「全部列同時存在」
+  改為「捲動位置的聯集」,新舊差異寫在測試 docstring 與回報裡。
+
 ## 階段 8:換 AI 的工作流與工具
 - `python -m ai --check`:執行全部驗證,列出各池內容。(原寫 `python -m ai.registry --check`;`ai/__init__` 匯出 `ai.registry`,跑子模組會重複執行同一個模組並噴 runpy 的 `RuntimeWarning`,所以入口掛在套件上。)
 - `python -m ai.registry --list`:顯示全部 AI、所屬池、enabled/selectable、sha256 前綴。

@@ -453,6 +453,12 @@ class UI:
         self.seat_colours = [seats_mod.RANDOM] * 4
         # `(seat, "option"|"colour")` while a picker is open, else None.
         self.seat_pick = None
+        # Which slice of a picker's list is showing. Zeroed whenever a picker
+        # opens or closes; `menu_rects` clamps it, so a stale value can never
+        # put a row outside the window.
+        self.menu_scroll = 0
+        self.menu_track = None
+        self.menu_thumb = None
         self.imitation_mode = "argmax"
         self.running = True
         self.drag = None
@@ -592,6 +598,7 @@ class UI:
         self.seat_keys = list(DEFAULT_SEAT_KEYS)
         self.seat_colours = [seats_mod.RANDOM] * 4
         self.seat_pick = None
+        self.menu_scroll = 0
         self.drag = None
         self.anim = None
         self.ai_move = None
@@ -821,6 +828,7 @@ class UI:
                     else:
                         seat, what = bid.split(":")
                         self.seat_pick = (int(seat), what)
+                        self.menu_scroll = 0
                     return
             elif e.type == pygame.KEYDOWN and e.key in (
                     pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
@@ -828,15 +836,46 @@ class UI:
                 return
 
     def handle_setup_menu(self, events):
-        """A picker is open: one click picks, one click closes."""
+        """A picker is open: one click picks, one click closes.
+
+        Scrolling is how the rest of the list is reached: the wheel and the
+        arrow keys move one row, Page keys a screen, Home/End the ends. Every
+        path updates `menu_scroll` and then lets `menu_rects` clamp it, so the
+        range can only ever come from the geometry.
+        """
         rects = self.menu_rects()
+        page = max(1, len(rects) - 1)   # everything except `menu_cancel`
         for e in events:
+            if e.type == pygame.MOUSEWHEEL:
+                # pygame's `y` is positive for a wheel-up flick, so wheel-down
+                # is `y < 0` and has to move the list *down* - a larger
+                # `menu_scroll`. `tests/test_ui_smoke` pins that direction.
+                if e.y:
+                    self.menu_scroll += -e.y
+                    self.menu_rects()
+                return
+            if e.type == pygame.KEYDOWN and e.key in (
+                    pygame.K_UP, pygame.K_DOWN, pygame.K_PAGEUP,
+                    pygame.K_PAGEDOWN, pygame.K_HOME, pygame.K_END):
+                if e.key == pygame.K_HOME:
+                    self.menu_scroll = 0
+                elif e.key == pygame.K_END:
+                    # Far past the end; `menu_rects` trims it to `max_scroll`.
+                    self.menu_scroll = page * len(rects)
+                else:
+                    self.menu_scroll += {
+                        pygame.K_UP: -1, pygame.K_DOWN: 1,
+                        pygame.K_PAGEUP: -page, pygame.K_PAGEDOWN: page,
+                    }[e.key]
+                self.menu_rects()
+                return
             if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
                 for bid, r in rects.items():
                     if not r.collidepoint(e.pos):
                         continue
                     if bid == "menu_cancel":
                         self.seat_pick = None
+                        self.menu_scroll = 0
                     else:
                         seat, what = self.seat_pick
                         key = bid.split(":", 1)[1]
@@ -845,10 +884,12 @@ class UI:
                         else:
                             self.seat_colours[seat] = key
                         self.seat_pick = None
+                        self.menu_scroll = 0
                     return
             elif e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                 # ESC is "close the picker", not "quit", while one is open.
                 self.seat_pick = None
+                self.menu_scroll = 0
                 return
 
     # ---------- player turn ----------
@@ -1040,10 +1081,23 @@ class UI:
         return out
 
     def menu_rects(self):
-        """The open picker's choices, keyed `"<kind>:<key>"`.
+        """The open picker's **visible** choices, keyed `"<kind>:<key>"`.
 
         A colour another seat has taken is simply not here, which is the whole
-        of the "taken colours leave the menu" rule. Options are never removed.
+        of the "taken colours leave the menu" rule. Options are never removed
+        either - they are only scrolled to.
+
+        The list is a window rather than the whole of it: rows that do not fit
+        between the top of the list area and the cancel button are not returned
+        at all, so every rect handed out is on screen and inside the list area.
+        Drawing and hit-testing share this one answer, which is what keeps them
+        from disagreeing about what exists.
+
+        The page size and the scroll range come from `L.H` rather than a
+        constant: rows scale with `L.scale`, and the height they have to fit
+        inside is `L.H` minus the cancel button and the margins. The cancel
+        button is budgeted first because it is never scrollable away, so it
+        stays clickable at every scroll position.
         """
         s = self.L.scale
         seat, what = self.seat_pick
@@ -1053,14 +1107,39 @@ class UI:
         h = int(round(38 * s))
         gap = int(round(6 * s))
         w = int(round(360 * s))
-        total = len(keys) * h + (len(keys) - 1) * gap
+        cancel_h = int(round(30 * s))
+        cancel_gap = int(round(14 * s))
+        margin = max(4, int(round(8 * s)))
+        area = self.L.H - 2 * margin - cancel_gap - cancel_h
+        page = max(1, (area + gap) // (h + gap))
+        max_scroll = max(0, len(keys) - page)
+        first = max(0, min(self.menu_scroll, max_scroll))
+        self.menu_scroll = first
+        shown = keys[first:first + page]
+        list_h = len(shown) * h + max(0, len(shown) - 1) * gap
+        block_h = list_h + cancel_gap + cancel_h
+        y0 = max(margin, (self.L.H - block_h) // 2)
         x = (self.L.W - w) // 2
-        y0 = max(0, (self.L.H - total) // 2)
         out = {}
-        for i, k in enumerate(keys):
+        for i, k in enumerate(shown):
             out["%s:%s" % (what, k)] = pygame.Rect(x, y0 + i * (h + gap), w, h)
-        out["menu_cancel"] = pygame.Rect(x, y0 + total + int(round(14 * s)),
-                                        w, int(round(30 * s)))
+        out["menu_cancel"] = pygame.Rect(x, y0 + list_h + cancel_gap,
+                                        w, cancel_h)
+        # The scrollbar is a position indicator, not a target: it is drawn
+        # beside the list and never hit-tested, so clicking it does nothing and
+        # `menu_rects` still answers with rows and the cancel button only.
+        if max_scroll > 0 and list_h > 0:
+            track_x = x + w + int(round(6 * s))
+            track_w = max(2, int(round(4 * s)))
+            thumb_h = min(list_h, max(int(round(12 * s)),
+                                      list_h * len(shown) // len(keys)))
+            travel = list_h - thumb_h
+            top = y0 + travel * first // max_scroll
+            self.menu_track = pygame.Rect(track_x, y0, track_w, list_h)
+            self.menu_thumb = pygame.Rect(track_x, top, track_w, thumb_h)
+        else:
+            self.menu_track = None
+            self.menu_thumb = None
         return out
 
     # ---------- hand ----------
@@ -1547,6 +1626,11 @@ class UI:
                 caption = COLOR_LABELS.get(key, key)
                 chosen = key == self.seat_colours[seat]
             self.draw_choice(r, caption, selected=chosen)
+        if self.menu_track is not None:
+            # Position only. It is deliberately outside `menu_rects`, so it
+            # cannot be clicked and no test has to treat it as a choice.
+            pygame.draw.rect(surf, (44, 50, 64), self.menu_track)
+            pygame.draw.rect(surf, (124, 136, 158), self.menu_thumb)
 
     def draw_results(self):
         """Draw the finished board, then a results panel in the sidebar.
