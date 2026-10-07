@@ -188,3 +188,11 @@
   `hc_10000` 仍算 `data/` 內的檔,重訓覆寫會讓它紅。這是刻意的(證據數字不能
   悄悄改變),但和 (a) 綁在一起:兩者退出版控與常規池之後,這條要不要改成只驗
   `ai/checkpoints/`,要一併決定。
+- **(d) `tests/test_trace.py::test_trace_costs_nothing_when_not_requested`
+  是計時測試**:斷言 `off <= on * 1.15 + 0.05`,拿牆鐘比較「沒開 trace 比開了
+  還慢就算輸」。`-n 8` 下它和另外七個 worker 搶 CPU,會偶發變紅 —— 2026-10-07
+  階段 6 的一次全跑紅過一次,同一支單獨跑 `1 passed`,下一次全跑又綠。
+  AGENTS 第六節列的五處計時斷言(`test_ai` / `test_builder` / `test_intruder` /
+  `test_optimizer` 的 `dt < 1.5` 與 `test_rl_paired3` 的 `elapsed < 3.0`)有
+  10.5 倍餘裕,這條**不在**那個名單裡。日後要嘛放寬門檻、要嘛改成不看牆鐘的
+  斷言;本輪不處理,只記下來。
