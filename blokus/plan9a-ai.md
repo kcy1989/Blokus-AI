@@ -130,6 +130,30 @@
 - config.I:0k 學生用「模仿學習 1000 步」說明,不套 PPO 文案;random_ai_desc 去掉不實的「模仿」措辭。
 - 受影響測試先分類:全屬組成性才重採 GOLDEN;舊值寫入 README。
 - `--subject` 允許 hc_* 與 rl_h1000_0k,即使不在常規池。
+
+**已完成**(提交 hash 見提交訊息;實際順序:先存 `stage6-wip` → 階段 7 →
+`git cherry-pick -n` 恢復本階段,因為十七列選單沒有捲動就放不進 720p):
+- 池組成變更是唯一的行為變動來源:`all` 14、`imitation_only` 6、
+  `no_imitation` 7、`rl_only` 1。**`hc_2000` / `hc_10000` 維持現狀**
+  (registry 兩列、`.gitignore` 兩行、`data/` 權重、`enabled` 全不動),
+  所以是 14/6 而不是已定決策的 12/4 —— 12/4 與其三項後果記在
+  「待清理項目」(a)。`rl_only ∩ imitation_only == []` 由既有 preset 測試守住。
+- 三份權重複製進 `ai/checkpoints/`,複製前後 sha256 與預期值三方一致。
+- **β**:`imitation_step` 從 `checkpoint` 檔名 `step_%06d.pt` 解析,失敗 raise
+  不回預設;哪些 key 屬 imitation 由 registry 的 `family` 決定;
+  `IMITATION_KEYS` 只保留 step→key 方向(H-C2 鏈)。
+  新測試:每個 imitation key 的 `imitation_step` == 檔名步數;非 step 檔名 raise。
+- **config.I**:四個 1000 步席位的 label 各帶老師名(可區分);desc 只寫步數與
+  老師;`random_ai_desc` 去掉池大小數字;`rl_desc_fmt` 刪掉無法引用證據的
+  「比啟動它的 rl_h1000_0k 強」。`ui.seat_label` / `seat_desc` 只接線
+  label/desc_key,其他行為不動。
+- 三條結構性測試依裁決改寫,新舊差異寫在回報與測試 docstring 內。
+- **GOLDEN 重採**(11→14,組成性):舊值 `63eb992`、新值本提交,連同釘住池
+  探測的 md5(`92a99b6a…` / `97403a9f…`,diff 無輸出)都寫進 README
+  「GOLDEN 重採（plan9a 階段 6）」。
+- 全套測試 `1014 passed in 469.37s`,`pytest exit=0`;
+  `records.json` 前後皆 `5ff6867c5bc98c8d3d2cf37711bb074c`;
+  `LEGACY_GOLDEN_MD5` 未變;`python -m ai --check` 四池 = 14/6/7/1。
 - 注意 `imitation_only` 現在含 rl_h1000_0k(113 萬列),與 o/b/i(約 7.9 萬列)規格不同,README 註明。
 
 ## 階段 7:UI 下拉捲動

@@ -14,13 +14,16 @@ between the two copies is agreement. That is what every test below checks: set
 *and* order, key by key and field by field. Editing one side alone is a
 failure, not a silent divergence.
 
-None of these assertions pin a composition. Each one reads one side from the
-JSON and the other from the code, so a stage-6 pool change that moves both
-together still passes and one that moves only one does not.
+Most of these assertions read one side from the JSON and the other from the
+code, so a pool change that moves both together still passes and one that moves
+only one does not. Two do pin a composition on purpose, because there is no
+second side left to read: the roster row order, and the pool size the
+subprocess prints. Their docstrings say so.
 """
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -56,11 +59,60 @@ def test_the_json_lists_the_personalities_in_the_class_tables_order():
 
 
 def test_the_json_lists_the_checkpoints_in_step_order():
-    """`IMITATION_STEPS` decides both which files and which keys, in order."""
+    """What is left of the code/JSON agreement for the imitation family.
+
+    Before plan9a stage 6 this was `from_json == from_code`: the JSON's whole
+    imitation family *was* `IMITATION_KEYS`, so membership and step were each
+    written down twice and the two copies had to agree. Decision beta made the
+    JSON the only authority on membership - it holds six imitation keys while
+    `IMITATION_KEYS` still holds H-C2's three, because four seats now sit at
+    step 1000 and no table keyed by step can name them all.
+
+    What that costs, stated rather than hidden:
+      * still caught here: a code-table name that has vanished from the JSON,
+        and the H-C2 chain coming out of the rows in the wrong order;
+      * no longer caught here: an extra imitation row the code table never
+        knew - that is legal now (the three students), not a divergence;
+      * moved to `test_every_imitation_key_step_is_its_checkpoint_filename_step`:
+        the step of every key, which comes from the filename from here on.
+    """
     from_code = tuple(S.IMITATION_KEYS[step] for step in S.IMITATION_STEPS)
     from_json = tuple(e["key"] for e in R.ENTRIES
                       if e["family"] == "imitation")
-    assert from_json == from_code
+    positions = [from_json.index(key) for key in from_code]
+    assert positions == sorted(positions), from_json
+    assert len(set(from_json)) == len(from_json)
+
+
+def test_every_imitation_key_step_is_its_checkpoint_filename_step():
+    """Stage 6 (beta): the filename is the only authority for "which step".
+
+    `imitation_step` parses `checkpoint`, so this pins the parse against the
+    registry's own path for every imitation key: a path that stopped following
+    H-C2's `step_%06d.pt` convention, or a parse that returned a default
+    instead of raising, fails here rather than at load time.
+    """
+    for e in R.ENTRIES:
+        if e["family"] != "imitation":
+            continue
+        match = re.fullmatch(r"step_(\d{6})\.pt",
+                             os.path.basename(e["checkpoint"]))
+        assert match, (e["key"], e["checkpoint"])
+        assert S.imitation_step(e["key"]) == int(match.group(1)), e["key"]
+
+
+def test_a_checkpoint_name_that_is_not_a_step_file_raises(monkeypatch):
+    """The other half of beta: no default step, ever.
+
+    A registry path that does not follow the convention has to be a loud
+    failure at the moment somebody asks what step it is, because that answer is
+    what `build_brain` reopens the file with - a silent fallback would load a
+    different checkpoint than the seat claims to be.
+    """
+    monkeypatch.setattr(S, "registry_checkpoint",
+                        lambda key: "/somewhere/custom.pt")
+    with pytest.raises(ValueError, match="step_NNNNNN"):
+        S.imitation_step("rl_h1000_0k")
 
 
 def test_the_json_lists_the_trained_policies_in_table_order():
@@ -130,11 +182,22 @@ def test_network_entries_name_the_files_the_seats_load():
             continue
         assert S.imitation_checkpoint(e["key"]) == e["checkpoint"], e["key"]
         step = S.imitation_step(e["key"])
-        assert e["source"] == os.path.join(
-            S.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step), e["key"]
+        # Since plan9a stage 6 `source` is per key, not one constant: H-C2's
+        # three trained in data/hc2, the three students each in their own
+        # data/imit_* run. What every one of them still has to be is a training
+        # artifact under data/ whose filename matches the published copy - that
+        # is what makes the copy a copy. The H-C2 chain keeps the stricter
+        # assertion below, because `IMITATION_CHECKPOINT_DIR` is still the run
+        # those three came from.
+        assert e["source"].startswith("data/"), e["key"]
+        assert os.path.basename(e["source"]) == \
+            os.path.basename(e["checkpoint"]), e["key"]
+        if e["key"] in S.IMITATION_KEYS.values():
+            assert e["source"] == os.path.join(
+                S.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step), e["key"]
         assert os.path.basename(e["checkpoint"]) == "step_%06d.pt" % step, \
             e["key"]
-    assert seen == 4
+    assert seen == 7
 
 
 def test_heuristic_entries_name_the_module_the_brain_class_lives_in():
@@ -226,8 +289,16 @@ def test_the_label_and_description_keys_exist_in_config():
             assert e["label"] == e["key"]
             assert e["desc_key"] == e["key"] + "_desc"
         else:
-            assert e["label"] in ("imitation_fmt", "rl_fmt")
-            assert e["desc_key"] in ("imitation_desc_fmt", "rl_desc_fmt")
+            assert e["label"] in ("imitation_fmt", "imitation_hunter_fmt",
+                                  "imitation_optimizer_fmt",
+                                  "imitation_builder_fmt",
+                                  "imitation_intruder_fmt", "rl_fmt")
+            assert e["desc_key"] in ("imitation_desc_fmt",
+                                     "imitation_hunter_desc_fmt",
+                                     "imitation_optimizer_desc_fmt",
+                                     "imitation_builder_desc_fmt",
+                                     "imitation_intruder_desc_fmt",
+                                     "rl_desc_fmt")
 
 
 # --------------------------------------------------------------------------
@@ -351,7 +422,7 @@ def test_importing_never_hashes_a_checkpoint_and_never_warns():
     r = subprocess.run([sys.executable, "-c", hash_code], cwd=_ROOT,
                        capture_output=True)
     assert r.returncode == 0, r.stderr.decode()
-    assert r.stdout.strip() == b"11"
+    assert r.stdout.strip() == b"14"
     assert b"RuntimeWarning" not in r.stderr
 
     r = subprocess.run([sys.executable, "-c", "import ai, seats"],
@@ -510,9 +581,15 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     keys = [e["key"] for e in raw["entries"]]
-    assert keys == ["wolf", "chess", "fox", "intruder", "optimizer", "builder",
-                    "hunter", "rl_h1000_0k", "hc_2000", "hc_10000",
-                    "rl_h1000_20k"]
+    # Stage 6 appended three students and touched no earlier row: the first
+    # eleven are exactly the list stage 3 pinned, which is what makes "the
+    # re-sort came from a rule, not from an edit to the roster" still checkable
+    # for those eleven.
+    assert keys[:11] == ["wolf", "chess", "fox", "intruder", "optimizer",
+                         "builder", "hunter", "rl_h1000_0k", "hc_2000",
+                         "hc_10000", "rl_h1000_20k"]
+    assert keys[11:] == ["rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k"]
+    assert len(keys) == 14
     assert sorted(keys) == list(S.automated_options())
 
 

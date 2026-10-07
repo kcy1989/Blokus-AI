@@ -71,17 +71,17 @@ def test_a_pool_and_a_subject_named_by_the_old_spelling_expand_to_the_new_one():
 
 def test_the_alias_does_not_enter_the_pool():
     options = S.automated_options()
-    assert len(options) == 11
+    assert len(options) == 14
     assert NEW in options
     assert OLD not in options
-    assert len(M.POOL_PRESETS["all"]) == 11
+    assert len(M.POOL_PRESETS["all"]) == 14
     assert len(M.POOL_PRESETS["no_imitation"]) == 7
-    assert len(M.POOL_PRESETS["imitation_only"]) == 3
+    assert len(M.POOL_PRESETS["imitation_only"]) == 6
     assert M.POOL_PRESETS["rl_only"] == ("rl_h1000_20k",)
 
 
 def test_the_rename_left_every_other_seat_where_it_was():
-    """The pool is the same eleven keys, one of them spelled differently.
+    """The pool is the same fourteen keys, one of them spelled differently.
 
     What is checkable is the *set*: nothing added, nothing removed, nothing
     substituted beyond that one string. The order is `ai.registry.pool_order`
@@ -91,13 +91,14 @@ def test_the_rename_left_every_other_seat_where_it_was():
     seat list a player sees reorders on a rename, and the games change with it.
     """
     options = S.automated_options()
-    assert len(options) == 11
+    assert len(options) == 14
     assert NEW in options
     assert OLD not in options
     assert options == tuple(sorted(options))
     assert set(options) == {
         "wolf", "chess", "fox", "intruder", "optimizer", "builder", "hunter",
-        NEW, "hc_2000", "hc_10000", "rl_h1000_20k"}
+        NEW, "hc_2000", "hc_10000", "rl_h1000_20k", "rl_b1000_0k",
+        "rl_i1000_0k", "rl_o1000_0k"}
 
 
 # --------------------------------------------------------------------------

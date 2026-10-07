@@ -216,7 +216,7 @@ def _validate(entries):
                 bad("%s: `%s` must be true or false" % (where, f))
         # The two flags document two different questions - "is it in the
         # regular pool" and "can the seat menu and the random draw offer it" -
-        # but today they gate two views of the same eleven keys, so flipping
+        # but today they gate two views of the same fourteen keys, so flipping
         # one without the other would give the league and the seat menu two
         # different answers with no failure to show for it. They are flipped
         # together, and a disagreement is refused here rather than discovered
@@ -342,7 +342,7 @@ def automated_options():
 
     What the seat menu shows, what `RANDOM_AI_KEY` draws and what a league draws
     its four seats from - one list, because those three have always been the same
-    eleven things, and because one order means a pool produced by any of the
+    fourteen things, and because one order means a pool produced by any of the
     three is the same pool.
     """
     return pool_order(e["key"] for e in ENTRIES if e["selectable"])
@@ -353,7 +353,7 @@ def pool(name):
 
     `enabled` gates every pool at once rather than only "the regular one",
     because at this stage the regular pool and the four presets are all the
-    same eleven keys. `_validate` refuses an entry whose `enabled` and
+    same fourteen keys. `_validate` refuses an entry whose `enabled` and
     `selectable` disagree, so this view and `automated_options()` cannot drift
     apart behind a half-flipped flag.
     """

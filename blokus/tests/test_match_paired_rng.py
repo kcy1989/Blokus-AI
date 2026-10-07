@@ -479,7 +479,7 @@ def test_an_unknown_subject_names_the_legal_options():
     for key in ("rl_h1000_20k", "rl_h1000_0k", "wolf"):
         assert key in legal
         assert key in str(e.value)
-    assert len(legal) == 11
+    assert len(legal) == 14
 
 
 def test_a_subject_without_the_split_is_refused():

@@ -90,8 +90,8 @@ def test_play_match_ends_and_scores_by_personality():
 def test_league_records_only_personality_keys(tmp_path):
     """A league of the seven personalities, with no player in it.
 
-    Run without the network options on purpose: the default eleven would load
-    three checkpoints and a trained policy - four files, four torch imports -
+    Run without the network options on purpose: the default fourteen would load
+    six checkpoints and a trained policy - seven files, seven torch imports -
     and this test is about the leaderboard, not about torch.
     """
     rec = Records(str(tmp_path / "records.json"))
@@ -117,16 +117,16 @@ def test_run_league_without_records_touches_no_file(tmp_path):
     assert not list(tmp_path.iterdir())
 
 
-# -------------------------------------------------- the eleven-seat league
+# ------------------------------------------------- the fourteen-seat league
 
-def test_the_league_offers_eleven_options_and_no_humans():
+def test_the_league_offers_fourteen_options_and_no_humans():
     from match import league_options
     opts = league_options()
-    assert len(opts) == 11
-    assert len(set(opts)) == 11
+    assert len(opts) == 14
+    assert len(set(opts)) == 14
     kinds = [seats_mod.kind_of(k, include_humans=False) for k in opts]
     assert kinds.count(seats_mod.KIND_AI) == 7
-    assert kinds.count(seats_mod.KIND_IMITATION) == 3
+    assert kinds.count(seats_mod.KIND_IMITATION) == 6
     assert kinds.count(seats_mod.KIND_RL) == 1
     assert not any(seats_mod.is_human_kind(k) for k in kinds)
     assert not any(seats_mod.is_human_kind(k) for k in kinds)
@@ -215,11 +215,15 @@ def test_the_league_draws_its_seats_through_setup_seats():
 
 
 def test_only_imitation_options_can_be_asked_for():
-    """The three H-C2 checkpoints and nothing else.
+    """The six imitation checkpoints and nothing else, in key order.
 
-    Compared sorted: since plan9a stage 3 every pool is in key order, and key
-    order is not step order - `hc_10000` sorts before `hc_2000`.
+    Spelled out rather than derived, for the same reason `GOLDEN_POOL` is:
+    since plan9a stage 6 the family is the registry's `family` field and
+    `IMITATION_KEYS` only ever held H-C2's three steps - four seats share step
+    1000 now - so deriving this from the code table would assert that the code
+    table still knows the family, which is the thing beta stopped claiming.
+    Key order is not step order: `hc_10000` sorts before `hc_2000`.
     """
     steps = [k for k in league_options() if seats_mod.is_imitation_key(k)]
-    assert steps == sorted(seats_mod.imitation_key(s)
-                           for s in seats_mod.IMITATION_STEPS)
+    assert steps == ["hc_10000", "hc_2000", "rl_b1000_0k", "rl_h1000_0k",
+                     "rl_i1000_0k", "rl_o1000_0k"]

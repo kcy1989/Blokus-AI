@@ -102,8 +102,8 @@
       "pools": ["all", "imitation_only"],
       "enabled": true,
       "selectable": true,
-      "label": "imitation_fmt",
-      "desc_key": "imitation_desc_fmt",
+      "label": "imitation_hunter_fmt",
+      "desc_key": "imitation_hunter_desc_fmt",
       "note": "H-C2 imitation checkpoint at step 1000: the 0k starting point of the rl_h1000 chain, and the frozen KL anchor of PPO. Published and measured as hc_1000, which stays a permanent alias."
     },
     {
@@ -150,6 +150,51 @@
       "label": "rl_fmt",
       "desc_key": "rl_desc_fmt",
       "note": "PPO from the 0k checkpoint over 40 rounds of 500 games. The file is pinned by name: data/rl1/step_000040.pt is round 40, not an imitation step."
+    },
+    {
+      "key": "rl_o1000_0k",
+      "aliases": [],
+      "kind": "network",
+      "family": "imitation",
+      "checkpoint": "ai/checkpoints/rl_o1000_0k/step_001000.pt",
+      "source": "data/imit_o1000/step_001000.pt",
+      "sha256": "78952e5e6f3c9cde50cd20fe70fa39b3adf83de39de1144588826f8f4e626e4b",
+      "pools": ["all", "imitation_only"],
+      "enabled": true,
+      "selectable": true,
+      "label": "imitation_optimizer_fmt",
+      "desc_key": "imitation_optimizer_desc_fmt",
+      "note": "Optimizer's 1000-step imitation student, no RL rounds on top (0k). Weights are data/imit_o1000's step 1000, published here."
+    },
+    {
+      "key": "rl_b1000_0k",
+      "aliases": [],
+      "kind": "network",
+      "family": "imitation",
+      "checkpoint": "ai/checkpoints/rl_b1000_0k/step_001000.pt",
+      "source": "data/imit_b1000/step_001000.pt",
+      "sha256": "845f637ce1d08d1231f9aa672c598b02294cd448e43a58837e44bd8f15357596",
+      "pools": ["all", "imitation_only"],
+      "enabled": true,
+      "selectable": true,
+      "label": "imitation_builder_fmt",
+      "desc_key": "imitation_builder_desc_fmt",
+      "note": "Builder's 1000-step imitation student, no RL rounds on top (0k). Weights are data/imit_b1000's step 1000, published here."
+    },
+    {
+      "key": "rl_i1000_0k",
+      "aliases": [],
+      "kind": "network",
+      "family": "imitation",
+      "checkpoint": "ai/checkpoints/rl_i1000_0k/step_001000.pt",
+      "source": "data/imit_i1000/step_001000.pt",
+      "sha256": "a72e5c7f3fc36a31bb8a447fa529b4c525a2a417bf7c2f1735310e7745b2043f",
+      "pools": ["all", "imitation_only"],
+      "enabled": true,
+      "selectable": true,
+      "label": "imitation_intruder_fmt",
+      "desc_key": "imitation_intruder_desc_fmt",
+      "note": "Intruder's 1000-step imitation student, no RL rounds on top (0k). Weights are data/imit_i1000's step 1000, published here."
     }
   ]
 }

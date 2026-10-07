@@ -610,9 +610,9 @@ def test_the_seat_screen_starts_a_game_without_picking_anything():
 
 def test_every_seat_option_renders_on_the_seat_screen():
     """The screen looks each option up by key, so a new option with a missing
-    name or description only blows up at runtime. Checked for all fourteen."""
+    name or description only blows up at runtime. Checked for all seventeen."""
     options = seats_mod.seat_menu_options()
-    assert len(options) == 14
+    assert len(options) == 17
     for opt in options:
         u = make_ui()
         at_seat_screen(u)
@@ -1476,7 +1476,7 @@ def test_a_shorter_window_never_shows_more_rows_than_a_taller_one(monkeypatch):
 
 
 def test_the_picker_offers_random_ai_and_it_resolves_at_start():
-    """The seat screen offers it as a fourteenth choice, shows a name and a
+    """The seat screen offers it as a seventeenth choice, shows a name and a
     description for it, and turns it into a specific opponent when the game
     starts."""
     u = make_ui()
@@ -1532,35 +1532,44 @@ def test_the_picker_offers_random_ai_and_it_resolves_at_start():
 
 
 def test_the_league_pool_is_unchanged_by_the_new_option():
-    """`match.py` already draws every seat from the eleven, so it does not need
-    the deferred choice - adding it there would only draw twice."""
+    """`match.py` already draws every seat from the fourteen, so it does not
+    need the deferred choice - adding it there would only draw twice."""
     from match import league_options
-    assert len(league_options()) == 11
+    assert len(league_options()) == 14
     assert seats_mod.RANDOM_AI_KEY not in league_options()
 
 
-def test_the_registry_describes_exactly_what_the_seat_screen_shows():
-    """plan9a stage 2 wrote `label` and `desc_key` into `ai/registry.json`,
-    while the screen still renders names itself.
+def test_every_selectable_option_has_a_name_and_a_description_of_its_own():
+    """What plan9a stage 6 left of the old registry-vs-screen comparison.
 
-    Neither side reads the other, so nothing breaks if they drift - which is
-    exactly the problem: a hand-edited `desc_key` would sit there doing nothing
-    until stage 6 wired it up and the stale value came back to life. This binds
-    the two by rendering the JSON's keys the way the screen does and comparing.
+    Stage 2 wrote `label` and `desc_key` into `ai/registry.json` while the
+    screen still rendered names itself, and the old test rendered both sides
+    and compared them - a hand-edited `desc_key` would otherwise sit there
+    doing nothing until stage 6 wired it up. Stage 6 did wire it up: the screen
+    now reads the registry, so there are no longer two sides to compare, and a
+    bad `desc_key` changes what the screen shows instead of being silently
+    ignored (which is what `test_the_label_and_description_keys_exist_in_config`
+    now guards from the JSON side).
+
+    What a seat screen does still need is checked here instead: every
+    selectable option renders a name and a description, neither is blank, and
+    no two options share either one. The distinctness is not decoration - four
+    seats sit at step 1000, so a label that dropped the teacher would put four
+    identical rows in the menu.
     """
     from ai import registry as R
 
+    labels, descs = [], []
     for e in R.ENTRIES:
-        key, family = e["key"], e["family"]
-        if family == "personality":
-            label, desc = I[e["label"]], I[e["desc_key"]]
-        elif family == "imitation":
-            step = seats_mod.imitation_step(key)
-            label, desc = I[e["label"]].format(step), I[e["desc_key"]].format(step)
-        else:
-            label, desc = I[e["label"]].format(key), I[e["desc_key"]]
-        assert ui.seat_label(key) == label, key
-        assert ui.seat_desc(key) == desc, key
+        if not e["selectable"]:
+            continue
+        label, desc = ui.seat_label(e["key"]), ui.seat_desc(e["key"])
+        assert label and label.strip(), e["key"]
+        assert desc and desc.strip(), e["key"]
+        labels.append(label)
+        descs.append(desc)
+    assert len(set(labels)) == len(labels), labels
+    assert len(set(descs)) == len(descs), descs
 
 
 # --------------------------------- two seats on the same option, results screen

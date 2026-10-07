@@ -139,16 +139,16 @@ def test_the_cli_reports_a_bad_pool_as_a_usage_error(tmp_path):
 # ----------------------------------------------------------------- presets
 
 def test_the_four_presets_have_the_ruled_sizes():
-    assert len(POOL_PRESETS["all"]) == 11
+    assert len(POOL_PRESETS["all"]) == 14
     assert len(POOL_PRESETS["no_imitation"]) == 7
-    assert len(POOL_PRESETS["imitation_only"]) == 3
+    assert len(POOL_PRESETS["imitation_only"]) == 6
     assert len(POOL_PRESETS["rl_only"]) == 1
     assert POOL_PRESETS["no_imitation"] == tuple(PERSONALITIES)
     assert POOL_PRESETS["imitation_only"] == tuple(STEPS)
     assert POOL_PRESETS["rl_only"] == tuple(TRAINED)
-    assert len(expand_pool("all")) == 11
+    assert len(expand_pool("all")) == 14
     assert len(expand_pool("no_imitation")) == 7
-    assert len(expand_pool("imitation_only")) == 3
+    assert len(expand_pool("imitation_only")) == 6
     assert len(expand_pool("rl_only")) == 1
 
 
@@ -332,6 +332,13 @@ def test_no_pool_at_all_means_all():
 # this was an ordering change and nothing else - the eleven keys are the same
 # eleven.
 #
+# **Recaptured a fourth time by plan9a stage 6**, which registered the three
+# 1000-step students. This one *is* a composition change: the pool is fourteen
+# keys, so the index every draw reads has moved for every key that sorts after
+# `rl_b1000_0k`, and all three seeds changed again. `hc_2000` and `hc_10000`
+# stay in the pool (the user's ruling), which is why the pool is fourteen and
+# not the twelve the plan originally wrote.
+#
 # **The pool is spelled out rather than read.** `GOLDEN_POOL` below is a literal
 # list: GOLDEN is evidence, and evidence that derives itself from the registry
 # follows the registry instead of failing when the roster changes.
@@ -339,21 +346,22 @@ def test_no_pool_at_all_means_all():
 # are allowed to meet, and it is what turns a roster edit into a loud failure
 # here rather than a silent drift.
 GOLDEN_POOL = ["builder", "chess", "fox", "hc_10000", "hc_2000", "hunter",
-               "intruder", "optimizer", "rl_h1000_0k", "rl_h1000_20k", "wolf"]
+               "intruder", "optimizer", "rl_b1000_0k", "rl_h1000_0k",
+               "rl_h1000_20k", "rl_i1000_0k", "rl_o1000_0k", "wolf"]
 
 GOLDEN = {
-    20260928: [('wolf', 'red', 23), ('rl_h1000_0k', 'yellow', 12),
-               ('hc_2000', 'blue', 17), ('builder', 'green', 13),
-               ('wolf', 'yellow', 43), ('chess', 'blue', 16),
-               ('hunter', 'red', 31), ('hunter', 'green', 9)],
-    7: [('hunter', 'green', 0), ('fox', 'red', 34),
-        ('intruder', 'yellow', 8), ('wolf', 'blue', 27),
-        ('hc_10000', 'yellow', 3), ('fox', 'red', 38),
-        ('chess', 'blue', 36), ('fox', 'green', 26)],
-    99: [('intruder', 'yellow', 13), ('intruder', 'red', 21),
-         ('hc_10000', 'blue', 11), ('rl_h1000_20k', 'green', 0),
-         ('chess', 'yellow', 39), ('fox', 'red', 15),
-         ('hc_2000', 'green', 18), ('rl_h1000_20k', 'blue', 4)],
+    20260928: [('rl_h1000_20k', 'green', 0), ('rl_b1000_0k', 'red', 18),
+               ('hc_2000', 'yellow', 12), ('rl_i1000_0k', 'blue', 9),
+               ('hunter', 'green', 14), ('rl_h1000_0k', 'blue', 8),
+               ('hc_10000', 'yellow', 10), ('rl_i1000_0k', 'red', 12)],
+    7: [('hunter', 'green', 25), ('fox', 'red', 26), ('intruder', 'yellow', 5),
+        ('rl_h1000_20k', 'blue', 5), ('rl_h1000_20k', 'blue', 11),
+        ('wolf', 'green', 25), ('optimizer', 'red', 21),
+        ('hc_2000', 'yellow', 4)],
+    99: [('intruder', 'yellow', 19), ('intruder', 'red', 9),
+         ('hc_10000', 'blue', 20), ('rl_h1000_0k', 'green', 16),
+         ('builder', 'green', 30), ('intruder', 'red', 10),
+         ('hunter', 'blue', 12), ('fox', 'yellow', 21)],
 }
 
 
@@ -524,11 +532,11 @@ def test_the_imitation_preset_on_its_own(tmp_path):
                  "--dry", "--out", str(out)]) == 0
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["pool"] == STEPS
-    assert data["pool_size"] == 3
+    assert data["pool_size"] == 6
     assert all(seats_mod.is_imitation_key(k) for k in data["pool"])
     assert set(data["appearances"]) == set(STEPS)
     assert sum(data["appearances"].values()) == 8
-    # and nothing outside the three ever appears
+    # and nothing outside the six ever appears
     for game in data["games_detail"]:
         for row in game:
             assert row[0] in STEPS, row

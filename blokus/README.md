@@ -699,6 +699,71 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
 兩者唯一允許相遇的地方是
 `test_the_pinned_pool_is_still_the_registry_s_pool`。
 
+### GOLDEN 重採（plan9a 階段 6）
+
+註冊三個 1000 步學生（`rl_o1000_0k` / `rl_b1000_0k` / `rl_i1000_0k`）之後，
+`all` 池從 **11 列變 14 列**，`rng.choice` 抽的是 index，所以排序位置之後的
+每一個 key 都讀到不同的 index，三個種子全部改變。這是**組成變更**，不是排序
+或改名 —— 與階段 3 不同，這次是真的多出三個 key。
+
+| 池 | 階段 6 前 | 階段 6 後 |
+|---|---|---|
+| `all` | 11 | 14 |
+| `imitation_only` | 3 | 6 |
+| `no_imitation` | 7 | 7 |
+| `rl_only` | 1 | 1 |
+
+`hc_2000` / `hc_10000` **維持在池內**（使用者裁決），所以是 14/6 而不是
+已定決策寫的 12/4 —— 退出常規池與 `.gitignore` 兩行留在
+[plan9a 的「待清理項目」](plan9a-ai.md)。
+
+| | commit |
+| --- | --- |
+| 舊值（十一 key 池） | `63eb992` |
+| 新值（十四 key 池） | 本提交（訊息 `Register the three 1000-step students, ...`） |
+
+舊值：
+
+```
+20260928  [('wolf','red',23), ('rl_h1000_0k','yellow',12), ('hc_2000','blue',17),
+           ('builder','green',13), ('wolf','yellow',43), ('chess','blue',16),
+           ('hunter','red',31), ('hunter','green',9)]
+7         [('hunter','green',0), ('fox','red',34), ('intruder','yellow',8),
+           ('wolf','blue',27), ('hc_10000','yellow',3), ('fox','red',38),
+           ('chess','blue',36), ('fox','green',26)]
+99        [('intruder','yellow',13), ('intruder','red',21), ('hc_10000','blue',11),
+           ('rl_h1000_20k','green',0), ('chess','yellow',39), ('fox','red',15),
+           ('hc_2000','green',18), ('rl_h1000_20k','blue',4)]
+```
+
+新值：
+
+```
+20260928  [('rl_h1000_20k','green',0), ('rl_b1000_0k','red',18),
+           ('hc_2000','yellow',12), ('rl_i1000_0k','blue',9), ('hunter','green',14),
+           ('rl_h1000_0k','blue',8), ('hc_10000','yellow',10),
+           ('rl_i1000_0k','red',12)]
+7         [('hunter','green',25), ('fox','red',26), ('intruder','yellow',5),
+           ('rl_h1000_20k','blue',5), ('rl_h1000_20k','blue',11),
+           ('wolf','green',25), ('optimizer','red',21), ('hc_2000','yellow',4)]
+99        [('intruder','yellow',19), ('intruder','red',9), ('hc_10000','blue',20),
+           ('rl_h1000_0k','green',16), ('builder','green',30), ('intruder','red',10),
+           ('hunter','blue',12), ('fox','yellow',21)]
+```
+
+**「組成是唯一變動來源」的證據**（不只留在 `/tmp`）：把池釘住不動，
+改動前後各跑一次 `run_league(2, seed=20260928, records=None)`，輸出逐位元相同 ——
+同一支探測腳本、同一個種子、只換工作樹：
+
+| 釘住的池 | 改動前 md5 | 改動後 md5 | `diff` |
+|---|---|---|---|
+| `["hunter","optimizer","builder","intruder"]` | `92a99b6ade2794ef130e341f57cf3534` | `92a99b6ade2794ef130e341f57cf3534` | 無輸出 |
+| `no_imitation`（七人格） | `97403a9ff49612e2ff79f0ce5467aecb` | `97403a9ff49612e2ff79f0ce5467aecb` | 無輸出 |
+
+釘住池不變 = 非組成路徑逐位元未動；`GOLDEN` 的變化全部來自池本身。
+`tests/test_match_paired_rng.py` 的 `LEGACY_GOLDEN_MD5`
+（`3fa9fba063a5f1cd3868098454b05b4c`）同樣釘住四個人格，**未改動**。
+
 ### 依主題
 
 | 檔案 | 覆蓋 |

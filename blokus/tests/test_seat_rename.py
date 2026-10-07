@@ -78,10 +78,10 @@ def test_the_alias_does_not_enter_the_pool():
     it played it twice as often as the pool actually implies.
     """
     options = S.automated_options()
-    assert len(options) == 11
+    assert len(options) == 14
     assert NEW in options
     assert OLD not in options
-    assert len(M.POOL_PRESETS["all"]) == 11
+    assert len(M.POOL_PRESETS["all"]) == 14
     assert M.POOL_PRESETS["rl_only"] == (NEW,)
     assert len(M.POOL_PRESETS["no_imitation"]) == 7
 

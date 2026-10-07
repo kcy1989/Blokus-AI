@@ -41,12 +41,18 @@ PERSONA_ZH = {k: I[k] for k in PERSONALITY_ORDER}
 
 
 def seat_label(key):
-    """The Chinese name of any of the thirteen seat options.
+    """The Chinese name of any of the sixteen seat options.
 
     One lookup for the whole set, because the four seats are no longer all
-    personalities: a seat may be a personality, an H-C2 checkpoint, a trained
-    policy, or one of the two human seats, and every screen that names a seat
-    goes through here.
+    personalities: a seat may be a personality, an imitation checkpoint, a
+    trained policy, or one of the two human seats, and every screen that names
+    a seat goes through here.
+
+    Which `config.I` key names a registered seat is `ai/registry.json`'s
+    `label`, not a string chosen here - plan9a stage 6 wired the two together,
+    which is what lets four seats that are all at step 1000 carry four
+    different names. Only the *formatting* differs by kind: an imitation
+    checkpoint is named by its step, a trained policy by its own key.
     """
     if key is None:
         return I["player"]
@@ -57,23 +63,30 @@ def seat_label(key):
     if key == seats_mod.HUMAN_LOG_KEY:
         return I["human_log"]
     if seats_mod.is_imitation_key(key):
-        return I["imitation_fmt"].format(seats_mod.imitation_step(key))
+        return I[ai.registry.label_key(key)].format(seats_mod.imitation_step(key))
     if seats_mod.is_rl_key(key):
-        return I["rl_fmt"].format(key)
+        return I[ai.registry.label_key(key)].format(key)
+    if key in ai.registry.keys():
+        return I[ai.registry.label_key(key)]
     return PERSONA_ZH.get(key, key)
 
 
 def seat_desc(key):
-    """The one-line description of a seat option, or "" when it has none."""
+    """The one-line description of a seat option, or "" when it has none.
+
+    Same split as `seat_label`: the `config.I` key comes from the registry's
+    `desc_key`, and only the imitation seats interpolate anything - their step,
+    which is the one fact about a checkpoint the description states.
+    """
     kind = seats_mod.kind_of(key)
     if kind == seats_mod.KIND_RANDOM_AI:
         return I["random_ai_desc"]
     if kind == seats_mod.KIND_AI:
-        return I[key + "_desc"]
+        return I[ai.registry.desc_key(key)]
     if kind == seats_mod.KIND_IMITATION:
-        return I["imitation_desc_fmt"].format(seats_mod.imitation_step(key))
+        return I[ai.registry.desc_key(key)].format(seats_mod.imitation_step(key))
     if kind == seats_mod.KIND_RL:
-        return I["rl_desc_fmt"]
+        return I[ai.registry.desc_key(key)]
     return ""
 
 # One background colour for the whole window; the sidebar, the hand band and the

@@ -110,17 +110,29 @@ I = {
     "colours_all_random": "顏色全部隨機",
     "start_game": "開始遊戲",
     "random_ai": "隨機AI",
-    "random_ai_desc": "開局時從 11 個 AI 與模仿中隨機抽一個",
+    "random_ai_desc": "開局時從可用的對手中隨機抽一個",
     "human": "人類（不記錄）",
     "human_log": "人類（記錄）",
     "imitation_fmt": "模仿 {0} 步",
     "imitation_mode_fmt": "模仿選步：{0}",
     "imitation_desc_fmt": "H-C2 第 {0} 步的檢查點",
+    # Four seats sit at step 1000, so step alone cannot tell them apart on the
+    # seat screen: each of the four carries the teacher it was distilled from.
+    # `hc_2000` / `hc_10000` keep the two keys above - their rows are frozen by
+    # the user's stage 6 ruling - and they are at steps no other seat shares.
+    "imitation_hunter_fmt": "模仿 {0} 步（獵手）",
+    "imitation_hunter_desc_fmt": "H-C2 第 {0} 步的檢查點；老師：獵手",
+    "imitation_optimizer_fmt": "模仿 {0} 步（優化者）",
+    "imitation_optimizer_desc_fmt": "模仿學習 {0} 步；老師：優化者",
+    "imitation_builder_fmt": "模仿 {0} 步（築城者）",
+    "imitation_builder_desc_fmt": "模仿學習 {0} 步；老師：築城者",
+    "imitation_intruder_fmt": "模仿 {0} 步（入侵者）",
+    "imitation_intruder_desc_fmt": "模仿學習 {0} 步；老師：入侵者",
     # A trained policy's name already says what it is - `rl_h1000_20k` is PPO
     # from the 0k checkpoint over 20,000 games - so there is nothing to
     # interpolate and nothing to translate. The label is the name.
     "rl_fmt": "強化學習 {0}",
-    "rl_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；比啟動它的 rl_h1000_0k 強",
+    "rl_desc_fmt": "PPO 訓練 40 輪、共 20,000 局",
     "ai_pool": "AI",
     "human_pool": "人類",
     "imitation_pool": "模仿",

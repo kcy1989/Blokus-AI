@@ -28,29 +28,33 @@ from game import Game
 
 # ------------------------------------------------------------------ options
 
-def test_there_are_thirteen_options_and_eleven_without_humans():
-    thirteen = seats.seat_options(True)
-    assert len(thirteen) == 13
-    assert len(set(thirteen)) == 13
-    eleven = seats.seat_options(False)
-    assert len(eleven) == 11
-    assert not any(seats.is_human_kind(seats.kind_of(k, False)) for k in eleven)
+def test_there_are_sixteen_options_and_fourteen_without_humans():
+    sixteen = seats.seat_options(True)
+    assert len(sixteen) == 16
+    assert len(set(sixteen)) == 16
+    fourteen = seats.seat_options(False)
+    assert len(fourteen) == 14
+    assert not any(seats.is_human_kind(seats.kind_of(k, False))
+                   for k in fourteen)
     # the two human seats are exactly what the league leaves out
-    assert set(thirteen) - set(eleven) == {"human", "human_log"}
+    assert set(sixteen) - set(fourteen) == {"human", "human_log"}
 
 
-def test_the_option_pool_is_seven_ai_three_checkpoints_and_one_policy():
+def test_the_option_pool_is_seven_ai_six_checkpoints_and_one_policy():
     options = seats.seat_options(False)
-    assert len(options) == 11
+    assert len(options) == 14
     ai_only = [k for k in options if seats.kind_of(k) == seats.KIND_AI]
     imitating = [k for k in options if seats.kind_of(k) == seats.KIND_IMITATION]
     trained = [k for k in options if seats.kind_of(k) == seats.KIND_RL]
     assert len(ai_only) == 7
     assert set(ai_only) == set(ai.personality_keys())
-    # The three checkpoints come out in *key* order, which is not step order:
-    # plan9a stage 3 sorts every pool by key, and `hc_10000` sorts first.
-    assert sorted(seats.imitation_step(k) for k in imitating) == [1000, 2000,
-                                                                  10000]
+    # The six checkpoints come out in *key* order, which is not step order:
+    # plan9a stage 3 sorts every pool by key, and `hc_10000` sorts first. Four
+    # of them are at step 1000 - the H-C2 checkpoint plus the three students -
+    # which is exactly why `imitation_step` reads the filename.
+    assert sorted(seats.imitation_step(k) for k in imitating) == [1000, 1000,
+                                                                  1000, 1000,
+                                                                  2000, 10000]
     assert imitating == sorted(imitating)
     # the trained policy is its own kind, so `imitation_only` keeps meaning the
     # checkpoints that were trained by imitation
@@ -454,15 +458,15 @@ def test_every_owner_may_open_on_its_own_corner():
 # ------------------------------------------------------- the deferred "random AI"
 
 def test_the_menu_offers_one_more_than_there_are_options():
-    """Fifteen things to pick from, fourteen things to be. The fifteenth is a
-    request rather than a setting."""
+    """One more thing to pick from than to be: the last entry is a request
+    rather than a setting, so the menu has one row the pool does not."""
     menu = seats.seat_menu_options()
-    assert len(menu) == 14
-    assert len(set(menu)) == 14
+    assert len(menu) == 17
+    assert len(set(menu)) == 17
     assert menu[-1] == seats.RANDOM_AI_KEY
     assert set(menu) - set(seats.seat_options(True)) == {seats.RANDOM_AI_KEY}
     assert seats.seat_options(True) == menu[:-1]
-    assert len(seats.seat_options(False)) == 11
+    assert len(seats.seat_options(False)) == 14
     assert seats.automated_options() == seats.seat_options(False)
 
 
@@ -471,10 +475,10 @@ def test_random_ai_is_a_kind_of_request_not_of_contestant():
     assert not seats.is_human_kind(seats.KIND_RANDOM_AI)
 
 
-def test_random_ai_draws_from_the_eleven_automated_options():
-    assert len(seats.automated_options()) == 11
+def test_random_ai_draws_from_the_fourteen_automated_options():
+    assert len(seats.automated_options()) == 14
     pool = seats.automated_options()
-    assert len(pool) == 11 and len(set(pool)) == 11
+    assert len(pool) == 14 and len(set(pool)) == 14
     assert not any(k.startswith("human") for k in pool)
     assert any(seats.is_imitation_key(k) for k in pool)
     assert any(seats.is_rl_key(k) for k in pool)

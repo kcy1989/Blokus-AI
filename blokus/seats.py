@@ -25,11 +25,14 @@ This module imports neither torch nor pygame: `rl.imitation` is imported inside
 the league and the tests can all use the same seat model.
 """
 import os
+import re
 
 from ai import make_brain
 from ai.registry import (aliases as registry_aliases,
                          automated_options as registry_automated_options,
                          checkpoint as registry_checkpoint,
+                         entry as registry_entry,
+                         keys as registry_keys,
                          personality_keys)
 from config import CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER
 
@@ -47,7 +50,7 @@ KIND_RL = "rl"
 KIND_HUMAN = "human"
 KIND_HUMAN_LOG = "human_log"
 # Not a kind of contestant but a deferred choice: a seat left on this is dealt
-# one of the eleven automated options when the game starts, the same way a
+# one of the fourteen automated options when the game starts, the same way a
 # "random" colour is dealt one of what is left. It is resolved before anything
 # looks at the seat, so a game in progress never contains one.
 KIND_RANDOM_AI = "random_ai"
@@ -78,7 +81,11 @@ HUMAN_LOG_KEY = "human_log"
 IMITATION_STEPS = (1000, 2000, 10000)
 IMITATION_CHECKPOINT_DIR = "data/hc2"
 
-# The option key each step is registered under, and its inverse. A table rather
+# The option key each H-C2 step is registered under - the direction the
+# training code asks in (`imitation_key(step)`). The other direction, key ->
+# step, stopped being a table in plan9a stage 6: `imitation_step` reads the
+# checkpoint filename, because four seats sit at step 1000 and no table keyed
+# by step could name them all. A table rather
 # than a prefix, because two naming conventions coexist on purpose: step 1000 is
 # the 0k starting point of the `rl_h1000` chain and is named for it, while 2000
 # and 10000 keep the `hc_` prefix they were published under. `rl.imitation` asks
@@ -86,7 +93,6 @@ IMITATION_CHECKPOINT_DIR = "data/hc2"
 # no path to a network - and `imitation_key` now refuses a step that has no
 # registered name instead of manufacturing `hc_9999` for it.
 IMITATION_KEYS = {1000: "rl_h1000_0k", 2000: "hc_2000", 10000: "hc_10000"}
-IMITATION_KEY_STEPS = {key: step for step, key in IMITATION_KEYS.items()}
 
 # Trained policies, as `(option key, checkpoint file)` pairs.
 #
@@ -141,8 +147,8 @@ ALIASES = dict(registry_aliases())
 # policy" does not become a second place to forget when a name goes.
 #
 # The alias resolves on the way *in* and never appears in `automated_options()`,
-# so the pool still lists eleven and the leaderboard still has one row per
-# policy. What it does not solve is a leaderboard that already holds the old
+# so the pool still lists each policy once and the leaderboard still has one
+# row per policy. What it does not solve is a leaderboard that already holds the old
 # name: a result recorded through the alias lands in its own row, because
 # `records.json` is keyed by the name a game was played under and knows nothing
 # about aliases. `records.json` was renamed in step 1 rather than left to split.
@@ -215,17 +221,35 @@ def imitation_key(step):
     return key
 
 
+_STEP_FILENAME = re.compile(r"^step_(\d{6})\.pt$")
+
+
 def imitation_step(key):
-    """The step an option key names. Inverse of `imitation_key`.
+    """The step an option key names, read off its checkpoint filename.
+
+    Since plan9a stage 6 (decision beta) the filename is the only authority:
+    `rl_h1000_0k` and the three students are all at step 1000, so a table keyed
+    by step could not name them all, and the registry already owns the path.
+    `imitation_key(step)` keeps pointing the other way, along the H-C2 chain,
+    where a step really is unique.
 
     Goes through `canonical_key`, so the retired `hc_1000` still answers 1000 -
     which is what lets a game set up with the old spelling reach the same
     weights as one set up with `rl_h1000_0k`.
+
+    A checkpoint whose name is not H-C2's `step_%06d.pt` convention raises
+    rather than falling back to a number: a default here would make the seat
+    claim a step that loads a different file than the one named.
     """
-    step = IMITATION_KEY_STEPS.get(canonical_key(key))
-    if step is None:
+    key = canonical_key(key)
+    if not is_imitation_key(key):
         raise ValueError("%r is not an imitation option" % (key,))
-    return step
+    path = registry_checkpoint(key)
+    match = _STEP_FILENAME.match(os.path.basename(path))
+    if match is None:
+        raise ValueError("%r: checkpoint %r is not a step_NNNNNN.pt file"
+                         % (key, path))
+    return int(match.group(1))
 
 
 def imitation_checkpoint(key):
@@ -258,19 +282,25 @@ def is_imitation_key(key):
     return key in _IMITATION_KEYS or canonical_key(key) in _IMITATION_KEYS
 
 
-_IMITATION_KEYS = frozenset(imitation_key(s) for s in IMITATION_STEPS)
+# Membership of the imitation family is `ai/registry.json`'s `family` field
+# rather than `IMITATION_KEYS`, since plan9a stage 6 registered three students
+# that no step number can name. `IMITATION_STEPS` still describes H-C2's chain
+# and nothing else, which is what the training code and its tests want.
+_IMITATION_KEYS = frozenset(k for k in registry_keys()
+                            if registry_entry(k)["family"] == "imitation")
 
 
 def automated_options():
-    """The eleven options something can be played by: seven personalities, three
-    checkpoints and one trained policy. This is the pool `RANDOM_AI_KEY` draws
-    from, and the same pool the league draws its four seats from.
+    """The fourteen options something can be played by: seven personalities,
+    six imitation checkpoints and one trained policy. This is the pool
+    `RANDOM_AI_KEY` draws from, and the same pool the league draws its four
+    seats from.
 
     The list itself comes from `ai/registry.json` as of plan9a stage 2 - the
-    roster is data now, not code - but what those eleven *are* is still decided
-    here: `kind_of` answers from `personality_keys`, `IMITATION_STEPS` and
-    `RL_SEATS`, and `tests/test_registry_json.py` fails if the JSON and those
-    three ever list different keys.
+    roster is data now, not code - and so does which keys are imitation seats.
+    What is still decided here is `kind_of`: it answers from
+    `personality_keys`, the registry's `family` field and `RL_SEATS`, and
+    `tests/test_registry_json.py` fails if the JSON and those ever disagree.
 
     **The order is by key**, through `ai.registry.pool_order`, and it is the
     only pool order in the project. `rng.choice` draws an index, so this tuple
@@ -282,10 +312,10 @@ def automated_options():
 
 
 def seat_options(include_humans=True):
-    """Every option a seat can be *set to*, in menu order: the eleven automated
-    options by key, then (optionally) the two human seats.
+    """Every option a seat can be *set to*, in menu order: the fourteen
+    automated options by key, then (optionally) the two human seats.
 
-    11 without humans, 13 with them. The deferred "random AI" is not here,
+    14 without humans, 16 with them. The deferred "random AI" is not here,
     because it is not something a seat stays set to - `seat_menu_options` is
     what the picker offers, and it is this plus that one.
     """
@@ -296,16 +326,17 @@ def seat_options(include_humans=True):
 
 
 def seat_menu_options():
-    """What the seat screen offers: the thirteen, plus "random AI" at the end.
+    """What the seat screen offers: the sixteen, plus "random AI" at the end.
 
-    Fourteen entries, because the deferred choice is a fourth thing a seat can
-    say, sitting alongside the eleven automated options and the two human ones.
+    Seventeen entries, because the deferred choice is a fourth thing a seat can
+    say, sitting alongside the fourteen automated options and the two human
+    ones.
     """
     return seat_options(True) + (RANDOM_AI_KEY,)
 
 
 def resolve_random_ai(keys, rng):
-    """Deal any `RANDOM_AI_KEY` seat one of the eleven, one draw per seat.
+    """Deal any `RANDOM_AI_KEY` seat one of the fourteen, one draw per seat.
 
     Each draw is independent, so two "random AI" seats may land on the same
     option - which is the same rule the colours follow. The result is a concrete
