@@ -170,3 +170,21 @@
 
 ## 使用者人工驗收(不屬 agent)
 - 親自對戰 o/b/i,以事前寫下的「明顯失誤」定義(例如放棄大角落、明顯自封)計次判斷,再決定是否進入各自的 20k 局 RL。
+
+## 待清理項目(使用者裁決 2026-10-07,不屬任何階段)
+階段 6 刻意不碰這些,日後另排「清理 codebase 計劃」再處理:
+
+- **(a) `hc_2000` / `hc_10000` 退出常規池**:兩列設 `enabled: false`、
+  `selectable: false`(兩者必須一致,`_validate` 會擋不一致);撤 `.gitignore` 的
+  `!data/hc2/step_002000.pt` 與 `!data/hc2/step_010000.pt`;
+  `git rm --cached data/hc2/step_002000.pt data/hc2/step_010000.pt`(檔留磁碟)。
+  在此之前兩者 `enabled: true`,所以常規池是 14 而不是已定決策寫的 12,
+  `imitation_only` 是 6 而不是 4 —— 這三件事是同一件,做完才回到 12/4。
+- **(b) `python -m ai.registry --publish <key> --from <path>` 是否補做**:
+  階段 4 的裁決清單沒列,至今未實作;但 plan9a 階段 4 與階段 8 的 README 工作流
+  都引用它。要么補做、要么把那兩處文字改掉,不能留在「看起來有」的狀態。
+- **(c) 重訓覆寫 `data/` 造成 sha256 測試紅的摩擦**:
+  `test_every_registered_checkpoint_hashes_as_recorded` 對 `hc_2000` /
+  `hc_10000` 仍算 `data/` 內的檔,重訓覆寫會讓它紅。這是刻意的(證據數字不能
+  悄悄改變),但和 (a) 綁在一起:兩者退出版控與常規池之後,這條要不要改成只驗
+  `ai/checkpoints/`,要一併決定。
