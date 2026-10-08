@@ -345,3 +345,15 @@
   「已知限制與取捨」有同一條,含實測數據)。日後二選一:讓 `order` 真的釘列序
   (docstring 的原意「keep the player first」),或把參數與 `match.py` 的呼叫
   一併刪掉。兩者都動程式碼,doc-only 輪次不碰。
+- **(g) plan9 步驟 2c 的「動作一致率」從未計算(使用者裁決 2026-10-08,本次不做)**:
+  訓練端 `rl/train.py` 沒有這項指標,`eval/plan9/README.md` 也沒有任何一致率
+  數字,各 0k 節只有 val 曲線與 hc_1000 的過擬合對照。要補算得先定義「一致」
+  的口徑(與誰比、哪些局、argmax 或 softmax),屬新工作。
+- **(h) o/b/i 三個 0k 版沒有 manifest(計劃 2b 要求,使用者裁決 2026-10-08,
+  本次不做)**:`data/imit_o1000` / `data/imit_b1000` / `data/imit_i1000` 底下只有
+  十個 `.pt`,沒有記錄老師、資料目錄、commit hash 的 `manifest.json`;訓練數字
+  散在 `eval/plan9/README.md` 各 0k 節。
+- **(i) plan9.md 2a 的種子基底文字與史實不符(使用者裁決 2026-10-08,本次不改)**:
+  計劃寫「種子沿用 TRAIN_SEED_BASE = 1_000_000、VALID_SEED_BASE = 2_000_000」,
+  實際收集用 6,000,000 與 6,100,000 起(`55433c7` / `5627137` 更正,
+  `eval/plan9/README.md` 的「事後更正」一節有記錄),計劃正文至今未同步。

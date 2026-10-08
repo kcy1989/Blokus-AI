@@ -1141,3 +1141,11 @@ plan9a 階段 9 要求逐批核對「是否有歷史結果因改名或搬遷而�
   「`order` optionally pins the sequence (used to keep the player first)」目前
   是死意圖。要修（真的釘列序）或要刪（連同 `match.py` 的呼叫）列入 plan9a
   「待清理項目」(f)。
+- **RL 訓練的 torch/numpy 種子：未設，不可位元重放**。`rl/rl_train.py` 從未呼叫
+  `torch.manual_seed` / `np.random.seed`（0k 模仿訓練端只有 b / i 設了
+  `torch.manual_seed(20260903)`，o 沒有）；RL 這邊有記錄且決定性的只有環境側
+  種子：`seed_base`、`rounds.jsonl` 的 `seed_lo` / `seed_hi`、檢查點內的
+  `rng_state`。rollout 每局走自己的 RNG 流，給定相同權重局面可重現；權重更新
+  沒有 torch 種子與 CUDA 決定性保證，同種子重跑不保證位元相同。h 版
+  （`rl_h1000_20k`）如此，plan9 步驟 3 的三個學生同 h 版不設（使用者裁決
+  2026-10-08）。
