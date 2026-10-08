@@ -696,6 +696,35 @@ def test_literal_replays_a_batch_committed_before_the_sort(tmp_path):
     assert got["games_detail"] == payload["games_detail"][:n]
 
 
+def test_a_literal_run_keeps_the_batch_spelling_and_normalises_the_leaderboard(
+        tmp_path, monkeypatch):
+    """Plan9a stage 9, decision 2: the batch keeps the spelling, the
+    leaderboard does not.
+
+    `--pool-order literal` exists so a pre-stage-3 batch replays byte for
+    byte, and the batch file's `pool` field is part of that contract - the
+    old spelling has to survive into `games_detail` untouched. The
+    leaderboard is a different artefact: a run that is neither `--dry` nor
+    paired writes its results under canonical keys, so the same command that
+    records `hc_1000` in the batch grows the `rl_h1000_0k` row. One option
+    in the pool, so the draw cannot help but seat it.
+    """
+    rec = _seeded_leaderboard(tmp_path, monkeypatch)
+    out = tmp_path / "batch.json"
+    rc = main(["--games", "2", "--seed", "20261005",
+               "--pool", "hc_1000",
+               "--pool-order", "literal", "--out", str(out)])
+    assert rc == 0
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["pool_order"] == "literal"
+    assert payload["pool"] == ["hc_1000"]        # the caller's spelling, kept
+    entries = json.loads(rec.read_text(encoding="utf-8"))
+    assert "hc_1000" not in entries
+    # 2 games x 4 seats, every one of them the checkpoint
+    assert entries["rl_h1000_0k"]["games"] == 8
+    assert entries["wolf"]["games"] == 9         # the seeded row, undisturbed
+
+
 SEED_RECORD = ('{"wolf": {"games": 9, "total_points": 20.0, '
                '"total_remaining": 300.0}}')
 

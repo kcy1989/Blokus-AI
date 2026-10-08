@@ -5,7 +5,7 @@ steps of an unnamed run; the new one says what the checkpoint *is* - the 0k
 starting point of the `rl_h1000` chain, distilled from `hunter` and trained for
 1,000 imitation steps. The file never moved: `data/hc2/step_001000.pt`.
 
-Five ways a rename like this quietly breaks, each with its own test below:
+Six ways a rename like this quietly breaks, each with its own test below:
 
   * the retired spelling stops resolving - and two committed evidence batches
     were recorded as `--subject hc_1000`, with a `records.json` row under it;
@@ -19,7 +19,10 @@ Five ways a rename like this quietly breaks, each with its own test below:
     that the set of seats did not change;
   * the two spellings reach different weights, which would be a rename that
     quietly changed the model;
-  * a leaderboard row under the old key stops being readable.
+  * a leaderboard row under the old key stops being readable;
+  * a result filed under the old spelling splits one contestant's history in
+    two - stage 9 normalises writes, so the old spelling can no longer grow a
+    second row (but the row that already exists is left exactly as it is).
 """
 import random
 
@@ -170,6 +173,61 @@ def test_a_records_row_under_the_old_key_still_reads(tmp_path):
     from records import META_FIELDS
     for field in META_FIELDS:
         assert board.meta(OLD)[field] is None
+
+
+def test_canonical_key_leaves_what_it_does_not_recognise_alone():
+    """The alias table rewrites the names it knows and nothing else.
+
+    `records.py` runs every key it writes through `canonical_key` (plan9a
+    stage 9), so anything outside the alias table - the human seats, the
+    player key, a key typed by hand - has to come back byte for byte. A
+    resolver that returned `None`, dropped the key or guessed a seat would
+    take the leaderboard with it, and this is what says so in one place.
+    """
+    assert S.canonical_key(OLD) == NEW
+    for key in ("player", "human", "human_log", "random_ai",
+                "made_up_key", ""):
+        assert S.canonical_key(key) == key
+
+
+def test_a_write_through_the_old_spelling_lands_under_the_new_key(tmp_path):
+    """Stage 9, decision 1: a result filed under an alias grows one row.
+
+    `record` canonicalises on the way in, so a game seated with `hc_1000`
+    adds to `rl_h1000_0k` and never starts a second history for the same
+    weights. The rows returned for display carry the canonical key too - the
+    screen and the file agree.
+    """
+    board = R.Records(str(tmp_path / "records.json"))
+    rows = board.record([(OLD, 10.0), ("wolf", 20.0),
+                         ("fox", 30.0), ("builder", 40.0)])
+    assert OLD not in board.entries
+    assert board.entries[NEW]["games"] == 1
+    assert board.entries[NEW]["total_points"] == 4.0       # fewest remaining
+    assert board.entries[NEW]["total_remaining"] == 10.0
+    assert rows == [(NEW, 1, 4), ("wolf", 2, 3), ("fox", 3, 2),
+                    ("builder", 4, 1)]
+    # and the key that reaches the file is the canonical one
+    again = R.Records(str(tmp_path / "records.json"))
+    assert set(again.entries) == {NEW, "wolf", "fox", "builder"}
+
+
+def test_set_meta_through_the_old_spelling_lands_under_the_new_key(tmp_path):
+    """Provenance asked for under the alias attaches to the canonical row.
+
+    The pre-rename row is left alone in both directions: writing under `OLD`
+    neither rewrites it nor merges it, and `meta(OLD)` still answers for the
+    old row - because reads never move data (decision 3).
+    """
+    path = tmp_path / "records.json"
+    path.write_text('{"hc_1000": {"games": 3, "total_points": 9.0,'
+                    ' "total_remaining": 30.0}}', encoding="utf-8")
+    board = R.Records(str(path))
+    board.set_meta(OLD, teacher="hunter")
+    assert board.entries[OLD]["games"] == 3, "the old row is untouched"
+    assert board.meta(OLD)["teacher"] is None, "reads never move data"
+    assert board.meta(NEW)["teacher"] == "hunter"
+    assert board.entries[NEW]["games"] == 0, "meta alone registers, no games"
 
 
 def _equal(a, b):

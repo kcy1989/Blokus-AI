@@ -214,20 +214,63 @@
   欄位,堵住「`family` 與 `pools` 同時改錯」的漏洞;兩處 docstring 與
   README 的同一句一併改掉,此句留作當時的記錄。)
 
-## 階段 9:records 與評測相容
-- records.json 新舊 key 皆可讀,新記錄用新 key。
-- 評測工具與 `--subject` 經 resolve() 解析別名。
-- 已知取捨:hc_2000、hc_10000 若不發布到 ai/,其依賴的歷史證據在乾淨 clone 上只可讀、不可重跑;README 明確寫出。
-- 回報:是否有歷史結果因改名或搬遷而無法重現。
+## 階段 9:records 與評測相容(**已完成**,2026-10-08)
+
+- **程式碼只改 `records.py` 一處**:`record` 與 `set_meta` 在寫入前把 key 經
+  `seats.canonical_key` 正規化(新增頂部 `from seats import canonical_key`);
+  讀路徑(`_load` / `meta` / `rows` / `entries`)逐字不動。未知 key 原樣通過,
+  由 `test_canonical_key_leaves_what_it_does_not_recognise_alone` 與
+  `test_a_key_that_is_not_registered_is_recorded_verbatim` 釘住(裁決 1)。
+  依賴方向(裁決 5):`seats` / `ai` 不 import `records`、`records` 不拉
+  pygame/torch,由 `test_importing_seats_and_ai_never_pulls_in_records` 在乾淨
+  子進程中斷言。
+- **新記錄用新 key**:別名拼法寫入只長正式名列
+  (`test_a_write_through_the_old_spelling_lands_under_the_new_key`);
+  舊列不合併、原樣可讀(既有 `test_a_records_row_under_the_old_key_still_reads`,
+  裁決 3);UI 對舊列顯示中文 label
+  (`test_a_leaderboard_row_under_the_old_key_is_named_in_chinese`)。
+- **literal 批次(裁決 2)**:批次檔 `pool` 保留原拼法,排行榜寫入端照樣正規化,
+  由 `test_a_literal_run_keeps_the_batch_spelling_and_normalises_the_leaderboard`
+  同時釘兩半。
+- **`--subject` 經 resolve()**:非 literal 走 `validate_subject(canonicalise=True)`
+  (階段 3 既有,本階段無改動);literal 保留原拼法,兩者都在 README
+  「池的順序」與「排行榜資料」寫明分工。
+- **已知取捨以實測改寫(裁決 9)**:原條目「hc_2000、hc_10000 若不發布到 ai/...
+  只可讀、不可重跑」的條件句與現況不符 —— 兩份權重靠 `.gitignore` 的 `!` 反白
+  **入版控**,乾淨 clone 目前可跑;待清理 (a) 執行後才變成可讀不可重跑。README
+  「`hc_2000` / `hc_10000` 在乾淨 clone 的現況」照實測寫,不照條件句寫。
+- **逐批可重現性(裁決 8,貼實測)**:六批 0.5b 可重現(literal;subject 解析到
+  已發布權重,sha256 對上);b/i pair 兩檔 md5 與 README 記錄逐字一致;o 無逐局
+  檔、曲線未播種 → 不可重算/不可重放;`reports/hc2` 四組 5000 局的舊 option 名
+  現在全部 `ValueError`,其中 `step_005000` 與 hb2 `step_002000` 權重未入版控 →
+  **不可重跑**(README「逐批可重現性核對」逐列表格,含原因);
+  `data/rl1/eval.jsonl` 欄名維持;records 舊列可讀。
+- **README 新增頂級章節「歷史證據與已知事項」**:四項原文抄錄+出處(裁決 6)、
+  必須記錄第 4 項改寫(裁決 4)、`imitation_only` 不一致、data/ai 分工、三節
+  索引、`hc_*` 取捨、逐批核對表。**不寫 5000 局互對與「觀測」小節**(確認 1:
+  來源缺指令、日期、檔案);**池組成那條自訂 11 選項(7 人格 + 四個 1000 步)
+  只留給日後**(確認 2);AGENTS.md 不動(確認 3)。
+- 驗證:釘住池 probe(重建後先驗吻合才繼續,確認 4)前後 md5 皆
+  `92a99b6ade2794ef130e341f57cf3534` / `97403a9ff49612e2ff79f0ce5467aecb`,
+  `diff` rc=0;`python -m ai --check` rc=0、`--list` 14 列;`git diff` 顯示
+  `ai/registry.json` 零改動、`GOLDEN`/`GOLDEN_POOL` 無改動、
+  `LEGACY_GOLDEN_MD5` 仍是 `3fa9fba063a5f1cd3868098454b05b4c`;
+  全套結果與 `records.json` 前後 md5 見提交訊息。
 
 ## README 必須記錄
 - 0.063 規則廢止與新 val-only 規則(已完成者確認即可)。
 - i 過弱觸發與處理:門檻以 hunter 系校準,對較弱老師不適用,改由使用者人工對弈判定。
 - o 未播種,不可重放。
-- 舊三模仿者移出常規池(使用者決定);hc_1000 改名 rl_h1000_0k,保留別名。
+- ~~舊三模仿者移出常規池(使用者決定);hc_1000 改名 rl_h1000_0k,保留別名。~~
+  **已被取代(2026-10-08 使用者裁決)**:hc_* 先裁留在常規池(`all` 14、
+  `imitation_only` 6),移出改列本檔「待清理項目」(a);改名與別名部分不變。
+  README「歷史證據與已知事項」的「池的組成」段照這句寫。
 - imitation_only 組內規格不一致。
 - 抽籤改依 key 排序及其原因;GOLDEN 重採原因與舊值、commit。
 - data/ 與 ai/ 的分工:data/ 為訓練工廠(gitignore),ai/ 為發布對手(入版控)。
+
+(以上七項已寫進 README,見階段 9 區塊:第 1、2、3、5 項在「歷史證據與已知事項」
+逐項原文抄錄,第 4 項按裁決改寫,第 6 項是三節索引,第 7 項同節另段。)
 
 ## 每階段回報格式
 - 提交 hash 與一句內容

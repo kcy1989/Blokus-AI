@@ -8,9 +8,17 @@ running averages.
 Contestants are keyed by role, not by seat: the three AI seats are handed a
 different personality every game, so a record keyed by owner would mix wolves
 with foxes. Keying by personality keeps each contestant's history meaningful.
+
+Keys are normalised on the way *in* only (plan9a stage 9): both write paths
+run the key through `seats.canonical_key`, so a result filed under an alias
+(`hc_1000`) lands on the canonical row (`rl_h1000_0k`) instead of starting a
+second one. Reading never rewrites what it finds - a row written before the
+rename stays under its old key, unchanged, until a human merges it.
 """
 import json
 import os
+
+from seats import canonical_key
 
 PLAYER_KEY = "player"
 
@@ -142,8 +150,13 @@ class Records:
         played two.
 
         Returns the `(key, rank, points)` rows for display, one per seat.
+
+        Keys are canonicalised before the ranking (plan9a stage 9), so a game
+        played under an alias grows the canonical row, never a second one -
+        and a tie between two spellings of the same contestant ranks by the
+        name the file is about to hold.
         """
-        rows = rank_rows(standings)
+        rows = rank_rows((canonical_key(key), rem) for key, rem in standings)
         self.last = [(key, rank, points) for key, rank, points, _rem in rows]
         for key, _rank, points, remaining in rows:
             rec = self.entries.setdefault(key, _blank_record())
@@ -165,7 +178,13 @@ class Records:
         An unknown field name is an error rather than a silently stored extra:
         a typo in `train_seed` would otherwise write a file that looks complete
         and records nothing.
+
+        The key is canonicalised first (plan9a stage 9), the same way `record`
+        does it: provenance asked for under an alias attaches to the canonical
+        row, and a row that already exists under the old spelling is left
+        exactly as it is.
         """
+        key = canonical_key(key)
         unknown = sorted(set(fields) - set(META_FIELDS))
         if unknown:
             raise ValueError("unknown records field(s) %s; expected any of %s"

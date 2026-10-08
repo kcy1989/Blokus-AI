@@ -1573,6 +1573,20 @@ def test_every_selectable_option_has_a_name_and_a_description_of_its_own():
     assert len(set(descs)) == len(descs), descs
 
 
+def test_a_leaderboard_row_under_the_old_key_is_named_in_chinese():
+    """A pre-rename `records.json` row reads as a name, not as a key.
+
+    The leaderboard prints the key straight out of the file, so an `hc_1000`
+    row would show the retired spelling on screen unless `seat_label`
+    resolves the alias - which it does, without `records.py` touching the
+    row (plan9a stage 9: writes normalise, reads never).
+    """
+    assert ui.seat_label("hc_1000") == ui.seat_label("rl_h1000_0k")
+    assert ui.seat_label("hc_1000") != "hc_1000"
+    assert ui.seat_desc("hc_1000") == ui.seat_desc("rl_h1000_0k")
+    assert ui.seat_desc("hc_1000") != "hc_1000"
+
+
 # --------------------------------- two seats on the same option, results screen
 
 def _finish_with_remaining(u, targets, options, colours):

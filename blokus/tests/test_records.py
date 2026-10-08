@@ -1,7 +1,11 @@
 """Tests for the persistent leaderboard: ranking, points, running averages."""
 import os
+import subprocess
+import sys
 
 from records import POINTS_FOR_RANK, Records, rank_by_remaining
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_ranking_by_fewest_remaining():
@@ -112,6 +116,46 @@ def test_last_game_is_available_for_display(tmp_path):
     rows = r.record([("player", 0), ("wolf", 10), ("chess", 20), ("fox", 30)])
     assert r.last == rows
     assert {k: p for k, _rk, p in r.last}["player"] == 4
+
+
+# --------------------------------------------- what the write side may not do
+
+def test_a_key_that_is_not_registered_is_recorded_verbatim(tmp_path):
+    """Normalising on the way in must not become filtering on the way in.
+
+    `record` canonicalises every key (plan9a stage 9), and `canonical_key`
+    passes through whatever the alias table does not know - the human seats
+    and `player` included. A resolver that dropped those would silently stop
+    counting the very games this file exists to count.
+    """
+    r = _rec(str(tmp_path))
+    r.record([("human", 10.0), ("made_up_key", 20.0),
+              ("player", 30.0), ("wolf", 40.0)])
+    assert set(r.entries) == {"human", "made_up_key", "player", "wolf"}
+    assert r.entries["human"]["games"] == 1
+    assert r.entries["made_up_key"]["total_points"] == 3
+
+
+def test_importing_seats_and_ai_never_pulls_in_records():
+    """The stage-9 dependency runs one way: `records` -> `seats`, never back.
+
+    `records.py` imports `seats.canonical_key` to normalise keys at write
+    time, which is safe only while nothing on the roster side reaches for the
+    leaderboard: `seats` or `ai` importing `records` would mean touching the
+    leaderboard file as a side effect of asking what a seat is. Checked in a
+    clean subprocess, because this process imported both long ago - and
+    `records` itself still pulls in neither pygame nor torch, which is what
+    the import tables on both sides promise.
+    """
+    code = ("import sys\n"
+            "import seats, ai\n"
+            "assert 'records' not in sys.modules, 'seats/ai imported records'\n"
+            "import records\n"
+            "assert 'pygame' not in sys.modules, 'records pulled pygame'\n"
+            "assert 'torch' not in sys.modules, 'records pulled torch'\n")
+    r = subprocess.run([sys.executable, "-c", code], cwd=_ROOT,
+                       capture_output=True)
+    assert r.returncode == 0, r.stderr.decode()
 
 
 # ------------------------------------------- two seats on the same contestant
