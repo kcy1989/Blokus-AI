@@ -335,3 +335,13 @@
     無法排除的一種可能是高載下 fork pool 的子行程卡在 `S`(0.9% CPU、
     非自旋)而父行程在 `do_wait` 等它;事後快照分不出「卡死」與「等不到
     CPU」,要分辨得在卡住當下取子行程的 stack。僅記錄,不修。
+- **(f) `records.rows(order=...)` 的 `order` 是死參數(2026-10-08 實測,僅記錄,
+  不修)**:`match.py:711` 收尾印排行榜時傳 `order=pool`(literal 批次就是舊拼法
+  的 pool),但 `records.py` 在 return 前**無條件** `out.sort(key=(-平均分,
+  餘格, key))`,連 key 都在排序鍵裡,依 `order` 組 key 清單那段永遠被蓋掉 ——
+  實測 `rows(order=[...])` 與 `rows()` 輸出逐項相同,且自 first release
+  (`452000f`)即如此;`ui.py:1694` 乾脆不傳 `order`。
+  後果只在顯示面:列序一律平均分,literal 舊拼法 pool 不影響任何輸出(README
+  「已知限制與取捨」有同一條,含實測數據)。日後二選一:讓 `order` 真的釘列序
+  (docstring 的原意「keep the player first」),或把參數與 `match.py` 的呼叫
+  一併刪掉。兩者都動程式碼,doc-only 輪次不碰。

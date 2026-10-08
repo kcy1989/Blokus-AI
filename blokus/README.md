@@ -1083,20 +1083,25 @@ plan9a「README 必須記錄」原第 4 項「舊三模仿者移出常規池(使
 ### 逐批可重現性核對（2026-10-08 實測）
 
 plan9a 階段 9 要求逐批核對「是否有歷史結果因改名或搬遷而無法重現」。下表每列
-都是當日實跑的輸出，不是預期：
+都是當日實跑的輸出，不是預期。後兩欄分開回答兩件事：
 
-| 證據 | 實測 | 結論 |
-| --- | --- | --- |
-| `eval/plan9/` 六批 0.5b（各 2000 局，種子 `20261005`） | 逐檔讀取：`pool_order` 欄**不存在**（階段 3 之前產出）；`subject` `hc_1000` → `rl_h1000_0k`、`hunter` → `ai.heuristics.hunter`、`rl_h1000_20k` → 自身；兩個網路權重 `exists=True sha_ok=True`（`ai/checkpoints/…`） | **可重現** —— 走 `--pool-order literal`；逐局比對由 `test_literal_replays_a_batch_committed_before_the_sort` 釘住（40 局，其餘以批次檔為準） |
-| `rl_b1000_0k-pair.json` / `rl_i1000_0k-pair.json` | md5 `394d9d1c55e82569f4016ad201ac6672` / `ff777cb422d1f7e8ba8cfdd173bd9eb5`，與 `eval/plan9/README.md` 記錄逐字一致；subject 皆為已發布 key | **可從 repo 重算**（逐局檔在庫） |
-| `rl_o1000_0k` 的 200 局統計 | `eval/plan9/` **沒有** o 的逐局檔；訓練曲線未播種（上一節） | **不可從 repo 重算**；曲線不可重放 |
-| `reports/hc2_raw.json` 四組 5000 局（種子 910001–910004） | 四個 option 名 `step_2000`（兩組）、`step_5000`、`step_10000` 現在 `expand_pool(..., "literal")` **全部** `ValueError: unknown --pool item`（舊名已廢止，由 `test_match_pool` 釘住） | 原指令**一律不可原樣重跑**；逐組如下 |
-| ├ hc2 `step_002000`（910001） | 權重 `data/hc2/step_002000.pt` **已入版控**（`git ls-files --error-unmatch` 通過） | option 改寫成 `hc_2000` + literal 順序後**可重跑**（同一檔案） |
-| ├ hc2 `step_005000`（910002） | `data/hc2/step_005000.pt` **未入版控**；名冊沒有任何 key 指向 5000 步 | **不可重跑**：乾淨 clone 無權重，且沒有席位能表達它 |
-| ├ hc2 `step_010000`（910003） | `data/hc2/step_010000.pt` **已入版控** | option 改寫成 `hc_10000` + literal 順序後**可重跑** |
-| └ hb2 `step_002000`（910004，舊 H-B2） | `data/hb2/step_002000.pt` **未入版控**；H-B2 席位已被 H-C2 取代，名冊無此 key | **不可重跑**：乾淨 clone 無權重，且沒有席位能表達它 |
-| `data/rl1/eval.jsonl` 的 `hc_1000` 欄 | 欄名按裁決**維持**（改名會把同一條基線切成兩欄，見 AGENTS）；對應權重 `rl_h1000_0k` 與 `rl_h1000_20k` 都已發布 | 可讀、可續寫，不改名 |
-| `records.json` 舊列 | `test_a_records_row_under_the_old_key_still_reads` | **可讀、不重寫、不合併** |
+- **可執行** —— 能用現行程式跑同一份權重（權重在、名稱能表達）。
+- **數字逐位重現** —— 重跑出的數字與原報告**逐位相同**，或有等價的逐位比對證據。
+  本次**沒有**實際跑出 `reports/hc2` 的四組再比對數字，凡未做這一步的一律寫
+  「未驗證」：權重相同、名稱能改寫，都不等於數字一致。
+
+| 證據 | 實測 | 可執行 | 數字逐位重現 |
+| --- | --- | --- | --- |
+| `eval/plan9/` 六批 0.5b（各 2000 局，種子 `20261005`） | 逐檔讀取：`pool_order` 欄**不存在**（階段 3 之前產出）；`subject` `hc_1000` → `rl_h1000_0k`、`hunter` → `ai.heuristics.hunter`、`rl_h1000_20k` → 自身；兩個網路權重 `exists=True sha_ok=True`（`ai/checkpoints/…`） | **是** —— 走 `--pool-order literal`，權重 sha256 對上 | **前 40 局逐位一致**（`test_literal_replays_a_batch_committed_before_the_sort` 比對 `games_detail[:40]` 與提交批次逐字相同）；**其餘 1960 局未重跑比對**，以批次檔為準 |
+| `rl_b1000_0k-pair.json` / `rl_i1000_0k-pair.json` | md5 `394d9d1c55e82569f4016ad201ac6672` / `ff777cb422d1f7e8ba8cfdd173bd9eb5`，與 `eval/plan9/README.md` 記錄逐字一致；subject 皆為已發布 key | **是**（權重已發布；成對機制在套件內） | **未驗證** —— 只驗了逐局檔 md5 與記錄一致（檔案未變），本次**未重算統計數字** |
+| `rl_o1000_0k` 的 200 局統計 | `eval/plan9/` **沒有** o 的逐局檔；訓練曲線未播種（上一節） | **是**（`rl_o1000_0k` 權重已發布，現行程式可載入）；訓練曲線另不可重放 | **無法比對** —— 原逐局檔不在 repo，無從對照 |
+| `reports/hc2_raw.json` 四組 5000 局（種子 910001–910004） | 四個 option 名 `step_2000`（兩組）、`step_5000`、`step_10000` 現在 `expand_pool(..., "literal")` **全部** `ValueError: unknown --pool item`（舊名已廢止，由 `test_match_pool` 釘住） | **原指令一律不可原樣跑**；逐組如下 | **四組本次都未跑出比對**；逐組如下 |
+| ├ hc2 `step_002000`（910001） | 權重 `data/hc2/step_002000.pt` **已入版控**（`git ls-files --error-unmatch` 通過） | **是**（option 改寫成 `hc_2000` + literal 順序，同一檔案） | **未驗證** —— 未實際跑出並比對數字 |
+| ├ hc2 `step_005000`（910002） | `data/hc2/step_005000.pt` **未入版控**；名冊沒有任何 key 指向 5000 步 | **否**：乾淨 clone 無權重，且沒有席位能表達它 | **無法重現**（不可執行） |
+| ├ hc2 `step_010000`（910003） | `data/hc2/step_010000.pt` **已入版控** | **是**（option 改寫成 `hc_10000` + literal 順序） | **未驗證** —— 未實際跑出並比對數字 |
+| └ hb2 `step_002000`（910004，舊 H-B2） | `data/hb2/step_002000.pt` **未入版控**；H-B2 席位已被 H-C2 取代，名冊無此 key | **否**：乾淨 clone 無權重，且沒有席位能表達它 | **無法重現**（不可執行） |
+| `data/rl1/eval.jsonl` 的 `hc_1000` 欄 | 欄名按裁決**維持**（改名會把同一條基線切成兩欄，見 AGENTS）；對應權重 `rl_h1000_0k` 與 `rl_h1000_20k` 都已發布 | —（讀檔項目：可讀、可續寫，不改名） | 不適用 |
+| `records.json` 舊列 | `test_a_records_row_under_the_old_key_still_reads` | —（讀檔項目：可讀、不重寫、不合併） | 不適用 |
 
 本表收錄受改名或搬遷影響的證據；其他報告檔（`reports/h0`–`h1`、`g`、`f_prime`、
 `hc2` 的結論文字）未逐批列入。
@@ -1124,3 +1129,14 @@ plan9a 階段 9 要求逐批核對「是否有歷史結果因改名或搬遷而�
   哪一個候選」，只能學會「這兩格都是合法定式步」。
 - **`rl/` 的實驗只吃 `engine.py`，不吃 `game.py`**。兩份規則必須逐步一致，靠
   `tests/test_engine_cross.py` 維持，不是靠結構保證。
+- **`rows(order=...)` 的 `order` 從未生效，CLI 排行榜一律按平均分排序**。
+  `match.py` 收尾印排行榜時把 pool 當 `order` 傳進 `records.rows(order=pool)`
+  （literal 批次就是舊拼法的 pool），但 `rows()` 在 return 前**無條件**
+  `out.sort(key=(-平均分, 餘格, key))`，連 key 都在排序鍵裡，中間「依 `order`
+  組 key 清單」那一段永遠被蓋掉 —— 實測 `rows(order=[...])` 與 `rows()` 輸出
+  逐項相同，且自 first release（`452000f`）即如此（`ui.py` 乾脆不傳 `order`）。
+  所以 **literal 批次非 `--dry` 時，舊拼法 pool 不影響任何顯示**：列序永遠是
+  平均分排序，沒有「正式名列排到尾端」這回事；`records.py` docstring 說的
+  「`order` optionally pins the sequence (used to keep the player first)」目前
+  是死意圖。要修（真的釘列序）或要刪（連同 `match.py` 的呼叫）列入 plan9a
+  「待清理項目」(f)。
