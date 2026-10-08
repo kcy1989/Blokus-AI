@@ -192,14 +192,17 @@ def expand_pool(text, order="sorted"):
         # names that get drawn into games and written into the batch file, and
         # letting the old spelling through would put it in the evidence.
         key = seats_mod.canonical_key(item)
-        if key in _ORDER:
+        if key in _ORDER or key in seats_mod.ADHOC:
             chosen.add(key)
             continue
         raise ValueError(
             "unknown --pool item %r. Presets: %s. Options: %s"
             % (item, ", ".join(sorted(POOL_PRESETS)), ", ".join(_ORDER)))
-    # Ordered by the fixed option order, so the input order cannot matter.
-    pool = [k for k in _ORDER if k in chosen]
+    # Key order - the one pool-order rule - applied to registered options and
+    # --adhoc keys alike, so the index-to-key mapping a same-seed game depends
+    # on is a function of the key set however each key arrived. With no adhoc
+    # key this is the same list the fixed option order would give.
+    pool = sorted(chosen)
     if not pool:
         raise ValueError("--pool %r expanded to an empty pool" % (text,))
     return pool
@@ -438,7 +441,10 @@ def validate_subject(subject, options, paired_rng, canonicalise=True):
     if subject is None:
         return None
     canonical = seats_mod.canonical_key(subject)
-    legal = sorted(seats_mod.automated_options())
+    # Registered options plus this process's --adhoc keys: an unregistered
+    # checkpoint file can be the subject of its own batch, but only if the
+    # command line bound it - the roster stays the gate for everything else.
+    legal = sorted(set(seats_mod.automated_options()) | set(seats_mod.ADHOC))
     if canonical not in legal:
         raise ValueError("unknown --subject %r. Options: %s"
                          % (subject, ", ".join(legal)))
@@ -611,10 +617,21 @@ def main(argv=None):
     ap.add_argument("--subject", default=None,
                     help="指定每局必有一席的選項；該席位由 setup 流抽出，其餘三席"
                          "自 --pool 有放回抽。必須同時使用 --paired-rng。")
+    ap.add_argument("--adhoc", action="append", default=[], metavar="KEY=PATH",
+                    help="把一個未註冊的檢查點檔當席位用（僅本程序有效，不進名冊、"
+                         "不進自動選項）：KEY 可出現在 --pool 與 --subject，PATH 是"
+                         "它的權重檔；批次 payload 記錄 path 與 md5。可重複。")
     args = ap.parse_args(argv)
 
     pool_raw = args.pool
     try:
+        for spec in args.adhoc:
+            if "=" not in spec:
+                raise ValueError("--adhoc expects KEY=PATH, got %r" % (spec,))
+            key, _sep, path = spec.partition("=")
+            if not key or not path:
+                raise ValueError("--adhoc expects KEY=PATH, got %r" % (spec,))
+            seats_mod.register_adhoc(key, path)
         pool = expand_pool(pool_raw, order=args.pool_order)
         # The resolved name, so an alias is recorded under its canonical spelling
         # - except in literal mode, where the caller's spelling *is* the point.
@@ -660,6 +677,11 @@ def main(argv=None):
         if subject_in_pool(subject, pool):
             print("    注意: subject 也在池內，對手席可能抽到同一個，"
                   "故同一局可能兩席同選項（與訓練條件一致）")
+    if seats_mod.ADHOC:
+        print("  adhoc 席位（未入名冊，僅本批次有效）:")
+        for k in sorted(seats_mod.ADHOC):
+            v = seats_mod.ADHOC[k]
+            print("    %-16s %s  md5 %s" % (k, v["path"], v["md5"]))
     print("  局數            : %d" % args.games)
     print("  席次總數        : %d" % len(flat))
     print()
@@ -698,6 +720,10 @@ def main(argv=None):
         # personality subject - so this is not recoverable from `games_detail`
         # after the fact.
         "subject": subject,
+        # Which unregistered files this batch's seats bound, if any: they live
+        # under `data/`, so without path + md5 here the evidence could not say
+        # which bytes were measured once the files are gone.
+        "adhoc": {k: dict(v) for k, v in seats_mod.ADHOC.items()},
         "appearances": appearances,
         "summary": summary,
         "games_detail": [[[k, c, r, rk, p] for k, c, r, rk, p in game]

@@ -24,6 +24,7 @@ This module imports neither torch nor pygame: `rl.imitation` is imported inside
 `build_brain` so a game with no imitation seat never loads torch, and the UI,
 the league and the tests can all use the same seat model.
 """
+import hashlib
 import os
 import re
 
@@ -181,13 +182,19 @@ def rl_checkpoint(key):
 
     The path comes from `ai/registry.json` as of plan9a stage 4 - the weights
     live in `ai/checkpoints/` beside the code that reads them - while
-    `RL_SEATS` above keeps naming where the policy was trained.
+    `RL_SEATS` above keeps naming where the policy was trained. A key bound by
+    `register_adhoc` (`match.py --adhoc`) comes first: the table is per-process
+    and never enters the roster, but this stays the one place that decides
+    which weights a key means, and the batch file records the table so the
+    evidence still says which bytes were measured.
 
     Raises for anything else, including a key of the right shape that is not
     registered - `rl_9999` would otherwise be a name that resolves to nothing, or
     worse, to whatever a future table happens to put at that slot.
     """
     key = canonical_key(key)
+    if key in ADHOC:
+        return ADHOC[key]["path"]
     if not is_rl_key(key):
         raise ValueError("%r is not a trained-policy seat" % (key,))
     return registry_checkpoint(key)
@@ -351,6 +358,52 @@ def resolve_random_ai(keys, rng):
     return out
 
 
+# Checkpoints bound for this process only, by `match.py --adhoc KEY=PATH`.
+# Deliberately *not* part of the roster: these keys never enter
+# `automated_options()`, so the UI menus, `resolve_random_ai` and the default
+# league pool cannot draw them - a league only gets them when the command line
+# names them. `kind_of` and `rl_checkpoint` consult the table, and the batch
+# file records it (`payload["adhoc"]`, path + md5) because the files themselves
+# live under `data/` and are not in the repository.
+ADHOC = {}
+
+
+def register_adhoc(key, path):
+    """Bind `key` to the checkpoint file at `path` for this process.
+
+    Refuses keys that already exist as seats - shadowing `hunter` or a
+    registered checkpoint would make the same spelling mean two different
+    things depending on the command line - and refuses missing files, so a
+    typo fails before the first game rather than in the middle of the batch.
+    Re-registering the same key with the same file is a no-op, because a test
+    session or a wrapper may set the same binding twice.
+    """
+    key = canonical_key(key)
+    if (key in (RANDOM_AI_KEY, HUMAN_KEY, HUMAN_LOG_KEY)
+            or key in personality_keys() or is_imitation_key(key)
+            or is_rl_key(key)):
+        raise ValueError(
+            "%r is already a seat option; --adhoc is only for checkpoint "
+            "files that are not in the roster" % (key,))
+    if not key:
+        raise ValueError("--adhoc needs a non-empty key")
+    if not os.path.isfile(path):
+        raise ValueError("--adhoc %s: no such checkpoint file %r" % (key, path))
+    import hashlib
+    h = hashlib.md5()
+    with open(path, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    entry = {"path": path, "md5": h.hexdigest()}
+    prev = ADHOC.get(key)
+    if prev is not None and prev != entry:
+        raise ValueError(
+            "--adhoc %s was already bound to %s with a different file"
+            % (key, prev["path"]))
+    ADHOC[key] = entry
+    return entry
+
+
 def kind_of(key, include_humans=True):
     """Which kind of contestant `key` names.
 
@@ -365,6 +418,12 @@ def kind_of(key, include_humans=True):
     if is_imitation_key(key):
         return KIND_IMITATION
     if is_rl_key(key):
+        return KIND_RL
+    if canonical_key(key) in ADHOC:
+        # An --adhoc key is a single trained-policy file, which is exactly
+        # what the KIND_RL branch of `build_brain` loads - through
+        # `rl_checkpoint`, which reads the same table. Registration refuses
+        # keys the roster already owns, so this cannot shadow one.
         return KIND_RL
     if key == HUMAN_KEY:
         return KIND_HUMAN

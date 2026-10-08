@@ -16,6 +16,7 @@ from are in README.md under 「GOLDEN 重採」.
 """
 import collections
 import gzip
+import hashlib
 import json
 import math
 import os
@@ -826,3 +827,86 @@ def test_the_batch_output_goes_under_data_by_default(tmp_path, monkeypatch):
     assert os.path.dirname(path) == str(tmp_path / "m")
     assert os.path.basename(path).endswith(".json")
     assert "records" not in os.path.basename(path)
+
+
+# ------------------------------------------------------------- --adhoc seats
+
+# A file that is tracked, so every checkout has it: the tests bind an
+# *unregistered key* to it, they do not need an unpublished checkpoint.
+ADHOC_FILE = os.path.join(_ROOT, "ai", "checkpoints", "rl_h1000_20k",
+                          "step_000040.pt")
+
+
+@pytest.fixture
+def adhoc():
+    """A process with no adhoc bindings before and after the test."""
+    seats_mod.ADHOC.clear()
+    yield
+    seats_mod.ADHOC.clear()
+
+
+def test_an_adhoc_key_routes_to_its_file_and_cannot_shadow_a_seat(adhoc):
+    entry = seats_mod.register_adhoc("rl_adhoc_probe", ADHOC_FILE)
+    assert entry["path"] == ADHOC_FILE
+    with open(ADHOC_FILE, "rb") as fh:
+        assert entry["md5"] == hashlib.md5(fh.read()).hexdigest()
+    assert seats_mod.kind_of("rl_adhoc_probe") == seats_mod.KIND_RL
+    assert seats_mod.rl_checkpoint("rl_adhoc_probe") == ADHOC_FILE
+    # the roster is untouched: menus, random seats and the default pool
+    # cannot draw a key they have never heard of
+    assert "rl_adhoc_probe" not in seats_mod.automated_options()
+    assert "rl_adhoc_probe" not in match._ORDER
+    # the same binding twice is a no-op, not a collision
+    assert seats_mod.register_adhoc("rl_adhoc_probe", ADHOC_FILE) == entry
+    with pytest.raises(ValueError) as exc:
+        seats_mod.register_adhoc("hunter", ADHOC_FILE)
+    assert "already a seat" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        seats_mod.register_adhoc("rl_h1000_20k", ADHOC_FILE)
+    assert "already a seat" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        seats_mod.register_adhoc("rl_adhoc_ghost", os.path.join(_ROOT, "no.pt"))
+    assert "no such checkpoint" in str(exc.value)
+
+
+def test_an_adhoc_key_is_a_subject_only_while_it_is_bound(adhoc):
+    with pytest.raises(ValueError) as exc:
+        match.validate_subject("rl_adhoc_sub", ["hunter"], paired_rng=True)
+    assert "unknown --subject" in str(exc.value)
+    seats_mod.register_adhoc("rl_adhoc_sub", ADHOC_FILE)
+    assert match.validate_subject("rl_adhoc_sub", ["hunter"],
+                                  paired_rng=True) == "rl_adhoc_sub"
+    # binding does not relax the pairing requirement
+    with pytest.raises(ValueError) as exc:
+        match.validate_subject("rl_adhoc_sub", ["hunter"], paired_rng=False)
+    assert "--paired-rng" in str(exc.value)
+
+
+def test_an_adhoc_seat_plays_and_is_recorded_in_the_batch(adhoc, tmp_path):
+    """End to end: bound key in the pool, drawn as the subject, built for real
+    games, and the binding (path + md5) carried in the payload."""
+    out = tmp_path / "adhoc.json"
+    rc = main(["--games", "2", "--seed", "20261005",
+               "--pool", "hunter,rl_adhoc_run",
+               "--paired-rng", "--subject", "rl_adhoc_run",
+               "--mode", "argmax", "--dry",
+               "--adhoc", "rl_adhoc_run=%s" % ADHOC_FILE,
+               "--out", str(out)])
+    assert rc == 0
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["pool"] == ["hunter", "rl_adhoc_run"]  # key order, adhoc last
+    assert payload["subject"] == "rl_adhoc_run"
+    assert payload["rng_mode"] == "paired-v1-subject"
+    assert payload["adhoc"]["rl_adhoc_run"]["path"] == ADHOC_FILE
+    assert len(payload["adhoc"]["rl_adhoc_run"]["md5"]) == 32
+    # the designated seat of every game is the adhoc key, seat index found
+    # the same way the statistics will find it: (seed, i) -> subject_draw
+    for i, game in enumerate(payload["games_detail"]):
+        setup, _seats = match.paired_streams(20261005, i)
+        idx, keys = match.subject_draw(setup, payload["pool"], "rl_adhoc_run")
+        assert keys == [row[0] for row in game]
+        assert game[idx][0] == "rl_adhoc_run"
+    # 2 designated appearances plus whatever the opponent draws added
+    assert payload["appearances"]["rl_adhoc_run"] >= 2
+    assert payload["appearances"]["hunter"] + \
+        payload["appearances"]["rl_adhoc_run"] == 8
