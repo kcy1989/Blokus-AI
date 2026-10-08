@@ -202,7 +202,14 @@
   結構不變式改為顯式斷言:四池互斥(含 `imitation_only ∩ rl_only == ∅`)、
   聯集 == `all`、key 升冪、`match` 與 registry 兩邊同一批成員。
   逐組「舊擋什麼 / 新擋什麼 / 少了什麼」見 README 與回報。
-- 虛構第 15 個 AI 實測:紅的測試清單寫進 README「仍需改的測試」。
+- 虛構第 15 個 AI(**imitation**)與虛構第 8 個人格(**heuristic**)各實測一次全套,
+  兩份紅清單都寫進 README「新增一個 AI 之後仍需改的測試」,並註明各自情境
+  (純 network 席位不碰 `rl/collect`;新增人格會連帶改 `controller_weights()`
+  推出的權重表,那是真連帶,不是測試寫錯)。
+- 收尾修正:`seats.kind_of` 對 imitation 家族讀的是 registry 的 `family`
+  (階段 6 β),所以「kind 計數 == family 計數」對那一列是同源自證、不是互證。
+  兩處 docstring(`test_seats` / `test_match`)已改寫,並列明真正獨立的四條
+  檢查與「逐列 pin 只釘 `key`、不含 `family`」。
 
 ## 階段 9:records 與評測相容
 - records.json 新舊 key 皆可讀,新記錄用新 key。

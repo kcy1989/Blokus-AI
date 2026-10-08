@@ -126,8 +126,15 @@ def test_the_league_offers_every_automated_option_and_no_humans():
     Stage 8: the four numbers this used to type (14, 7, 6, 1) are now read
     from the registry, so a fifteenth seat changes them without touching the
     file. Two things still have to be *true* rather than equal to a roster:
-    `match.league_options` and `ai.registry.automated_options` are the same
-    list, and not one human kind can appear in it.
+    the tuple `match` captured at import is still what the registry answers
+    now - a staleness check, since `league_options` is `_ORDER` built once -
+    and not one human kind can appear in it.
+
+    The kind counts below are *not* an independent check of `family` for the
+    imitation seats: `kind_of` reads `family` from the registry since stage 6
+    (decision beta). See the docstring on
+    `tests/test_seats.py::test_every_option_is_one_of_the_three_kinds_of_contestant`
+    for which tests are independent, and for what the row pin does not cover.
     """
     from match import league_options
     opts = league_options()

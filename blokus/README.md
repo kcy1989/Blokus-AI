@@ -866,7 +866,15 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
    sha256sum <來源檔> ai/checkpoints/<key>/step_<NNNNNN>.pt   # 兩行必須相同
    ```
 
-2. **手寫 `ai/registry.json` 的草稿列**，起手 `enabled: false` / `selectable: false`
+2. **先補 `config.py` 的 `I` 文字，再手寫 `ai/registry.json` 的草稿列**。
+
+   **先做 `config.I` 這一步**：label 與 desc 各加一個**新的** key（名字隨
+   慣例，例如 `imit_o_fmt` / `imit_o_desc_fmt`）。選單要求每個 selectable
+   席位的名字**互不相同**——沿用別人的 label 會被
+   `test_every_selectable_option_has_a_name_and_a_description_of_its_own` 擋下
+   （虛構人格實測抓到過）；desc 只寫可驗證的事實（步數、老師），不要寫比較。
+
+   然後才是草稿列，起手 `enabled: false` / `selectable: false`
    （兩者必須一致，`_validate` 會擋），其餘欄位：
 
    | 欄位 | 填什麼 |
@@ -876,7 +884,7 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
    | `checkpoint` / `source` | `ai/checkpoints/...`（發布後）／來源路徑 |
    | `sha256` | 第 1 步的**完整**值 |
    | `pools` | 先照家族填，確認後再加 `all` |
-   | `label` / `desc_key` | **這一個對手自己的** `config.I` key——選單要求名字互不相同 |
+   | `label` / `desc_key` | **指向剛剛在 `config.I` 補的那兩個 key** |
    | `note` | 英文維護註記；不進 `--list`、不是畫面上的文字 |
 
 3. **驗證，過了才改成 `true`**：
@@ -895,9 +903,12 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
 ## 新增一個 AI 之後仍需改的測試
 
 plan9a 階段 8 把「池有多少個」全部改為與 `ai/registry.json` 比對，所以
-**多數測試一行都不用動**。2026-10-08 實測：加一列虛構的第 15 個 AI
-（`rl_fake_0k`，含 checkpoint、`enabled: true`）跑全套，**紅 10 項**；
-其中 1 項是同一次改動裡一併轉換掉的組成性斷言，現存 **9 項**：
+**多數測試一行都不用動**。兩種家族各實測過一次，**情境不同、清單不同**：
+
+### 實測一：imitation 家族的第 15 個 AI（`network` + `family: imitation`）
+
+2026-10-08：加一列 `rl_fake_0k`（含 checkpoint、`enabled: true`）跑全套，
+**紅 10 項**；其中 1 項是同一次改動裡一併轉換掉的組成性斷言，現存 **9 項**：
 
 | 測試 | 為什麼會紅 | 性質 |
 |---|---|---|
@@ -910,8 +921,39 @@ plan9a 階段 8 把「池有多少個」全部改為與 `ai/registry.json` 比�
 | `test_ui_smoke::test_every_selectable_option_has_a_name_and_a_description_of_its_own` | 新席位沿用了別人的 label，撞上「名字互不相同」 | **不用改測試**：加一對自己的 `config.I` 文字就過 |
 | `test_match_pool::test_the_imitation_preset_on_its_own` | `appearances` 要求「池內每個 key 都坐過」 | **本輪已轉換**：改為 containment（只保證不出池），15 鍵下單獨 `1 passed` |
 
-一句話：**會紅的是證據（GOLDEN、逐列 pin、字面集合）與名字（`config.I`）**，
-不是池大小——後者已全部改由註冊表驅動。
+### 實測二：heuristic 人格的第 8 個人格（`kind: heuristic` + `family: personality`）
+
+2026-10-08：照「新增一種 AI」的完整流程加一個虛構人格 `fake`——
+`ai/heuristics/fake.py`、`registry.py` 的 `WEIGHTED_SPECS`、`ai/__init__.py`
+匯出、`config.I` 兩個新 key、`PERSONALITY_ORDER`、`registry.json` 一列。
+兩處**位置**有講究，插錯會立刻紅（都是測試在做事，不是測試的錯）：
+
+- `registry.json` 的列要放在**類別表順序**（`wolf, chess, fox, **fake**, intruder, ...`），
+  不是「加在最後」——我第一次插在 `wolf` 之後，
+  `test_the_json_lists_the_personalities_in_the_class_tables_order` 就紅了；
+- `config.PERSONALITY_ORDER` 同理，`test_builder.py` 釘住
+  `PERSONALITY_ORDER == ai.personality_keys()`。
+
+位置正確之後跑全套：**14 failed / 1002 passed / 639.72s**：
+
+| 測試 | 為什麼會紅 | 性質 |
+|---|---|---|
+| `test_match_pool::test_pool_all_is_identical_to_no_pool_at_all`（3 個種子） | `all` 池多了一个人格，同種子座位全變 | **GOLDEN 重採** |
+| `test_match_pool::test_the_pinned_pool_is_still_the_registry_s_pool` | `GOLDEN_POOL` 是字面 14 列 | **證據**：名册改了就紅 |
+| `test_registry_json::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` | 逐列 pin（只釘 `key` 欄） | **證據** |
+| `test_seat_alias_hc::test_the_rename_left_every_other_seat_where_it_was` | 字面十四 key 的集合 | **證據** |
+| `test_match::test_setup_match_seats_four_distinct_personalities` | `len(PERSONALITY_ORDER) == 7` | **證據**：人格數 |
+| `test_hunter::test_the_coverage_type_conditions_hold_with_seven_keys` | `len(pool) == 7` 與函式名 | **證據**：人格數 |
+| `test_rl_rollout::test_the_personality_pool_is_the_seven_named_in_the_plan` | 字面七個人格 + 明文要求「先決定要不要讓新人格進 RL 對手池」 | **設計上的決定點**，不是壞掉的測試 |
+| `test_rl_collect`（4 項） | `rl/collect.py` 的 `controller_weights()` **由人格清單推導**，非老師的權重從 `0.5/6` 變 `0.5/7`，而測試釘住 `0.5/6` 與「7 個 key」 | **真連帶**：加一個人格會改掉資料收集的權重表，要先決定那張表跟不跟 |
+| `test_match_pool::test_the_same_run_without_dry_does_write_the_leaderboard` | 固定種子下 8 選項的抽籤不再抽中 `wolf`，`appearances["wolf"]` 讀不到 | **種子相關的組成**：要嘛改取值方式，要嘛換種子 |
+
+### 兩次實測的共同結論
+
+**會紅的是證據（GOLDEN、逐列 pin、字面集合）、名字（`config.I`）、
+以及「人格清單的連帶表」（`rl/collect` 的權重）**，不是池大小——後者已全部
+改由註冊表驅動。純粹新增一個 `network` 席位不會碰 `rl/collect`；新增一個人格
+會，這是兩份清單的差別，不是測試寫錯。
 
 ---
 

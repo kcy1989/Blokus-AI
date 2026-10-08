@@ -48,11 +48,30 @@ def test_the_human_seats_are_exactly_what_the_league_leaves_out():
 def test_every_option_is_one_of_the_three_kinds_of_contestant():
     """Kind by kind, with each count read from the roster rather than typed.
 
-    Two independent answers are compared: `seats.kind_of` decides a kind from
-    the code tables, `ai/registry.json` records a family, and a fifteenth
-    seat only has to be *consistent* - not to be fourteen. The three counts
-    also have to add up to the pool, which is the invariant that would break
-    if a key were somehow in no kind at all.
+    Two readings are compared, and they are only *partly* independent.
+    `seats.kind_of` answers personality from the code class tables and rl from
+    `RL_SEATS`, but it answers the imitation family straight out of the
+    registry (plan9a stage 6, decision beta: `_IMITATION_KEYS` is derived from
+    `family`), so that row is one source agreeing with itself - a consistency
+    check, not evidence. What is independent, and where:
+
+      * `family: personality` - `test_the_json_lists_the_personalities_in_the_class_tables_order`,
+        which compares the class tables against the JSON, plus `_validate`'s
+        `(kind == "heuristic") == (family == "personality")` pairing;
+      * `family: rl` - `test_the_json_lists_the_trained_policies_in_table_order`
+        (`RL_SEATS` against the JSON);
+      * the H-C2 chain - `test_the_json_lists_the_checkpoints_in_step_order`,
+        which requires those three code-table keys to be in the family;
+      * a seat with no code table at all (a student, post-beta) - only
+        `test_the_four_presets_match_the_registry_and_partition_all`, which
+        pits the family-derived presets against the registry's *separate*
+        `pools` column; both columns mistyped together would slip past it.
+
+    The row pin in `test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted`
+    takes only `key`, so it does **not** cover `family`.
+
+    Independent of all of that, the three counts have to add up to the pool -
+    the invariant that would break if a key were in no kind at all.
     """
     options = seats.seat_options(False)
     ai_only = [k for k in options if seats.kind_of(k) == seats.KIND_AI]
