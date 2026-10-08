@@ -424,6 +424,26 @@ def append_jsonl(path, row):
 
 
 # --------------------------------------------------------------------------
+# the seed block this run may claim
+# --------------------------------------------------------------------------
+
+def _claimed_train_block(seed_base):
+    """The registered RL train block a run with this base is entitled to claim.
+
+    `make_specs` needs an `own` triple to exempt from the seed guard, and the
+    exemption matches a reserved row exactly rather than by containment, so a
+    student run has to name the students' row: with 7,200,000-7,219,999
+    reserved, claiming the h-version block would overlap the students' own row
+    and refuse to start. Only RL's own train blocks are candidates - an
+    imitation base must keep landing in the guard instead of exempting itself.
+    """
+    for block in (rollout_mod.RL_TRAIN_BLOCK, rollout_mod.RL_STUDENTS_BLOCK):
+        if block[1] <= seed_base <= block[2]:
+            return block
+    return rollout_mod.RL_TRAIN_BLOCK
+
+
+# --------------------------------------------------------------------------
 # the cheap in-training evaluation
 # --------------------------------------------------------------------------
 
@@ -541,8 +561,9 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
 
             # 2. collect
             t0 = time.perf_counter()
-            specs, _man = rollout_mod.make_specs(lo, cfg.per_round,
-                                                  rng_seed=cfg.seed_base)
+            specs, _man = rollout_mod.make_specs(
+                lo, cfg.per_round, rng_seed=cfg.seed_base,
+                own=_claimed_train_block(cfg.seed_base))
             episodes = rollout_mod.play_batch(
                 specs, paths["current"], n_procs=cfg.n_procs,
                 device=cfg.rollout_device, mode="softmax")

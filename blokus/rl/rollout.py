@@ -80,6 +80,15 @@ RL_TRAIN_BLOCK = ("stage RL train", RL_SEED_BASE, RL_SEED_BASE + RL_SEED_SPAN - 
 RL_VALID_BLOCK = ("stage RL validation", RL_SEED_VALID_BASE,
                   RL_SEED_VALID_BASE + RL_SEED_VALID_SPAN - 1)
 
+# plan9 step 3: the train block reserved for the three students (o / b / i),
+# shared by all three exactly as 3a shares everything else. The label and range
+# must match `rl.paired3.RESERVED_RANGES` to the tuple - `reject_reserved_seeds`
+# exempts by exact triple, so a mismatch would make every student run refuse to
+# start against its own reserved row.
+RL_STUDENTS_SEED_BASE = 7_200_000
+RL_STUDENTS_BLOCK = ("stage RL students", RL_STUDENTS_SEED_BASE,
+                     RL_STUDENTS_SEED_BASE + RL_SEED_SPAN - 1)
+
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
 
@@ -477,8 +486,8 @@ def make_specs(start_seed, n, rng_seed=None, own=None):
     start_seed, end = int(start_seed), int(start_seed) + n - 1
     if rng_seed is None:
         rng_seed = start_seed
-    reject_reserved_seeds(start_seed, end,
-                          own=RL_TRAIN_BLOCK if own is None else own)
+    own_block = RL_TRAIN_BLOCK if own is None else own
+    reject_reserved_seeds(start_seed, end, own=own_block)
     rng = random.Random(int(rng_seed))
     pool = list(PERSONALITY_POOL)
     specs = []
@@ -499,9 +508,8 @@ def make_specs(start_seed, n, rng_seed=None, own=None):
         "learner_seat_share": [c / float(n) for c in seat_counts],
         "opponent_coverage": {name: _count(name, specs)
                               for name in PERSONALITY_POOL},
-        "reserved_range_checked": ["stage RL train",
-                                   RL_SEED_BASE,
-                                   RL_SEED_BASE + RL_SEED_SPAN - 1],
+        # the block this call claimed, which is the row the guard exempted
+        "reserved_range_checked": list(own_block),
     }
     return specs, manifest
 

@@ -123,6 +123,35 @@ def test_two_rounds_of_ten_games_run_and_produce_a_loadable_checkpoint(tmp_path)
         "the checkpoint's dead value head should be untouched"
 
 
+def test_the_seed_claim_follows_the_registered_block_for_this_base():
+    """A run must exempt its own reserved row, not the h-version one.
+
+    Only RL's own train blocks are candidates: an imitation base has to fall
+    back to a claim the guard will then refuse, not find a way to exempt itself.
+    """
+    assert T._claimed_train_block(rollout_mod.RL_SEED_BASE) \
+        is rollout_mod.RL_TRAIN_BLOCK
+    assert T._claimed_train_block(rollout_mod.RL_STUDENTS_SEED_BASE) \
+        is rollout_mod.RL_STUDENTS_BLOCK
+    assert T._claimed_train_block(6_000_000) is rollout_mod.RL_TRAIN_BLOCK
+
+
+@needs_checkpoint
+def test_a_student_seed_base_starts_and_runs_a_round(tmp_path):
+    """The registration, end to end: with the students' row in the guard's
+    table, a run on 7,200,000 starts instead of refusing its own block."""
+    out = tmp_path / "students"
+    cfg = small_cfg(str(out), seed_base=rollout_mod.RL_STUDENTS_SEED_BASE,
+                    rounds=1)
+    result = T.train(cfg, str(out), ppo_cfg=SMALL, init_path=CHECKPOINT,
+                     log=quiet, nice=0)
+    assert result.rounds_done == 1
+    assert result.stopped_by == "", result.stopped_by
+    rows = read_log(str(out))
+    assert len(rows) == 1
+    assert rows[0]["seed_lo"] == rollout_mod.RL_STUDENTS_SEED_BASE
+
+
 @needs_checkpoint
 def test_the_critic_and_the_optimizer_survive_a_save(tmp_path):
     """Everything item 1 of the plan asks for, present in the file."""

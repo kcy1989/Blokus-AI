@@ -404,6 +404,29 @@ def test_the_seed_block_is_inside_the_reserved_rl_range():
                                                  Rr.RL_SEED_BASE + 19_999]
 
 
+def test_every_rollout_block_is_registered_to_the_tuple():
+    """`reject_reserved_seeds` exempts by exact triple, so the constants a
+    caller claims with and the rows the guard polices are one fact in two
+    files - drift would refuse every run of the stage the row belongs to."""
+    from rl import paired3
+    registered = set(paired3.RESERVED_RANGES)
+    for block in (Rr.RL_TRAIN_BLOCK, Rr.RL_VALID_BLOCK, Rr.RL_STUDENTS_BLOCK):
+        assert block in registered, block
+
+
+def test_make_specs_runs_on_the_students_block_when_claimed():
+    """plan9 step 3's block: one round of a student run starts under its own
+    row, and without the claim the registered history refuses it."""
+    specs, man = Rr.make_specs(Rr.RL_STUDENTS_SEED_BASE, 500,
+                               rng_seed=Rr.RL_STUDENTS_SEED_BASE,
+                               own=Rr.RL_STUDENTS_BLOCK)
+    assert man["reserved_range_checked"] == list(Rr.RL_STUDENTS_BLOCK)
+    with pytest.raises(ValueError) as exc:
+        Rr.make_specs(Rr.RL_STUDENTS_SEED_BASE, 500,
+                      rng_seed=Rr.RL_STUDENTS_SEED_BASE)
+    assert "stage RL students" in str(exc.value)
+
+
 def test_make_specs_refuses_a_block_that_was_already_used():
     """The imitation set's own seeds, refused before a single game is played.
 

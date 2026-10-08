@@ -115,6 +115,11 @@ RESERVED_RANGES = (
     ("pool league 920001", 920_001, 920_001),
     ("stage RL train", 7_000_000, 7_019_999),
     ("stage RL validation", 7_100_000, 7_100_999),
+    # plan9 step 3: one train block, shared by the three students o / b / i.
+    # Reserved before their first pilot round ran; the label and range must stay
+    # in step with `rl.rollout.RL_STUDENTS_BLOCK`, because the guard exempts a
+    # claim by exact triple.
+    ("stage RL students", 7_200_000, 7_219_999),
 )
 
 PAIRS_A = 2_000

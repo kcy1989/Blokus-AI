@@ -223,7 +223,8 @@ def test_every_registered_range_is_pairwise_disjoint():
 
 def test_the_rl_blocks_clear_every_block_already_registered():
     for label, lo, hi in (("stage RL train", 7_000_000, 7_019_999),
-                          ("stage RL validation", 7_100_000, 7_100_999)):
+                          ("stage RL validation", 7_100_000, 7_100_999),
+                          ("stage RL students", 7_200_000, 7_219_999)):
         for other, olo, ohi in list(P.RESERVED_RANGES) + list(P.OWN_RANGES):
             if other == label:
                 continue
@@ -235,8 +236,12 @@ def test_the_rl_blocks_are_accepted_by_the_block_guard_when_claimed():
     them, and nobody else may."""
     train = ("stage RL train", 7_000_000, 7_019_999)
     valid = ("stage RL validation", 7_100_000, 7_100_999)
+    students = ("stage RL students", 7_200_000, 7_219_999)
     assert P.reject_reserved_seeds(7_000_000, 7_019_999, own=train) == []
     assert P.reject_reserved_seeds(7_100_000, 7_100_999, own=valid) == []
+    assert P.reject_reserved_seeds(7_200_000, 7_219_999, own=students) == []
+    # one training round inside the students' block claims the same row
+    assert P.reject_reserved_seeds(7_200_000, 7_200_499, own=students) == []
     # ...but only by claiming them, and only the right one
     with pytest.raises(ValueError) as exc:
         P.reject_reserved_seeds(7_000_000, 7_019_999)
@@ -244,6 +249,9 @@ def test_the_rl_blocks_are_accepted_by_the_block_guard_when_claimed():
     with pytest.raises(ValueError) as exc:
         P.reject_reserved_seeds(7_000_000, 7_019_999, own=valid)
     assert "stage RL train" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_200_000, 7_200_499, own=train)
+    assert "stage RL students" in str(exc.value)
 
 
 def test_claiming_your_own_block_does_not_excuse_overlapping_someone_elses():
