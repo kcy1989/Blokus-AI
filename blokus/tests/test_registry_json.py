@@ -197,7 +197,9 @@ def test_network_entries_name_the_files_the_seats_load():
                 S.IMITATION_CHECKPOINT_DIR, "step_%06d.pt" % step), e["key"]
         assert os.path.basename(e["checkpoint"]) == "step_%06d.pt" % step, \
             e["key"]
-    assert seen == 7
+    # Counted, not typed: a fifteenth network seat is a roster fact, and
+    # this test's job is that the code tables agree with it.
+    assert seen == len([e for e in R.ENTRIES if e["kind"] == "network"])
 
 
 def test_heuristic_entries_name_the_module_the_brain_class_lives_in():
@@ -422,7 +424,7 @@ def test_importing_never_hashes_a_checkpoint_and_never_warns():
     r = subprocess.run([sys.executable, "-c", hash_code], cwd=_ROOT,
                        capture_output=True)
     assert r.returncode == 0, r.stderr.decode()
-    assert r.stdout.strip() == b"14"
+    assert r.stdout.strip() == str(len(R.automated_options())).encode()
     assert b"RuntimeWarning" not in r.stderr
 
     r = subprocess.run([sys.executable, "-c", "import ai, seats"],
@@ -461,7 +463,63 @@ def test_the_check_command_reports_the_pools_and_exits_zero(capsys,
     for name in R.POOL_NAMES:
         assert name in out
     assert R.main([]) == 2
-    assert "python -m ai --check" in capsys.readouterr().out
+    usage = capsys.readouterr().out
+    assert "python -m ai --check" in usage
+    assert "python -m ai --list" in usage
+    assert R.main(["--nope"]) == 2
+
+
+def test_the_list_command_prints_every_seat_in_pool_order(capsys):
+    """`python -m ai --list`: the roster, its pools, and which file each seat
+    is - what somebody needs before editing a row by hand.
+
+    Checked column by column, because the interesting claims are structural:
+    the rows come out in `pool_order` (key ascending, the project's only
+    order), every network seat carries a twelve-character digest read off its
+    file rather than copied out of the JSON, heuristics show "-", and no
+    `note` is printed - notes are English maintenance prose, not screen text.
+    """
+    assert R.main(["--list"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].split() == ["key", "kind", "family", "en/sel", "pools",
+                                "sha256", "file", "aliases"]
+    rows = [ln.split() for ln in lines[1:]]
+    assert [r[0] for r in rows] == list(R.pool_order(R.keys()))
+    by_key = {e["key"]: e for e in R.ENTRIES}
+    assert len(rows) == len(by_key)
+    for row in rows:
+        assert len(row) == 8, row
+        key, kind, family, flags, pools, digest, path, aliases = row
+        e = by_key[key]
+        assert kind == e["kind"] and family == e["family"], key
+        assert flags == ("%s/%s" % ("y" if e["enabled"] else "n",
+                                    "y" if e["selectable"] else "n")), key
+        assert pools == ",".join(e["pools"]), key
+        assert path == (e.get("checkpoint") or e.get("module")), key
+        assert aliases == (",".join(e["aliases"]) or "-"), key
+        if e["kind"] == "network":
+            assert re.fullmatch(r"[0-9a-f]{12}", digest), (key, digest)
+            if e["checkpoint"].startswith("ai/"):
+                # published weights are in the repository, so the digest the
+                # file really has is the one the row must show
+                assert digest == e["sha256"][:12], key
+        else:
+            assert digest == "-", key
+    # notes are not part of the listing
+    first_note = by_key["rl_h1000_20k"]["note"][:40]
+    assert first_note not in capsys.readouterr().out
+
+
+def test_the_list_entry_point_runs_without_the_duplicate_module_warning():
+    """Same wiring claim as `--check`, for the other command: `python -m ai`
+    reaches `registry.main`, and runpy has nothing to complain about."""
+    r = subprocess.run([sys.executable, "-m", "ai", "--list"],
+                       cwd=_ROOT, capture_output=True)
+    assert r.returncode != 2, r.stderr.decode()
+    assert b"RuntimeWarning" not in r.stderr, r.stderr.decode()
+    lines = r.stdout.decode().splitlines()
+    assert lines and lines[0].startswith("key")
+    assert lines[1].split()[0] == "builder", "key order, first row"
 
 
 # --------------------------------------------------------------------------
@@ -589,7 +647,10 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
                          "builder", "hunter", "rl_h1000_0k", "hc_2000",
                          "hc_10000", "rl_h1000_20k"]
     assert keys[11:] == ["rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k"]
-    assert len(keys) == 14
+    # The two slice pins above already fix the length at fourteen - a row
+    # added or removed shows up there, against a list someone typed - so what
+    # is left for the count to say is that no key appears twice.
+    assert len(keys) == len(set(keys))
     assert sorted(keys) == list(S.automated_options())
 
 

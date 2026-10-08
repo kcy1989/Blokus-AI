@@ -2,6 +2,7 @@
 into the leaderboard."""
 import random
 
+import ai.registry as REG
 import seats as seats_mod
 from config import PERSONALITY_ORDER
 from game import Game
@@ -117,17 +118,28 @@ def test_run_league_without_records_touches_no_file(tmp_path):
     assert not list(tmp_path.iterdir())
 
 
-# ------------------------------------------------- the fourteen-seat league
+# ------------------------------------------------------- the all-AI league
 
-def test_the_league_offers_fourteen_options_and_no_humans():
+def test_the_league_offers_every_automated_option_and_no_humans():
+    """What the league draws from, and what it never draws.
+
+    Stage 8: the four numbers this used to type (14, 7, 6, 1) are now read
+    from the registry, so a fifteenth seat changes them without touching the
+    file. Two things still have to be *true* rather than equal to a roster:
+    `match.league_options` and `ai.registry.automated_options` are the same
+    list, and not one human kind can appear in it.
+    """
     from match import league_options
     opts = league_options()
-    assert len(opts) == 14
-    assert len(set(opts)) == 14
+    assert list(opts) == list(REG.automated_options())
+    assert len(set(opts)) == len(opts)
+    families = {"personality": 0, "imitation": 0, "rl": 0}
+    for e in REG.ENTRIES:
+        families[e["family"]] += 1
     kinds = [seats_mod.kind_of(k, include_humans=False) for k in opts]
-    assert kinds.count(seats_mod.KIND_AI) == 7
-    assert kinds.count(seats_mod.KIND_IMITATION) == 6
-    assert kinds.count(seats_mod.KIND_RL) == 1
+    assert kinds.count(seats_mod.KIND_AI) == families["personality"]
+    assert kinds.count(seats_mod.KIND_IMITATION) == families["imitation"]
+    assert kinds.count(seats_mod.KIND_RL) == families["rl"]
     assert not any(seats_mod.is_human_kind(k) for k in kinds)
     assert not any(seats_mod.is_human_kind(k) for k in kinds)
 

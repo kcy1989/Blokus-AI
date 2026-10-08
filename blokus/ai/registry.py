@@ -442,8 +442,64 @@ def check_files(verify_sha256=True):
     return problems
 
 
+def _digest_prefix(path, length=12):
+    """The first `length` hex characters of a file's sha256, or "-".
+
+    Display only - `check_files` is what *verifies* a digest and only when it
+    is asked to. `--list` hashes because a prefix that is not read off the
+    file would be a claim about a file nobody opened; five published
+    checkpoints are about 28 MB, which is a fraction of a second.
+    """
+    if not os.path.isfile(path):
+        return "-"
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()[:length]
+
+
+def list_rows():
+    """One tuple per registered seat, in `pool_order` - by key, ascending.
+
+    Key order because that is the only order the project has: `pool_order` is
+    what every draw reads, so a listing sorted any other way would describe a
+    pool that does not exist.
+    """
+    rows = []
+    for key in pool_order(keys()):
+        e = entry(key)
+        rows.append((
+            key, e["kind"], e["family"],
+            "%s/%s" % ("y" if e["enabled"] else "n",
+                       "y" if e["selectable"] else "n"),
+            ",".join(e["pools"]),
+            _digest_prefix(e["checkpoint"]) if e["kind"] == "network" else "-",
+            e.get("checkpoint") or e.get("module") or "-",
+            ",".join(e.get("aliases") or []) or "-",
+        ))
+    return rows
+
+
+_LIST_HEADER = ("key", "kind", "family", "en/sel", "pools", "sha256",
+                "file", "aliases")
+# One space wider than each column so two padded cells never touch: `personality`
+# is exactly eleven characters and would otherwise run into `en/sel`.
+_LIST_WIDTHS = (15, 11, 12, 7, 27, 13, 47, 0)
+
+
+def _print_row(cells):
+    """Pad every column except the last, which runs to the end of the line."""
+    for i, cell in enumerate(cells):
+        width = _LIST_WIDTHS[i]
+        if width:
+            print("%-*s" % (width, cell), end=" " if width else "")
+        else:
+            print(cell)
+
+
 def main(argv):
-    """`python -m ai --check`: run every check, then print the four pools."""
+    """`python -m ai --check` (verify) and `python -m ai --list` (roster)."""
     if argv == ["--check"]:
         problems = check_files()
         for p in problems:
@@ -451,7 +507,12 @@ def main(argv):
         for name in POOL_NAMES:
             print("%-15s %s" % (name, ", ".join(pool(name))))
         return 1 if problems else 0
-    print("usage: python -m ai --check")
+    if argv == ["--list"]:
+        _print_row(_LIST_HEADER)
+        for row in list_rows():
+            _print_row(row)
+        return 0
+    print("usage: python -m ai --check | python -m ai --list")
     return 2
 
 
@@ -460,6 +521,7 @@ if __name__ == "__main__":
     # copy `ai/__init__` already imported, and runpy warns about the duplicate
     # before a line here runs. The package entry point does not have that
     # problem, so this branch only exists to say where the real command is.
-    print("use `python -m ai --check` instead", file=sys.stderr)
+    print("use `python -m ai --check` or `python -m ai --list` instead",
+          file=sys.stderr)
     raise SystemExit(2)
 

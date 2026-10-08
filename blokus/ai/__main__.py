@@ -1,4 +1,4 @@
-"""`python -m ai --check`: the registry's health check.
+"""`python -m ai --check` and `python -m ai --list`: the registry's two commands.
 
 The entry point lives on the *package* rather than on `ai.registry`, because
 `ai/__init__.py` re-exports `ai.registry` - so `python -m ai.registry` would

@@ -96,9 +96,10 @@
 - 說明:sha256 是複製的來源證明,不要求與 data/ 同步;data/ 之後被覆蓋不算錯。
   (注意 `hc_2000`／`hc_10000` 仍在 `data/`,它們的 sha256 **仍在測試裡** ——
   這是刻意的,見 AGENTS「權重檔案放哪」。)
-- 新增發布命令:`python -m ai.registry --publish <key> --from <path>`
-  - 複製、算雜湊、寫入 enabled:false 的草稿項,由使用者手動改為 true。
-  - **尚未實作**:階段 4 的裁決清單沒列這項,待使用者決定是否補做。
+- **發布不設命令**(使用者裁決 2026-10-08,見「待清理項目」(b) 的結案):
+  複製權重、算雜湊、手寫 `enabled: false` 的草稿列,全部手動完成 ——
+  README「如何新增或更換對手」有完整步驟。原本這裡列的是一條發布命令,
+  從未實作,現在連字樣一併拿掉。
 
 ## 階段 5:Python 算法型 AI 搬入 ai/heuristics/
 - 只改 import 路徑,不改邏輯。
@@ -178,13 +179,30 @@
 
 ## 階段 8:換 AI 的工作流與工具
 - `python -m ai --check`:執行全部驗證,列出各池內容。(原寫 `python -m ai.registry --check`;`ai/__init__` 匯出 `ai.registry`,跑子模組會重複執行同一個模組並噴 runpy 的 `RuntimeWarning`,所以入口掛在套件上。)
-- `python -m ai.registry --list`:顯示全部 AI、所屬池、enabled/selectable、sha256 前綴。
+- `python -m ai --list`:顯示全部 AI、所屬池、enabled/selectable、sha256 前綴。
+  (原文寫 `python -m ai.registry --list`,與 `--check` 同一個 runpy 問題,改掛套件。)
 - README 新增「如何新增或更換對手」:
-  1. `--publish` 複製權重並產生草稿
+  1. 手動複製權重到 `ai/checkpoints/`、`sha256sum` 比對、手寫 `enabled: false` 的草稿列
   2. 編輯 registry.json,設 enabled:true 與 pools
-  3. `--check`
+  3. `--check` 與 `--list`
   4. 親自對戰體驗
 - 池組成相關測試改為由註冊表驅動,保留不變式(如 imitation_only ∩ rl_only = ∅);新增 AI 不應需要改測試,若仍需要,記錄原因。
+
+**已完成**(提交 hash 見提交訊息):
+- `python -m ai --list` 實作:`pool_order` 列序(key 升冪)、欄位
+  key/kind/family/en-sel/pools/sha256 前 12 字元/file/aliases,**不印 `note`**;
+  sha256 現算現讀(`_digest_prefix`),只在 CLI 跑,不掛 import。usage 同時列
+  `--check` 與 `--list`;`python -m ai.registry --list` 不做(runpy 警告)。
+- **不設發布命令**,README 新增「如何新增或更換對手」的**手動**四步
+  (cp + sha256sum + 手寫 `enabled: false` 草稿列 → 改 true → `--check`/`--list`
+  → 親自對戰);階段 4 與本階段原本的指令字樣一併改掉,待清理 (b) 結案。
+- **測試二分法**:四池大小、各類席位計數、選單列數、子進程印的池總數等
+  改為與註冊表比對;`GOLDEN_POOL`、`GOLDEN`、`LEGACY_GOLDEN_MD5`、
+  名册逐列 pin、六個 imitation key 字面、七個人格字面 **維持字面不變**。
+  結構不變式改為顯式斷言:四池互斥(含 `imitation_only ∩ rl_only == ∅`)、
+  聯集 == `all`、key 升冪、`match` 與 registry 兩邊同一批成員。
+  逐組「舊擋什麼 / 新擋什麼 / 少了什麼」見 README 與回報。
+- 虛構第 15 個 AI 實測:紅的測試清單寫進 README「仍需改的測試」。
 
 ## 階段 9:records 與評測相容
 - records.json 新舊 key 皆可讀,新記錄用新 key。
@@ -219,9 +237,12 @@
   `git rm --cached data/hc2/step_002000.pt data/hc2/step_010000.pt`(檔留磁碟)。
   在此之前兩者 `enabled: true`,所以常規池是 14 而不是已定決策寫的 12,
   `imitation_only` 是 6 而不是 4 —— 這三件事是同一件,做完才回到 12/4。
-- **(b) `python -m ai.registry --publish <key> --from <path>` 是否補做**:
-  階段 4 的裁決清單沒列,至今未實作;但 plan9a 階段 4 與階段 8 的 README 工作流
-  都引用它。要么補做、要么把那兩處文字改掉,不能留在「看起來有」的狀態。
+- ~~**(b) `python -m ai.registry --publish` 是否補做**~~
+  **已結案(使用者裁決 2026-10-08)**:**不補做**。改為手動流程
+  (`cp` + `sha256sum` + 手寫 `enabled: false` 草稿列),README 的四步工作流與
+  plan9a 階段 4 / 階段 8 與 README 的工作流已同步改掉,沒有任何地方再留下
+  一條看似可用的發布指令。
+  日後若要重開這條,唯一的新理由是「草稿列的欄位太多,手寫會漏」。
 - **(c) 重訓覆寫 `data/` 造成 sha256 測試紅的摩擦**:
   `test_every_registered_checkpoint_hashes_as_recorded` 對 `hc_2000` /
   `hc_10000` 仍算 `data/` 內的檔,重訓覆寫會讓它紅。這是刻意的(證據數字不能

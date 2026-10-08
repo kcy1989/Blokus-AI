@@ -852,6 +852,67 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
 `test_builder.py` 的 `PERSONALITY_ORDER[-1] == "builder"`（若新人格加在最後就會失效）。
 這些是「預期必改」，不是回歸。
 
+## 如何新增或更換對手（網路席位）
+
+**沒有發布命令**（使用者裁決 2026-10-08）：複製權重、算雜湊、寫草稿列，全部手動。
+四步：
+
+1. **複製權重並比對雜湊**。目錄名就是 `key`，檔名必須是 `step_%06d.pt`
+   （`imitation_step` 從檔名讀步數，不是 step 的表）：
+
+   ```bash
+   mkdir -p ai/checkpoints/<key>
+   cp <來源檔> ai/checkpoints/<key>/step_<NNNNNN>.pt
+   sha256sum <來源檔> ai/checkpoints/<key>/step_<NNNNNN>.pt   # 兩行必須相同
+   ```
+
+2. **手寫 `ai/registry.json` 的草稿列**，起手 `enabled: false` / `selectable: false`
+   （兩者必須一致，`_validate` 會擋），其餘欄位：
+
+   | 欄位 | 填什麼 |
+   |---|---|
+   | `key` / `aliases` | 與目錄同名；舊名放 `aliases`，**不要**再加一列 |
+   | `kind` / `family` | `network` + `imitation` 或 `rl` |
+   | `checkpoint` / `source` | `ai/checkpoints/...`（發布後）／來源路徑 |
+   | `sha256` | 第 1 步的**完整**值 |
+   | `pools` | 先照家族填，確認後再加 `all` |
+   | `label` / `desc_key` | **這一個對手自己的** `config.I` key——選單要求名字互不相同 |
+   | `note` | 英文維護註記；不進 `--list`、不是畫面上的文字 |
+
+3. **驗證，過了才改成 `true`**：
+
+   ```bash
+   python -m ai --list     # 逐列：key/kind/family/en-sel/pools/sha256 前 12 字元/file/aliases
+   python -m ai --check    # 檔案存在 + 全量 sha256，再列出四個池
+   ```
+
+   兩個入口都掛在**套件**上：`python -m ai.registry --list` 會把同一個模組執行
+   兩次並噴 runpy 的 `RuntimeWarning`（`--check` 同理，見 AGENTS「健康檢查的指令」）。
+   列序是 `pool_order`（key 升冪），也就是抽籤真正讀的那一個順序。
+
+4. **親自對戰體驗**，再決定要不要讓它進常規池（`pools` 的 `all`）。
+
+## 新增一個 AI 之後仍需改的測試
+
+plan9a 階段 8 把「池有多少個」全部改為與 `ai/registry.json` 比對，所以
+**多數測試一行都不用動**。2026-10-08 實測：加一列虛構的第 15 個 AI
+（`rl_fake_0k`，含 checkpoint、`enabled: true`）跑全套，**紅 10 項**；
+其中 1 項是同一次改動裡一併轉換掉的組成性斷言，現存 **9 項**：
+
+| 測試 | 為什麼會紅 | 性質 |
+|---|---|---|
+| `test_match_pool::test_pool_all_is_identical_to_no_pool_at_all`（3 個種子） | `all` 池變了，同種子的座位全變 | **GOLDEN 重採**：舊值/新值寫回上方「GOLDEN 重採（plan9a 階段 6）」同一格式 |
+| `test_match_pool::test_the_pinned_pool_is_still_the_registry_s_pool` | `GOLDEN_POOL` 是字面清單 | **證據**：名册改了就必須紅，這正是它存在的理由 |
+| `test_match::test_only_imitation_options_can_be_asked_for` | 字面列出六個 imitation key | 證據：哪些 key 屬於 imitation 家族 |
+| `test_registry_json::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` | 「前 11 + 後 3」的逐列 pin | 證據：名册原樣，重排與新增都看得見 |
+| `test_seat_alias_hc::test_the_rename_left_every_other_seat_where_it_was` | 字面十四個 key 的集合 | 證據：改名不增不減 |
+| `test_seats::test_every_option_is_one_of_the_three_kinds_of_contestant` | 「四個席位在 step 1000」的字面步數清單 | 證據：哪些席位在第 1000 步 |
+| `test_ui_smoke::test_every_selectable_option_has_a_name_and_a_description_of_its_own` | 新席位沿用了別人的 label，撞上「名字互不相同」 | **不用改測試**：加一對自己的 `config.I` 文字就過 |
+| `test_match_pool::test_the_imitation_preset_on_its_own` | `appearances` 要求「池內每個 key 都坐過」 | **本輪已轉換**：改為 containment（只保證不出池），15 鍵下單獨 `1 passed` |
+
+一句話：**會紅的是證據（GOLDEN、逐列 pin、字面集合）與名字（`config.I`）**，
+不是池大小——後者已全部改由註冊表驅動。
+
 ---
 
 ## 已知限制與取捨

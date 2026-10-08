@@ -24,6 +24,7 @@ import sys
 
 import pytest
 
+import ai.registry as R
 import match
 import seats as seats_mod
 from match import (POOL_PRESETS, expand_pool, league_options, main, play_match,
@@ -138,18 +139,36 @@ def test_the_cli_reports_a_bad_pool_as_a_usage_error(tmp_path):
 
 # ----------------------------------------------------------------- presets
 
-def test_the_four_presets_have_the_ruled_sizes():
-    assert len(POOL_PRESETS["all"]) == 14
-    assert len(POOL_PRESETS["no_imitation"]) == 7
-    assert len(POOL_PRESETS["imitation_only"]) == 6
-    assert len(POOL_PRESETS["rl_only"]) == 1
-    assert POOL_PRESETS["no_imitation"] == tuple(PERSONALITIES)
-    assert POOL_PRESETS["imitation_only"] == tuple(STEPS)
-    assert POOL_PRESETS["rl_only"] == tuple(TRAINED)
-    assert len(expand_pool("all")) == 14
-    assert len(expand_pool("no_imitation")) == 7
-    assert len(expand_pool("imitation_only")) == 6
-    assert len(expand_pool("rl_only")) == 1
+def test_the_four_presets_match_the_registry_and_partition_all():
+    """Stage 8: the sizes follow the roster, so the shape has to carry the test.
+
+    Every `== 14` that used to live here is now a comparison against
+    `ai/registry.json`, which means registering a fifteenth seat does not
+    touch this file. What still has to hold at *any* roster size - and what
+    takes the place of those numbers - is the structure: `match` and the
+    registry read the same membership, the three sub-pools are pairwise
+    disjoint (the plan names `imitation_only & rl_only == []`), together they
+    are exactly `all`, and every pool is in key order.
+
+    The literal count survives elsewhere: `GOLDEN_POOL` below is a
+    fourteen-element list compared against `expand_pool("all")`, so a roster
+    edit still fails loudly, in a test that says which key moved.
+    """
+    for name, keys in POOL_PRESETS.items():
+        assert list(keys) == list(R.pool(name)), name
+        assert list(expand_pool(name)) == list(keys), name
+        assert list(keys) == sorted(keys), name
+    sets = {n: set(k) for n, k in POOL_PRESETS.items()}
+    assert sets["no_imitation"] & sets["imitation_only"] == set()
+    assert sets["no_imitation"] & sets["rl_only"] == set()
+    assert sets["imitation_only"] & sets["rl_only"] == set()
+    assert (sets["no_imitation"] | sets["imitation_only"]
+            | sets["rl_only"]) == sets["all"]
+    assert sets["all"] == set(expand_pool(None)) == set(league_options())
+    # and the three sub-pools are still the three kinds of contestant
+    assert sets["no_imitation"] == set(PERSONALITIES)
+    assert sets["imitation_only"] == set(STEPS)
+    assert sets["rl_only"] == set(TRAINED)
 
 
 def test_no_imitation_leaves_out_the_trained_policy_too():
@@ -175,18 +194,32 @@ def test_presets_expand_to_the_expected_names():
 # -------------------------------------------------------------- mixed lists
 
 def test_a_preset_plus_one_name_is_a_union():
-    """`no_imitation,hc_2000` is the seven personalities plus one checkpoint."""
+    """`no_imitation,hc_2000` is every personality plus one checkpoint.
+
+    Said as membership rather than as a length: the length was 8 only while
+    the roster had seven personalities, and a union does not need to know
+    either number to be right.
+    """
     pool = expand_pool("no_imitation,hc_2000")
-    assert len(pool) == 8
     assert pool == [k for k in AUTOMATED
                     if k in PERSONALITIES or k == "hc_2000"]
+    assert set(pool) == set(PERSONALITIES) | {"hc_2000"}
+    assert len(pool) == len(set(pool))
 
 
 def test_the_ruled_mixed_examples():
-    assert len(expand_pool("no_imitation,hc_2000")) == 8
-    assert len(expand_pool("no_imitation,hunter")) == 7
-    assert len(expand_pool("no_imitation,hc_2000,hc_10000")) == 9
-    assert len(expand_pool("hc_2000,hc_2000")) == 1
+    """The same three unions, each spelled out as a set.
+
+    The lengths these used to assert (8, 7, 9, 1) were roster sizes wearing a
+    different hat; membership is what the examples were ever about, and it
+    holds for any roster.
+    """
+    assert set(expand_pool("no_imitation,hc_2000")) == \
+        set(PERSONALITIES) | {"hc_2000"}
+    assert expand_pool("no_imitation,hunter") == PERSONALITIES
+    assert set(expand_pool("no_imitation,hc_2000,hc_10000")) == \
+        set(PERSONALITIES) | {"hc_2000", "hc_10000"}
+    assert expand_pool("hc_2000,hc_2000") == ["hc_2000"]
 
 
 def test_an_overlapping_name_adds_no_weight():
@@ -480,7 +513,7 @@ def test_the_cli_writes_its_own_file_and_not_the_leaderboard(tmp_path, monkeypat
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["pool"] == PERSONALITIES
     assert data["pool_raw"] == "no_imitation"
-    assert data["pool_size"] == 7
+    assert data["pool_size"] == len(data["pool"])
     assert data["seed"] == 99
     assert data["games"] == 3
     assert len(data["games_detail"]) == 3
@@ -532,9 +565,13 @@ def test_the_imitation_preset_on_its_own(tmp_path):
                  "--dry", "--out", str(out)]) == 0
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["pool"] == STEPS
-    assert data["pool_size"] == 6
+    assert data["pool_size"] == len(data["pool"])
     assert all(seats_mod.is_imitation_key(k) for k in data["pool"])
-    assert set(data["appearances"]) == set(STEPS)
+    # Who actually *sat* is a draw, not a promise: eight seats cannot be
+    # assumed to cover every key in the pool once the pool grows, so this is
+    # containment rather than equality. What has to hold either way is that
+    # nothing outside the preset appeared.
+    assert set(data["appearances"]) <= set(STEPS)
     assert sum(data["appearances"].values()) == 8
     # and nothing outside the six ever appears
     for game in data["games_detail"]:

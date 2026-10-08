@@ -25,6 +25,7 @@ import random
 
 import pytest
 
+import ai.registry as REG
 import match as M
 import records as R
 import seats as S
@@ -71,12 +72,15 @@ def test_a_pool_and_a_subject_named_by_the_old_spelling_expand_to_the_new_one():
 
 def test_the_alias_does_not_enter_the_pool():
     options = S.automated_options()
-    assert len(options) == 14
+    # Stage 8: sizes come from the registry, so the claim these were making -
+    # "the rename added no seat and no preset" - is now two lists agreeing
+    # rather than two numbers matching fourteen.
+    assert list(options) == list(REG.pool("all"))
+    assert len(set(options)) == len(options)
     assert NEW in options
     assert OLD not in options
-    assert len(M.POOL_PRESETS["all"]) == 14
-    assert len(M.POOL_PRESETS["no_imitation"]) == 7
-    assert len(M.POOL_PRESETS["imitation_only"]) == 6
+    for name, keys in M.POOL_PRESETS.items():
+        assert list(keys) == list(REG.pool(name)), name
     assert M.POOL_PRESETS["rl_only"] == ("rl_h1000_20k",)
 
 
@@ -91,7 +95,9 @@ def test_the_rename_left_every_other_seat_where_it_was():
     seat list a player sees reorders on a rename, and the games change with it.
     """
     options = S.automated_options()
-    assert len(options) == 14
+    # The set pinned below is the count now: it names every seat, so a roster
+    # change fails there, against a list a person wrote.
+    assert len(options) == len(set(options))
     assert NEW in options
     assert OLD not in options
     assert options == tuple(sorted(options))

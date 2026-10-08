@@ -610,9 +610,10 @@ def test_the_seat_screen_starts_a_game_without_picking_anything():
 
 def test_every_seat_option_renders_on_the_seat_screen():
     """The screen looks each option up by key, so a new option with a missing
-    name or description only blows up at runtime. Checked for all seventeen."""
+    name or description only blows up at runtime. Checked for every one of
+    them, with the size taken from the pool rather than typed (stage 8)."""
     options = seats_mod.seat_menu_options()
-    assert len(options) == 17
+    assert len(options) == len(seats_mod.seat_options(True)) + 1
     for opt in options:
         u = make_ui()
         at_seat_screen(u)
@@ -1532,10 +1533,10 @@ def test_the_picker_offers_random_ai_and_it_resolves_at_start():
 
 
 def test_the_league_pool_is_unchanged_by_the_new_option():
-    """`match.py` already draws every seat from the fourteen, so it does not
-    need the deferred choice - adding it there would only draw twice."""
+    """`match.py` already draws every seat from the pool, so it does not need
+    the deferred choice - adding it there would only draw twice."""
     from match import league_options
-    assert len(league_options()) == 14
+    assert list(league_options()) == list(ai.registry.automated_options())
     assert seats_mod.RANDOM_AI_KEY not in league_options()
 
 

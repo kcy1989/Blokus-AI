@@ -38,6 +38,7 @@ from pathlib import Path
 
 import pytest
 
+import ai.registry as REG
 import match as M
 import seats as S
 from game import Game
@@ -479,7 +480,7 @@ def test_an_unknown_subject_names_the_legal_options():
     for key in ("rl_h1000_20k", "rl_h1000_0k", "wolf"):
         assert key in legal
         assert key in str(e.value)
-    assert len(legal) == 14
+    assert list(legal) == list(REG.pool("all"))
 
 
 def test_a_subject_without_the_split_is_refused():

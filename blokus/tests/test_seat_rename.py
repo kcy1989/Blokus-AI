@@ -23,6 +23,7 @@ import random
 
 import pytest
 
+import ai.registry as REG
 import match as M
 import seats as S
 
@@ -78,12 +79,16 @@ def test_the_alias_does_not_enter_the_pool():
     it played it twice as often as the pool actually implies.
     """
     options = S.automated_options()
-    assert len(options) == 14
+    # Sizes read from the roster (stage 8): what this test is really about is
+    # that the rename neither added nor removed a seat, which is the two lists
+    # agreeing, not a typed fourteen.
+    assert list(options) == list(REG.pool("all"))
+    assert len(set(options)) == len(options)
     assert NEW in options
     assert OLD not in options
-    assert len(M.POOL_PRESETS["all"]) == 14
+    assert list(M.POOL_PRESETS["all"]) == list(REG.pool("all"))
     assert M.POOL_PRESETS["rl_only"] == (NEW,)
-    assert len(M.POOL_PRESETS["no_imitation"]) == 7
+    assert list(M.POOL_PRESETS["no_imitation"]) == list(REG.pool("no_imitation"))
 
 
 def test_pool_parsing_accepts_the_alias_and_expands_to_the_new_name():

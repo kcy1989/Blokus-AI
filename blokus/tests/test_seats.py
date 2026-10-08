@@ -28,26 +28,44 @@ from game import Game
 
 # ------------------------------------------------------------------ options
 
-def test_there_are_sixteen_options_and_fourteen_without_humans():
+def test_the_human_seats_are_exactly_what_the_league_leaves_out():
+    """With humans is two rows more than without, and nothing else differs.
+
+    Stage 8 took the `== 16` / `== 14` out: those were roster sizes. What the
+    numbers were standing in for is still asserted - the difference between
+    the two lists is precisely the two human seats - and the size itself is
+    pinned one file over by `GOLDEN_POOL`.
+    """
     sixteen = seats.seat_options(True)
-    assert len(sixteen) == 16
-    assert len(set(sixteen)) == 16
     fourteen = seats.seat_options(False)
-    assert len(fourteen) == 14
+    assert set(sixteen) - set(fourteen) == {"human", "human_log"}
+    assert len(sixteen) == len(fourteen) + 2
+    assert len(set(sixteen)) == len(sixteen)
     assert not any(seats.is_human_kind(seats.kind_of(k, False))
                    for k in fourteen)
-    # the two human seats are exactly what the league leaves out
-    assert set(sixteen) - set(fourteen) == {"human", "human_log"}
 
 
-def test_the_option_pool_is_seven_ai_six_checkpoints_and_one_policy():
+def test_every_option_is_one_of_the_three_kinds_of_contestant():
+    """Kind by kind, with each count read from the roster rather than typed.
+
+    Two independent answers are compared: `seats.kind_of` decides a kind from
+    the code tables, `ai/registry.json` records a family, and a fifteenth
+    seat only has to be *consistent* - not to be fourteen. The three counts
+    also have to add up to the pool, which is the invariant that would break
+    if a key were somehow in no kind at all.
+    """
     options = seats.seat_options(False)
-    assert len(options) == 14
     ai_only = [k for k in options if seats.kind_of(k) == seats.KIND_AI]
     imitating = [k for k in options if seats.kind_of(k) == seats.KIND_IMITATION]
     trained = [k for k in options if seats.kind_of(k) == seats.KIND_RL]
-    assert len(ai_only) == 7
-    assert set(ai_only) == set(ai.personality_keys())
+    assert len(ai_only) + len(imitating) + len(trained) == len(options)
+    assert len(set(options)) == len(options)
+    families = {"personality": [], "imitation": [], "rl": []}
+    for e in ai.registry.ENTRIES:
+        families[e["family"]].append(e["key"])
+    assert set(ai_only) == set(ai.personality_keys()) == set(families["personality"])
+    assert imitating == sorted(families["imitation"])
+    assert trained == sorted(families["rl"])
     # The six checkpoints come out in *key* order, which is not step order:
     # plan9a stage 3 sorts every pool by key, and `hc_10000` sorts first. Four
     # of them are at step 1000 - the H-C2 checkpoint plus the three students -
@@ -459,14 +477,20 @@ def test_every_owner_may_open_on_its_own_corner():
 
 def test_the_menu_offers_one_more_than_there_are_options():
     """One more thing to pick from than to be: the last entry is a request
-    rather than a setting, so the menu has one row the pool does not."""
+    rather than a setting, so the menu has one row the pool does not.
+
+    All three sizes are relative now - the pool, the pool plus humans, plus
+    the deferred choice - so a roster change moves them together instead of
+    failing a literal `17`.
+    """
     menu = seats.seat_menu_options()
-    assert len(menu) == 17
-    assert len(set(menu)) == 17
+    automated = seats.automated_options()
+    with_humans = seats.seat_options(True)
+    assert len(menu) == len(automated) + 2 + 1
+    assert len(set(menu)) == len(menu)
     assert menu[-1] == seats.RANDOM_AI_KEY
-    assert set(menu) - set(seats.seat_options(True)) == {seats.RANDOM_AI_KEY}
-    assert seats.seat_options(True) == menu[:-1]
-    assert len(seats.seat_options(False)) == 14
+    assert set(menu) - set(with_humans) == {seats.RANDOM_AI_KEY}
+    assert with_humans == menu[:-1]
     assert seats.automated_options() == seats.seat_options(False)
 
 
@@ -475,10 +499,11 @@ def test_random_ai_is_a_kind_of_request_not_of_contestant():
     assert not seats.is_human_kind(seats.KIND_RANDOM_AI)
 
 
-def test_random_ai_draws_from_the_fourteen_automated_options():
-    assert len(seats.automated_options()) == 14
+def test_random_ai_draws_from_the_automated_options_only():
     pool = seats.automated_options()
-    assert len(pool) == 14 and len(set(pool)) == 14
+    selectable = [e["key"] for e in ai.registry.ENTRIES if e["selectable"]]
+    assert list(pool) == sorted(selectable)
+    assert len(set(pool)) == len(pool)
     assert not any(k.startswith("human") for k in pool)
     assert any(seats.is_imitation_key(k) for k in pool)
     assert any(seats.is_rl_key(k) for k in pool)
