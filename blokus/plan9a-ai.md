@@ -229,9 +229,35 @@
   `ai/checkpoints/`,要一併決定。
 - **(d) `tests/test_trace.py::test_trace_costs_nothing_when_not_requested`
   是計時測試**:斷言 `off <= on * 1.15 + 0.05`,拿牆鐘比較「沒開 trace 比開了
-  還慢就算輸」。`-n 8` 下它和另外七個 worker 搶 CPU,會偶發變紅 —— 2026-10-07
-  階段 6 的一次全跑紅過一次,同一支單獨跑 `1 passed`,下一次全跑又綠。
+  還慢就算輸」。`-n 8` 下它和另外七個 worker 搶 CPU,會偶發變紅 ——
+  **已在 `-n 8` 下紅過兩次**(2026-10-07 階段 6 首次全跑;2026-10-08 階段 6
+  amend 前的全跑 `1 failed, 1013 passed`),兩次之後單獨跑或重跑都綠
+  (`1 passed` / `1014 passed`)。
   AGENTS 第六節列的五處計時斷言(`test_ai` / `test_builder` / `test_intruder` /
   `test_optimizer` 的 `dt < 1.5` 與 `test_rl_paired3` 的 `elapsed < 3.0`)有
   10.5 倍餘裕,這條**不在**那個名單裡。日後要嘛放寬門檻、要嘛改成不看牆鐘的
   斷言;本輪不處理,只記下來。
+- **(e) `tests/test_rl_train.py::test_a_guardrail_stops_after_saving_and_says_why`
+  曾把全跑卡到 900s 逾時(2026-10-08,僅記錄,不修)**:
+  - **現象**:全套跑到 98% 停住,`pytest-xdist` controller 被逾時機制殺掉後,
+    留下兩個行程 ——
+    `239019 [pytest-xdist running] tests/test_rl_train.py::test_a_guardrail_stops_after_saving_and_says_why`
+    (`ppid=1`、`State=S`、`wchan=do_wait`、70.7% CPU)與其子行程
+    `242378`(`ppid=239019`、cmdline 同名、0.9% CPU)。子行程 cmdline 與父
+    相同是 fork 繼承來的,**不代表它在跑同一個測試**;`ppid=1` 是 controller
+    被殺之後才被過繼給 init,不是測試自己 spawn 的野行程。
+  - **子行程從哪來**:該測試的 `small_cfg(n_procs=2)` 會走
+    `rl/rl_train.py:455/547` → `rl/rollout.py:663` 的
+    `mp.get_context("fork").Pool(...)`,所以「同時有兩個 python 子行程」是
+    設計如此(`rl/caches.py:388/414` 另有一個 fork pool,但那是資料前處理,
+    這個測試不碰)。
+  - **復現(2026-10-08,單獨 `-n 0`)**:`1 passed in 15.53s`,期間恰有兩個子
+    行程(`336324` / `336325`,`ppid`=controller,`R` 且 100% CPU 約 3–6 秒),
+    結束後**無殘留行程**。
+  - **當時機器**:`load average 1.41, 5.87, 10.10`(1/5/15 分鐘)—— 全跑的
+    8 個 worker 加上孤兒行程把負載推到 10。
+  - **判斷**:偏「機器高載 + 逾時殺 controller 造成孤兒」,而不是「測試異常
+    結束時未回收子行程」—— 單獨跑會把兩個 pool 子行程收乾淨。
+    無法排除的一種可能是高載下 fork pool 的子行程卡在 `S`(0.9% CPU、
+    非自旋)而父行程在 `do_wait` 等它;事後快照分不出「卡死」與「等不到
+    CPU」,要分辨得在卡住當下取子行程的 stack。僅記錄,不修。
