@@ -362,7 +362,8 @@ def _finite(x):
 
 _SCALAR_STATS = ("policy_loss", "value_loss", "entropy", "approx_kl_old",
                  "clip_fraction", "kl_anchor", "grad_norm", "ratio_mean",
-                 "explained_variance", "advantage_mean", "advantage_std",
+                 "explained_variance", "value_return_corr",
+                 "advantage_mean", "advantage_std",
                  "first_ratio_min", "first_ratio_max", "first_ratio_dev",
                  "rollout_log_prob_max_diff", "rollout_value_max_diff",
                  "n_rows", "n_minibatches")
@@ -373,6 +374,7 @@ def round_log(round_no, seed_lo, seed_hi, timings, episodes, stats, guards,
     """One JSONL row. Only scalars - `ppo_update` also returns two arrays."""
     learner_ranks = [e.ranks[e.learner_seat] for e in episodes]
     rewards = [e.rewards[e.learner_seat] for e in episodes]
+    remaining = [e.remaining[e.learner_seat] for e in episodes]
     per_opponent = {}
     for name in rollout_mod.PERSONALITY_POOL:
         got = [e.rewards[e.learner_seat] for e in episodes
@@ -388,6 +390,10 @@ def round_log(round_no, seed_lo, seed_hi, timings, episodes, stats, guards,
         "seed_base": cfg.seed_base,
         "seconds": {k: round(float(v), 3) for k, v in timings.items()},
         "learner_reward_mean": (sum(rewards) / len(rewards)) if rewards else None,
+        # plan9 3c wants 平均餘格 beside 平均名次; reward is the shaped score,
+        # remaining is the raw cell count the ranking is built from
+        "learner_remaining_mean": (sum(remaining) / len(remaining)
+                                   if remaining else None),
         "learner_rank_mean": (sum(learner_ranks) / len(learner_ranks)
                               if learner_ranks else None),
         "learner_rank_counts": {str(r): learner_ranks.count(r)

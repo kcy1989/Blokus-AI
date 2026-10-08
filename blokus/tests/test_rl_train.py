@@ -100,7 +100,13 @@ def test_two_rounds_of_ten_games_run_and_produce_a_loadable_checkpoint(tmp_path)
             sum(int(k) * v for k, v in row["learner_rank_counts"].items())
             / row["games"], abs=1e-6)
         assert set(row["stats"]) >= {"policy_loss", "value_loss", "entropy",
-                                     "clip_fraction", "explained_variance"}
+                                     "clip_fraction", "explained_variance",
+                                     # plan9 3c: EV and the value-return
+                                     # correlation are logged apart
+                                     "value_return_corr"}
+        # 平均餘格 beside 平均名次 (plan9 3c); remaining is cells, 0..21-ish
+        assert row["learner_remaining_mean"] is not None
+        assert row["learner_remaining_mean"] >= 0.0
         assert all(not g["fired"] for g in row["guardrails"])
 
     step_path = os.path.join(str(out), "step_000002.pt")

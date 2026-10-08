@@ -1149,3 +1149,8 @@ plan9a 階段 9 要求逐批核對「是否有歷史結果因改名或搬遷而�
   沒有 torch 種子與 CUDA 決定性保證，同種子重跑不保證位元相同。h 版
   （`rl_h1000_20k`）如此，plan9 步驟 3 的三個學生同 h 版不設（使用者裁決
   2026-10-08）。
+- **`rl/rl_train.py` 寫出的檢查點裡 `name` / `init_checkpoint` 是殘留欄位**。
+  `NAME` 與 `INIT_CHECKPOINT` 是 h 版時代的常數，學生跑出來的檔也會蓋上
+  `rl_1000_20k` 與 hc_2000 路徑；三個學生（plan9 步驟 3）的真實 name、init、
+  anchor、seed-base、commit 以各自 `data/rl_<x>1000/MANIFEST.json` 為準
+  （使用者裁決 2026-10-08）。

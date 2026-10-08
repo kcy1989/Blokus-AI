@@ -231,6 +231,22 @@ def _explained_variance(returns, values):
     return float(1.0 - (y - p).var() / var_y)
 
 
+def _value_return_corr(returns, values):
+    """Pearson correlation between the critic's values and the returns.
+
+    Kept apart from `_explained_variance` on purpose: EV penalises a constant
+    bias (a critic that is 0.1 low everywhere gets EV < 1) while correlation
+    ignores it, so the pair answers "is it tracking the shape" vs "is it
+    calibrated". plan9 3c asks for both, separately named.
+    """
+    import numpy as np
+    y = np.asarray(returns, dtype=np.float64)
+    p = np.asarray(values, dtype=np.float64)
+    if y.size < 2 or y.std() == 0.0 or p.std() == 0.0:
+        return float("nan")
+    return float(np.corrcoef(p, y)[0, 1])
+
+
 def clipped_policy_loss(ratio, advantage, clip=DEFAULT_CLIP):
     """`-mean(min(r*A, clip(r, 1+/-eps)*A))` - the PPO surrogate.
 
@@ -493,6 +509,8 @@ def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None,
     stats["old_log_prob"] = old_lp
     stats["old_value"] = old_v
     stats["explained_variance"] = _explained_variance(
+        np.asarray(batch["return"], dtype=np.float64), old_v)
+    stats["value_return_corr"] = _value_return_corr(
         np.asarray(batch["return"], dtype=np.float64), old_v)
     stats["advantage_mean"] = float(advantage.mean())
     stats["advantage_std"] = float(advantage.std())

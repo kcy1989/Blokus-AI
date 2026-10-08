@@ -357,3 +357,13 @@
   計劃寫「種子沿用 TRAIN_SEED_BASE = 1_000_000、VALID_SEED_BASE = 2_000_000」,
   實際收集用 6,000,000 與 6,100,000 起(`55433c7` / `5627137` 更正,
   `eval/plan9/README.md` 的「事後更正」一節有記錄),計劃正文至今未同步。
+- **(j) `rl/rl_train.py` 的 `--rounds` 是死旗標(2026-10-08 實測,使用者裁決
+  僅記錄)**:`_config_from_args` 把 `rounds` 設成 `games // per_round`,
+  `--rounds` 參數被覆寫;限輪跑 smoke 要用 `--max-rounds`。與 (f) 同型:
+  parser 看得見、設定時看不見。要修(真的採用 args.rounds)或要刪(連同 help
+  文字)都動 CLI 契約,另排。
+- **(k) plan8-B3 的「3-epoch update 6.7 s」估計過時(2026-10-08 實測,使用者
+  裁決僅記錄)**:`_dry_run` 的 estimate 用 6.7 s/更新推 40 輪,但 2026-10-08
+  在本機(RTX 5060 Ti)實測每輪 update 31–34 s(依序)、34–38 s(三生並行),
+  約 5×;`_dry_run` 的估計文案因此偏低約 20 分鐘/40 輪。估計只出現在
+  `--dry-run` 輸出,不影響任何訓練結果。
