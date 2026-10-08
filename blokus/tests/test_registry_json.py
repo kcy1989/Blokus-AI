@@ -628,12 +628,15 @@ def test_validation_reports_every_problem_at_once():
 # --------------------------------------------------------------------------
 
 def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
-    """Two orders, both pinned, on purpose.
+    """Two orders and one composition, all pinned, on purpose.
 
     The array keeps the registration order stage 3 deliberately did **not**
     touch - proof that the re-sort of `GOLDEN` came from a rule and not from an
     edit to the roster - while the pool is that same set sorted by key, which is
-    what every draw now reads.
+    what every draw now reads. The `(key, kind, family)` triples at the end pin
+    the composition itself: every other cross-check compares `family` to
+    something derived from `family`, so two columns edited together would slip
+    past them all.
     """
     path = os.path.join(os.path.dirname(R.__file__), "registry.json")
     with open(path, encoding="utf-8") as f:
@@ -652,6 +655,29 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
     # is left for the count to say is that no key appears twice.
     assert len(keys) == len(set(keys))
     assert sorted(keys) == list(S.automated_options())
+    # `kind` and `family` are pinned too (user decision 10, 2026-10-08). The
+    # cross-checks above compare `family` to `kind_of`, but since stage 6
+    # `kind_of` answers the imitation family *from* `family` (decision beta),
+    # and the presets are built from `kind_of` - so a row whose `family` and
+    # `pools` were edited together passes every one of them while quietly
+    # reclassifying a seat. A typed triple is the one place both columns are
+    # compared against something that is not themselves.
+    assert {(e["key"], e["kind"], e["family"]) for e in raw["entries"]} == {
+        ("wolf", "heuristic", "personality"),
+        ("chess", "heuristic", "personality"),
+        ("fox", "heuristic", "personality"),
+        ("intruder", "heuristic", "personality"),
+        ("optimizer", "heuristic", "personality"),
+        ("builder", "heuristic", "personality"),
+        ("hunter", "heuristic", "personality"),
+        ("rl_h1000_0k", "network", "imitation"),
+        ("hc_2000", "network", "imitation"),
+        ("hc_10000", "network", "imitation"),
+        ("rl_h1000_20k", "network", "rl"),
+        ("rl_o1000_0k", "network", "imitation"),
+        ("rl_b1000_0k", "network", "imitation"),
+        ("rl_i1000_0k", "network", "imitation"),
+    }
 
 
 def test_the_registry_file_is_committed():

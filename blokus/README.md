@@ -940,7 +940,7 @@ plan9a 階段 8 把「池有多少個」全部改為與 `ai/registry.json` 比�
 |---|---|---|
 | `test_match_pool::test_pool_all_is_identical_to_no_pool_at_all`（3 個種子） | `all` 池多了一个人格，同種子座位全變 | **GOLDEN 重採** |
 | `test_match_pool::test_the_pinned_pool_is_still_the_registry_s_pool` | `GOLDEN_POOL` 是字面 14 列 | **證據**：名册改了就紅 |
-| `test_registry_json::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` | 逐列 pin（只釘 `key` 欄） | **證據** |
+| `test_registry_json::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` | 逐列 pin（`key` 欄；裁決 10 之後另含 `kind`／`family`） | **證據** |
 | `test_seat_alias_hc::test_the_rename_left_every_other_seat_where_it_was` | 字面十四 key 的集合 | **證據** |
 | `test_match::test_setup_match_seats_four_distinct_personalities` | `len(PERSONALITY_ORDER) == 7` | **證據**：人格數 |
 | `test_hunter::test_the_coverage_type_conditions_hold_with_seven_keys` | `len(pool) == 7` 與函式名 | **證據**：人格數 |

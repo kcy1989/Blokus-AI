@@ -210,6 +210,9 @@
   (階段 6 β),所以「kind 計數 == family 計數」對那一列是同源自證、不是互證。
   兩處 docstring(`test_seats` / `test_match`)已改寫,並列明真正獨立的四條
   檢查與「逐列 pin 只釘 `key`、不含 `family`」。
+  (**已被取代,2026-10-08 使用者裁決 10**:逐列 pin 已加入 `kind` / `family`
+  欄位,堵住「`family` 與 `pools` 同時改錯」的漏洞;兩處 docstring 與
+  README 的同一句一併改掉,此句留作當時的記錄。)
 
 ## 階段 9:records 與評測相容
 - records.json 新舊 key 皆可讀,新記錄用新 key。

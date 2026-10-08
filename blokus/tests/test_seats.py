@@ -65,10 +65,14 @@ def test_every_option_is_one_of_the_three_kinds_of_contestant():
       * a seat with no code table at all (a student, post-beta) - only
         `test_the_four_presets_match_the_registry_and_partition_all`, which
         pits the family-derived presets against the registry's *separate*
-        `pools` column; both columns mistyped together would slip past it.
+        `pools` column; both columns mistyped together would slip past it;
 
-    The row pin in `test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted`
-    takes only `key`, so it does **not** cover `family`.
+    ...and the row pin in
+    `test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` is the
+    catch-all for exactly that pair: since user decision 10 (2026-10-08) it
+    pins `(key, kind, family)` for every row, so `family` and `pools` edited
+    together no longer pass everything - the `family` half stops matching the
+    typed triple.
 
     Independent of all of that, the three counts have to add up to the pool -
     the invariant that would break if a key were in no kind at all.

@@ -134,7 +134,9 @@ def test_the_league_offers_every_automated_option_and_no_humans():
     imitation seats: `kind_of` reads `family` from the registry since stage 6
     (decision beta). See the docstring on
     `tests/test_seats.py::test_every_option_is_one_of_the_three_kinds_of_contestant`
-    for which tests are independent, and for what the row pin does not cover.
+    for which tests are independent - and, since user decision 10, that the
+    row pin covers `kind`/`family` too, so the pair edited together is caught
+    there.
     """
     from match import league_options
     opts = league_options()
