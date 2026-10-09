@@ -942,3 +942,76 @@ literal 假定不存在的東西),所以池必須寫成明確名單。
 排序,與批次檔 `pool` 欄記的順序不同,所以 `--pool no_imitation` **不再是**重現
 方式;literal 才是。判準很簡單:**批次檔記了順序的,就照那份順序給回去**,
 不讓今天的代碼替它重新決定。
+
+---
+
+## `rl_o1000_0k` 的成對量測(2026-10-09 補做,檔名刻意不同)
+
+**檔案**:`eval/imitation/rl_o1000_0k-pair-no_imitation.json`
+**產生腳本**:根目錄 `pair0k.py`(入庫,可重跑)
+
+### 為什麼檔名不是 `rl_o1000_0k-pair.json`
+
+`rl_b1000_0k-pair.json` 與 `rl_i1000_0k-pair.json` **沒有記錄它們用的池**,也沒有
+記錄熵是怎麼定義的;兩者的產生腳本與 `/tmp/kilo/hc1000.pkl` 基線都在 `/tmp`,
+機器 2026-10-09 18:43 重啟後已消失。第三份檔若沿用同一個檔名,讀者會假定三份
+同一份協議,而這個假定**沒有證據**。所以:
+
+- 檔名標出這次的池(`no_imitation`),
+- `protocol_check` 欄內**明記**池的原文與展開名單,以及
+  「**b、i 原池未記錄,故與其嚴格可比性未證**」。
+
+### 協議
+
+| 項目 | 值 |
+| --- | --- |
+| 池 | `no_imitation` → builder, chess, fox, hunter, intruder, optimizer, wolf(7 人格) |
+| 局數 / 種子 | 200 局 / `6,100,000`–`6,100,199` |
+| 選步 | argmax 與 softmax 各一輪 |
+| 對照 | `hc_1000` → `ai/checkpoints/rl_h1000_0k/step_001000.pt`,md5 `95dc7c463c69f8d337fde4e3df00097b` |
+| 被測 | `rl_o1000_0k` → `ai/checkpoints/rl_o1000_0k/step_001000.pt`,md5 `6a62081dec9d796c024600def0246714` |
+| device | cuda |
+| schema | 與 b、i **逐欄相同**(12 個頂層欄位、兩個 mode 區塊、四個統計區塊) |
+
+兩個檢查點的位元都與 b/i 當時用的檔相同:`ai/checkpoints/rl_h1000_0k/step_001000.pt`
+與 `data/hc2/step_001000.pt` 同 md5,`ai/checkpoints/rl_o1000_0k/step_001000.pt` 與
+`data/imit_o1000/step_001000.pt` 同 md5。**路徑不同、位元相同**,所以 `checkpoint`
+欄記的是這次實際載入的路徑。
+
+### `protocol_check` 改了什麼
+
+b、i 的寫法是:「hc_1000 的四項與 `/tmp/kilo/hc1000.pkl` 的記錄**逐位相同**,不相等
+就失敗」。那個 pkl 在倉庫之外,已不存在,逐位 assert 無法再做,硬做只會變成人對著
+自己新算的數字打勾。新檔改為:
+
+- **當場重算** hc_1000 的 md5 與四項(平均分、平均熵、決策數、第一名率),
+- 並註明這是**重算值,不是逐位 assert**,
+- 外加「成對已在程式內驗證:兩輪的對手與被測席顏色逐局相同」。
+
+### 統計定義(已用 b 的存檔反算驗證)
+
+| 量 | 定義 | 驗證 |
+| --- | --- | --- |
+| `*_stderr` | 樣本標準差(ddof=1) / √n | b 存檔 `0.06647533263734925` = `stdev/√200` 逐位相符 |
+| `paired_se` | 逐局差值序列的同一個標準誤 | b 存檔 `0.09127172419863094` 逐位相符 |
+| `independent_se` | `√(se_control² + se_student²)` | b 存檔 `0.09504759453100668` 逐位相符 |
+| `t` | `mean_diff / paired_se` | b 存檔逐位相符 |
+| `mean_softmax_entropy` | 溫度 1.0、遮罩後合法著上的 softmax 分佈的自然對數,逐決策取值後求平均 | b 未記錄定義 → **不可比** |
+| `entropy_sd_over_decisions` | 上述逐決策熵的樣本標準差(ddof=1) | 同上 → **不可比** |
+
+### 仍然不可比的地方(不得省略)
+
+1. **b、i 原池未記錄,故與其嚴格可比性未證。**
+2. b、i 的熵定義未記錄,`mean_softmax_entropy` 與 `entropy_sd_over_decisions`
+   兩欄只能各自讀,不能橫向比。
+3. 本檔 `control_checkpoint` 的路徑與 b/i 不同(位元相同,md5 已記)。
+
+### 重跑
+
+```bash
+.venv-rl/bin/python pair0k.py \
+    --student rl_o1000_0k --pool no_imitation --games 200 --seed 6100000 \
+    --device cuda --out <新檔名>.json
+```
+
+腳本**拒絕覆寫已存在的檔**。
