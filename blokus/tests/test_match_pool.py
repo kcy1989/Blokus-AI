@@ -665,7 +665,7 @@ def test_the_cli_turns_a_literal_violation_into_a_usage_error(tmp_path):
 def test_literal_replays_a_batch_committed_before_the_sort(tmp_path):
     """Stage 3 check (a): an old batch still plays, game for game.
 
-    `eval/plan9/argmax-hc_1000-games.json.gz` was written while the pool was
+    `eval/imitation/argmax-hc_1000-games.json.gz` was written while the pool was
     ordered by the registry; after the switch to key order the same command
     draws different opponents from the same seed. Handing the recorded pool back
     through `--pool-order literal` - no sort, no dedup, and the subject kept in
@@ -676,7 +676,7 @@ def test_literal_replays_a_batch_committed_before_the_sort(tmp_path):
     committed file remains the authority for the other 1960; this guards the
     mechanism, and it fails on the first differing seat rather than on a digest.
     """
-    path = os.path.join(_ROOT, "eval", "plan9", "argmax-hc_1000-games.json.gz")
+    path = os.path.join(_ROOT, "eval", "imitation", "argmax-hc_1000-games.json.gz")
     if not os.path.exists(path):
         pytest.skip("the 0.5b batch is not in this checkout")
     with gzip.open(path, "rt", encoding="utf-8") as fh:

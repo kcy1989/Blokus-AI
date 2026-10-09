@@ -1,3 +1,5 @@
+本目錄含模仿學生 0k 門檻統計,以及 h 的 20k 六批(0.5b)驗收批次,為保持證據完整未拆分。
+
 # plan9 評測輸出
 
 `plan9.md` 階段 A 的評測結果放在這裡。**這裡放的是證據，不是計畫書**——評測一旦跑完就
@@ -6,11 +8,12 @@
 ## 為什麼這個目錄要單獨加一行 .gitignore
 
 `.gitignore` 第 10 行的 `plan*` 會匹配**任何以 `plan` 開頭的路徑元件**，所以
-`eval/plan9/` 原本整個被忽略，而且是靜默的：檔案照樣寫得進去，`git status` 只是永遠
-不會提到它們。`!eval/plan9/` 一行把它救回來，`plan*.md` 仍維持忽略。
+`eval/imitation/` 原本整個被忽略，而且是靜默的：檔案照樣寫得進去，`git status` 只是永遠
+不會提到它們。`!eval/imitation/` 與 `!eval/rl-single-train/` 兩行把它們救回來，
+`plan*.md` 仍維持忽略。
 
 這裡**不需要** `data/` 那段的三行寫法。那裡必須先取消排除父目錄，是因為 git 不會
-descend 進被排除的父目錄；`eval/` 本身沒有被排除，所以指名那一個目錄就夠了。
+descend 進被排除的父目錄；`eval/` 本身沒有被排除，所以指名那兩個目錄就夠了。
 
 ## 目錄內容
 
@@ -33,8 +36,8 @@ descend 進被排除的父目錄；`eval/` 本身沒有被排除，所以指名�
 ```bash
 .venv-rl/bin/python match.py --pool no_imitation --games 2000 \
     --seed 20261005 --paired-rng --subject <KEY> \
-    --mode argmax --out eval/plan9/<批次>-games.json
-gzip -9 eval/plan9/<批次>-games.json      # -> <批次>-games.json.gz
+    --mode argmax --out eval/imitation/<批次>-games.json
+gzip -9 eval/imitation/<批次>-games.json      # -> <批次>-games.json.gz
 ```
 
 `--subject` 尚未實作（設計待確認）。`--out` 一定要帶：`match.py` 的預設輸出目錄是
@@ -214,7 +217,7 @@ t 值落在 9.51(達標)與 −0.44(無法判定)兩端,所以 500 局的第一�
 
 `plan9.md` 本身被 `.gitignore` 的 `plan*` 規則忽略(與 `plan2.md` … `plan8.md`、
 `plan.md` 相同——只有 `plan.md` 是被追蹤的),所以規則寫在 plan 裡不會進版控,也就
-沒有辦法證明它是「看到結果之前」定的。`eval/plan9/` 是被追蹤的,所以規則寫在這裡。
+沒有辦法證明它是「看到結果之前」定的。`eval/imitation/` 是被追蹤的,所以規則寫在這裡。
 
 ### `records.json` 中 `rl_h1000_20k` 的 `commit` 欄位為 `null`
 
@@ -623,7 +626,7 @@ hc2 叫做過擬合,可它有 4/10 的檢查點落在自己規則的「過擬合
 ## `rl_b1000_0k`:builder 的 0k,三條門檻全過(2026-10-06)
 
 按**修訂後**的規則評(規則見上文,寫定於這次訓練之前)。逐局證據:
-`eval/plan9/rl_b1000_0k-pair.json`,26,392 bytes,md5
+`eval/imitation/rl_b1000_0k-pair.json`,26,392 bytes,md5
 `394d9d1c55e82569f4016ad201ac6672`,下表每個數字都能從它重算。
 
 ### 訓練
@@ -721,14 +724,14 @@ val 最低點在 **step 1,000 = 1.555218,而它就是最後一個檢查點**—�
 第一名率 0.44 / 0.32。量測腳本內建 assert,不相等就直接失敗,而不是換一份新基線。
 
 > `/tmp/kilo/hc1000.pkl` 與 `/tmp/kilo/imit_b1000_curve.json` 在 repository 之外;
-> 逐局資料與全部統計都在 `eval/plan9/rl_b1000_0k-pair.json` 裡。
+> 逐局資料與全部統計都在 `eval/imitation/rl_b1000_0k-pair.json` 裡。
 
 ---
 
 ## `rl_i1000_0k`:intruder 的 0k,過弱門檻觸發(2026-10-06)
 
 **按「任一條觸發即停下回報」:停下,回報,不調整步數、不換資料、不補跑。**
-逐局證據:`eval/plan9/rl_i1000_0k-pair.json`,26,401 bytes,md5
+逐局證據:`eval/imitation/rl_i1000_0k-pair.json`,26,401 bytes,md5
 `ff777cb422d1f7e8ba8cfdd173bd9eb5`。
 
 ### 訓練(與 b 完全同一套)
@@ -826,7 +829,7 @@ plan9a 階段 1。0k 檢查點的座位 key 改名,舊名永久作別名。**本
 | 別名 | `hc_1000` → `rl_h1000_0k`(`seats.ALIASES`),`--pool` 與 `--subject` 都寫入正式名 |
 | kind | 兩個拼法都是 `KIND_IMITATION`(同一個 `data/hc2/step_001000.pt`),`imitation_only` 仍是 3、`rl_only` 仍是 1、`no_imitation` 仍是 7 |
 | `records.json` | **未改寫**:`hc_1000` 那 1 局的舊列留著可讀,新的對局寫新 key(計畫要求「舊 key 可讀」) |
-| `eval/plan9/` | 未改寫 |
+| `eval/imitation/` | 未改寫 |
 
 **下面是階段 3 之前的歷史。** 當時 `GOLDEN` 的**名稱欄**從 `hc_1000` 變成
 `rl_h1000_0k`、其餘每一個字都相同,`tests/test_seat_alias_hc.py::

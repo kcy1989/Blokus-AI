@@ -156,7 +156,7 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
 - **`records.json` / `settings.json` 執行時自動生成**，已在 `.gitignore`。
   載入與存檔都包在 `try` 裡：檔案損壞時當作沒紀錄，不讓遊戲開不起來。
   **`records.json` 是 runtime 檔，可隨時 reset，不動、不備份、不合併**；
-  真正不可改寫的是 `eval/plan9/` 內已提交的證據檔。
+  真正不可改寫的是 `eval/imitation/` 內已提交的證據檔。
 - **池的順序一律依 key 排序，規則只有一處：`ai.registry.pool_order()`。**
   `seats.automated_options()` 是它的下游，`seat_options`／`seat_menu_options`／
   `resolve_random_ai`／`match._ORDER`／`POOL_PRESETS`／`expand_pool`／
@@ -166,7 +166,7 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   代價是**改名會**改變排序位置（排序鍵就是名字），改 key 前要知道。
 - **重現階段 3 之前的批次用 `--pool-order literal`**：照 `--pool` 原樣，不排序、
   不去重、不看 `enabled`、`--subject` 也不正規化；**不得與 preset 名稱併用**。
-  日常與所有評測一律 `sorted`。完整指令見 `eval/plan9/README.md` 的
+  日常與所有評測一律 `sorted`。完整指令見 `eval/imitation/README.md` 的
   「階段 3 之後:用 literal 重現」。
 - **`tests/test_match_pool.py` 的 `GOLDEN_POOL` 是測試內寫死的清單，不要改回從
   註冊表推導**。GOLDEN 是證據，要靠「名册改了它就紅」失敗，而不是跟著名册動。

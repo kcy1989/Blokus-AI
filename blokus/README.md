@@ -665,7 +665,7 @@ JSON 陣列等於重排每一場已提交的對局。
   逐字相同，不必先做任何字串對照。這只管**批次檔**；排行榜寫入端在 plan9a 階段 9
   之後一律正規化，兩者互不影響（見「排行榜資料」）。
 
-已提交的 0.5b 批次在 literal 上的重現方式（`eval/plan9/README.md` 有完整說明）：
+已提交的 0.5b 批次在 literal 上的重現方式（`eval/imitation/README.md` 有完整說明）：
 
 ```bash
 .venv-rl/bin/python match.py \
@@ -987,7 +987,7 @@ plan9a 階段 8 把「池有多少個」全部改為與 `ai/registry.json` 比�
 ## 歷史證據與已知事項
 
 以下每條都是**抄錄既有文件的原文並標出處**，不另加評價；原文以
-`eval/plan9/README.md`、`plan9a-ai.md` 與本檔既有章節為準。這四項（0.063、
+`eval/imitation/README.md`、`plan9a-ai.md` 與本檔既有章節為準。這四項（0.063、
 i 過弱、o 未播種、`imitation_only` 不一致）就是 plan9a「README 必須記錄」的
 第 1、2、3、5 項；寫入端的別名行為見「排行榜資料」，第 6 項（key 排序與
 GOLDEN 重採）見本檔既有三節，索引在本節末。
@@ -1004,7 +1004,7 @@ GOLDEN 重採）見本檔既有三節，索引在本節末。
 
 同節另記:「**0.05 是判斷值,沒有證據支持這個數字**」。
 
-出處:`eval/plan9/README.md` §「事後修訂:0.063 間距門檻廢止,過擬合改為只看
+出處:`eval/imitation/README.md` §「事後修訂:0.063 間距門檻廢止,過擬合改為只看
 val 曲線(2026-10-06)」、§「取代它的規則:只看 val loss」。
 
 ### `rl_i1000_0k` 的過弱門檻觸發，處置是停下回報
@@ -1024,7 +1024,7 @@ val 曲線(2026-10-06)」、§「取代它的規則:只看 val loss」。
 後續處置是使用者裁決:「i 過弱觸發由使用者人工對弈判定取代」(`plan9a-ai.md`
 §「已定決策(使用者)」)。
 
-出處:`eval/plan9/README.md` §「`rl_i1000_0k`:intruder 的 0k,過弱門檻觸發
+出處:`eval/imitation/README.md` §「`rl_i1000_0k`:intruder 的 0k,過弱門檻觸發
 (2026-10-06)」。
 
 ### `rl_o1000_0k` 的訓練曲線不可重放
@@ -1034,10 +1034,10 @@ val 曲線(2026-10-06)」、§「取代它的規則:只看 val loss」。
 > `main()` 一致)
 
 同節記有補播種後重跑與記錄值的差異:step 100 的 train loss **2.938606**(cuda)
-對記錄值 **2.926840**。另外 `eval/plan9/` 只有 b、i 兩份逐局成對檔、**沒有 o 的**,
+對記錄值 **2.926840**。另外 `eval/imitation/` 只有 b、i 兩份逐局成對檔、**沒有 o 的**,
 所以 o 那 200 局的統計也無法從 repo 重算(下表另列)。
 
-出處:`eval/plan9/README.md` §「訓練程序與 o 的一處差異:torch 從未被播種」。
+出處:`eval/imitation/README.md` §「訓練程序與 o 的一處差異:torch 從未被播種」。
 
 ### 池的組成：`hc_*` 先留在常規池
 
@@ -1093,9 +1093,9 @@ plan9a 階段 9 要求逐批核對「是否有歷史結果因改名或搬遷而�
 
 | 證據 | 實測 | 可執行 | 數字逐位重現 |
 | --- | --- | --- | --- |
-| `eval/plan9/` 六批 0.5b（各 2000 局，種子 `20261005`） | 逐檔讀取：`pool_order` 欄**不存在**（階段 3 之前產出）；`subject` `hc_1000` → `rl_h1000_0k`、`hunter` → `ai.heuristics.hunter`、`rl_h1000_20k` → 自身；兩個網路權重 `exists=True sha_ok=True`（`ai/checkpoints/…`） | **是** —— 走 `--pool-order literal`，權重 sha256 對上 | **前 40 局逐位一致**（`test_literal_replays_a_batch_committed_before_the_sort` 比對 `games_detail[:40]` 與提交批次逐字相同）；**其餘 1960 局未重跑比對**，以批次檔為準 |
-| `rl_b1000_0k-pair.json` / `rl_i1000_0k-pair.json` | md5 `394d9d1c55e82569f4016ad201ac6672` / `ff777cb422d1f7e8ba8cfdd173bd9eb5`，與 `eval/plan9/README.md` 記錄逐字一致；subject 皆為已發布 key | **是**（權重已發布；成對機制在套件內；**僅指可重算，未實際執行**） | **未驗證** —— 只驗了逐局檔 md5 與記錄一致（檔案未變），本次**未重算統計數字** |
-| `rl_o1000_0k` 的 200 局統計 | `eval/plan9/` **沒有** o 的逐局檔；訓練曲線未播種（上一節） | **是**（`rl_o1000_0k` 權重已發布，現行程式可載入；**僅指可另跑新批次，未實際執行**）；訓練曲線另不可重放 | **無法比對** —— 原逐局檔不在 repo，無從對照 |
+| `eval/imitation/` 六批 0.5b（各 2000 局，種子 `20261005`） | 逐檔讀取：`pool_order` 欄**不存在**（階段 3 之前產出）；`subject` `hc_1000` → `rl_h1000_0k`、`hunter` → `ai.heuristics.hunter`、`rl_h1000_20k` → 自身；兩個網路權重 `exists=True sha_ok=True`（`ai/checkpoints/…`） | **是** —— 走 `--pool-order literal`，權重 sha256 對上 | **前 40 局逐位一致**（`test_literal_replays_a_batch_committed_before_the_sort` 比對 `games_detail[:40]` 與提交批次逐字相同）；**其餘 1960 局未重跑比對**，以批次檔為準 |
+| `rl_b1000_0k-pair.json` / `rl_i1000_0k-pair.json` | md5 `394d9d1c55e82569f4016ad201ac6672` / `ff777cb422d1f7e8ba8cfdd173bd9eb5`，與 `eval/imitation/README.md` 記錄逐字一致；subject 皆為已發布 key | **是**（權重已發布；成對機制在套件內；**僅指可重算，未實際執行**） | **未驗證** —— 只驗了逐局檔 md5 與記錄一致（檔案未變），本次**未重算統計數字** |
+| `rl_o1000_0k` 的 200 局統計 | `eval/imitation/` **沒有** o 的逐局檔；訓練曲線未播種（上一節） | **是**（`rl_o1000_0k` 權重已發布，現行程式可載入；**僅指可另跑新批次，未實際執行**）；訓練曲線另不可重放 | **無法比對** —— 原逐局檔不在 repo，無從對照 |
 | `reports/hc2_raw.json` 四組 5000 局（種子 910001–910004） | 四個 option 名 `step_2000`（兩組）、`step_5000`、`step_10000` 現在 `expand_pool(..., "literal")` **全部** `ValueError: unknown --pool item`（舊名已廢止，由 `test_match_pool` 釘住） | **原指令一律不可原樣跑**；逐組如下 | **四組本次都未跑出比對**；逐組如下 |
 | ├ hc2 `step_002000`（910001） | 權重 `data/hc2/step_002000.pt` **已入版控**（`git ls-files --error-unmatch` 通過） | **是**（option 改寫成 `hc_2000` + literal 順序，同一檔案） | **未驗證** —— 未實際跑出並比對數字 |
 | ├ hc2 `step_005000`（910002） | `data/hc2/step_005000.pt` **未入版控**；名冊沒有任何 key 指向 5000 步 | **否**：乾淨 clone 無權重，且沒有席位能表達它 | **無法重現**（不可執行） |
