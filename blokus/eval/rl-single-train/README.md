@@ -42,6 +42,26 @@ h 的 20k 已在名冊上,o / b / i 的 20k 未入名冊,靠 `--adhoc KEY=PATH` 
 **四種**,各 6 批 = 24 批;另有 **8 批是 15 席**(`four20k-*`:`7 人格 + 4×0k +
 4×20k`,四生互比用)。
 
+### 三個 20k 的 provenance(2026-10-09)
+
+| 欄位 | 值 |
+| --- | --- |
+| 訓練檔 | `data/rl_o1000/step_000040.pt` 等;md5 `b0f7c122…` / `0a8c0341…` / `430c28cb…` |
+| 入庫檔 | `ai/checkpoints/rl_<x>1000_20k/step_000040.pt`;sha256 `272b2edf…` / `63aeb600…` / `3db862d3…` |
+| `history` | 「模仿 1000 步 + 單打 20k」 |
+| `train_seed` | **`7200000`(int,種子基底)**;範圍 **`7200000–7219999`** |
+| `teacher` | `optimizer` / `builder` / `intruder` |
+| `pool_contains_teacher` | `true` |
+| `commit` | **`null`** —— `MANIFEST.json` 記 `88c8a18f…`,但未驗證工作樹乾淨,按 `code_hash()` 的標準不採用(使用者裁決 2026-10-09) |
+| 寫進 `records.json` 了嗎 | **沒有**(裁決選 b:`Records._load` 丟棄 `games = 0` 的 meta-only 列,寫了下次載入整條消失;見 AGENTS 待辦) |
+
+**雜湊核對**:檔案 md5 ≡ 32 個驗收批次 `adhoc` payload 的 md5,每個 key 各 **14 筆
+逐筆相同**。`MANIFEST.json` **沒有雜湊欄**(只有 name / init / anchor / seed /
+commit / command)—— 第三方不存在,記為事實,不補、不改訓練端。
+
+> **在 `records.json` 補上這些欄位之前,三個 20k 的 provenance 以本檔與
+> `data/rl_*1000/MANIFEST.json` 為準。**
+
 **與計畫「7 人格池」的差異**:
 
 | | 計畫的組 A | 0.5b 實際批次 | **步驟 4 批次(本目錄)** |
@@ -141,3 +161,40 @@ h 的 20k 已在名冊上,o / b / i 的 20k 未入名冊,靠 `--adhoc KEY=PATH` 
 
 兩個腳本都**拒絕覆寫已存在的檔**;`--pool-order literal` 只用於逐字重現階段 3 之前的
 歷史批次(本目錄的批次全是 `sorted`)。
+
+### 註冊前 / 註冊後:兩套重放命令(2026-10-09)
+
+跑這 32 批時 `rl_{o,b,i}1000_20k` 未入名冊,所以**當時**的命令帶 `--adhoc`;
+發布之後 `seats.register_adhoc` 會**拒絕**已是名冊席位的 key
+(`"%r is already a seat option"`),舊命令會 `ValueError`。同一條命令的兩套寫法:
+
+```bash
+# (甲) 註冊前 —— 批次檔當初就是這樣跑的
+.venv-rl/bin/python match.py --games 3000 --seed 20261005 --paired-rng \
+    --subject rl_o1000_20k --mode argmax --gzip --dry \
+    --pool rl_h1000_0k,rl_o1000_0k,rl_b1000_0k,rl_i1000_0k,hunter,optimizer,builder,intruder,fox,chess,wolf,rl_o1000_20k \
+    --adhoc rl_o1000_20k=data/rl_o1000/step_000040.pt \
+    --out <新檔名>.json.gz
+
+# (乙) 註冊後(現在) —— 去掉 --adhoc,其餘逐字相同
+.venv-rl/bin/python match.py --games 3000 --seed 20261005 --paired-rng \
+    --subject rl_o1000_20k --mode argmax --gzip --dry \
+    --pool rl_h1000_0k,rl_o1000_0k,rl_b1000_0k,rl_i1000_0k,hunter,optimizer,builder,intruder,fox,chess,wolf,rl_o1000_20k \
+    --out <新檔名>.json.gz
+```
+
+`openings.py` 同理:當時的命令帶 `--adhoc KEY=data/rl_*1000/step_000040.pt`,
+註冊後去掉即可。
+
+**兩套等價的實測**(2026-10-09,20 局、seed `20261005`、argmax、同池同 subject,
+只差有沒有 `--adhoc`):
+
+| 欄位 | 甲(有 `--adhoc`) | 乙(無) | 相同 |
+| --- | --- | --- | --- |
+| `pool_raw` / `pool` / `pool_order` / `subject` / `rng_mode` | — | — | ✔ |
+| `games_detail`(20 局逐局) | — | — | ✔ |
+| `summary` / `appearances` | — | — | ✔ |
+| `adhoc` 欄 | `rl_o1000_20k = b0f7c122…` | `{}` | 甲多記一條,內容與名冊檔同 md5 |
+
+也就是說:**註冊改的是「權重從哪個路徑讀」,兩邊讀到的位元相同,對局逐局不變。**
+批次檔裡的 `adhoc` 欄是歷史紀錄,重放時不要再抄它。

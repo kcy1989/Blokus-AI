@@ -133,6 +133,14 @@ I = {
     # interpolate and nothing to translate. The label is the name.
     "rl_fmt": "強化學習 {0}",
     "rl_desc_fmt": "PPO 訓練 40 輪、共 20,000 局",
+    # Four trained policies now share the same shape - 40 rounds, 20,000 games -
+    # so the teacher is what tells three of their rows apart, the same reason
+    # the imitation seats carry theirs above. `rl_h1000_20k` keeps the generic
+    # `rl_desc_fmt`: it is the one row that was published first, and its
+    # description is already unique.
+    "rl_optimizer_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；老師：優化者",
+    "rl_builder_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；老師：築城者",
+    "rl_intruder_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；老師：入侵者",
     "ai_pool": "AI",
     "human_pool": "人類",
     "imitation_pool": "模仿",

@@ -196,5 +196,51 @@
       "desc_key": "imitation_intruder_desc_fmt",
       "note": "Intruder's 1000-step imitation student, no RL rounds on top (0k). Weights are data/imit_i1000's step 1000, published here."
     }
+,
+    {
+      "key": "rl_o1000_20k",
+      "aliases": [],
+      "kind": "network",
+      "family": "rl",
+      "checkpoint": "ai/checkpoints/rl_o1000_20k/step_000040.pt",
+      "source": "data/rl_o1000/step_000040.pt",
+      "sha256": "272b2edf35e9157ed137a33787ceb5fc736c62f785c304cb6abfa2a273c1ad90",
+      "pools": ["all", "rl_only"],
+      "enabled": true,
+      "selectable": true,
+      "label": "rl_fmt",
+      "desc_key": "rl_optimizer_desc_fmt",
+      "note": "Optimizer's trained policy: PPO from rl_o1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl_o1000's round 40, published here. Provenance is eval/rl-single-train/README.md plus data/rl_o1000/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
+    },
+    {
+      "key": "rl_b1000_20k",
+      "aliases": [],
+      "kind": "network",
+      "family": "rl",
+      "checkpoint": "ai/checkpoints/rl_b1000_20k/step_000040.pt",
+      "source": "data/rl_b1000/step_000040.pt",
+      "sha256": "63aeb6000623cdaec7f1568f99c65135dbcb8eb862b9c637d1f43be6e01daa6a",
+      "pools": ["all", "rl_only"],
+      "enabled": true,
+      "selectable": true,
+      "label": "rl_fmt",
+      "desc_key": "rl_builder_desc_fmt",
+      "note": "Builder's trained policy: PPO from rl_b1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl_b1000's round 40, published here. Provenance is eval/rl-single-train/README.md plus data/rl_b1000/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
+    },
+    {
+      "key": "rl_i1000_20k",
+      "aliases": [],
+      "kind": "network",
+      "family": "rl",
+      "checkpoint": "ai/checkpoints/rl_i1000_20k/step_000040.pt",
+      "source": "data/rl_i1000/step_000040.pt",
+      "sha256": "3db862d34fbe48943621e373d29adc456016c12675daf86133abf0460518c9d0",
+      "pools": ["all", "rl_only"],
+      "enabled": true,
+      "selectable": true,
+      "label": "rl_fmt",
+      "desc_key": "rl_intruder_desc_fmt",
+      "note": "Intruder's trained policy: PPO from rl_i1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl_i1000's round 40, published here. Provenance is eval/rl-single-train/README.md plus data/rl_i1000/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
+    }
   ]
 }

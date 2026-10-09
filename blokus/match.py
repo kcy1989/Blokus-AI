@@ -1,12 +1,13 @@
-"""All-AI league: each game draws four seats from the fourteen automated options,
+"""All-AI league: each game draws four seats from the seventeen automated options,
 and the results feed the leaderboard.
 
 This is a tool for answering "which option is actually strongest"; it does not
 affect the flow of a normal player game.
 
-The fourteen are the seven personalities, the six imitation checkpoints (the
-three H-C2 steps plus the three 1000-step students), and one PPO-trained
-policy. The two human seats are excluded: a league of people cannot
+The seventeen are the seven personalities, the six imitation checkpoints (the
+three H-C2 steps plus the three 1000-step students), and four PPO-trained
+policies (the h chain plus the three plan9 students). The two human seats are
+excluded: a league of people cannot
 be replayed from a seed, and a seat with no brain would have nothing to choose
 with.
 
@@ -134,7 +135,7 @@ POOL_PRESETS = {
 
 
 def league_options():
-    """The fourteen options a league seat can be drawn from."""
+    """The seventeen options a league seat can be drawn from."""
     return seats_mod.seat_options(include_humans=False)
 
 

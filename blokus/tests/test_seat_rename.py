@@ -63,7 +63,11 @@ def test_the_alias_is_one_hop_and_resolves_to_the_registered_name():
 def test_both_names_are_recognised_as_a_trained_policy():
     assert S.is_rl_key(OLD) and S.is_rl_key(NEW)
     assert S.kind_of(OLD) == S.kind_of(NEW) == S.KIND_RL
-    assert S.rl_keys() == (NEW,), "the table names the policy once"
+    # The table grew to four trained policies when plan9 published the three
+    # students, so what this still checks is the rename's own claim: the old
+    # spelling is not a row of its own, and no key is in the table twice.
+    assert NEW in S.rl_keys() and OLD not in S.rl_keys()
+    assert len(S.rl_keys()) == len(set(S.rl_keys()))
 
 
 # --------------------------------------------------------------------------
@@ -87,7 +91,8 @@ def test_the_alias_does_not_enter_the_pool():
     assert NEW in options
     assert OLD not in options
     assert list(M.POOL_PRESETS["all"]) == list(REG.pool("all"))
-    assert M.POOL_PRESETS["rl_only"] == (NEW,)
+    assert list(M.POOL_PRESETS["rl_only"]) == list(REG.pool("rl_only"))
+    assert NEW in M.POOL_PRESETS["rl_only"] and OLD not in M.POOL_PRESETS["rl_only"]
     assert list(M.POOL_PRESETS["no_imitation"]) == list(REG.pool("no_imitation"))
 
 

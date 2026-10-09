@@ -84,11 +84,20 @@ def test_the_alias_does_not_enter_the_pool():
     assert OLD not in options
     for name, keys in M.POOL_PRESETS.items():
         assert list(keys) == list(REG.pool(name)), name
-    assert M.POOL_PRESETS["rl_only"] == ("rl_h1000_20k",)
+    # The claim this assertion started as was "rl_only is exactly the one
+    # trained policy" - it was written `== ("rl_h1000_20k",)` when that was
+    # all there was. What it still has to say now there are four is the alias
+    # half of it: the old spelling is not one of them, no policy appears
+    # twice, and the preset is the trained seats of the roster and nothing
+    # else.
+    rl_only = M.POOL_PRESETS["rl_only"]
+    assert len(rl_only) == len(set(rl_only))
+    assert OLD not in rl_only
+    assert set(rl_only) == {k for k in options if S.kind_of(k) == S.KIND_RL}
 
 
 def test_the_rename_left_every_other_seat_where_it_was():
-    """The pool is the same fourteen keys, one of them spelled differently.
+    """The pool is the same seventeen keys, one of them spelled differently.
 
     What is checkable is the *set*: nothing added, nothing removed, nothing
     substituted beyond that one string. The order is `ai.registry.pool_order`
@@ -107,7 +116,8 @@ def test_the_rename_left_every_other_seat_where_it_was():
     assert set(options) == {
         "wolf", "chess", "fox", "intruder", "optimizer", "builder", "hunter",
         NEW, "hc_2000", "hc_10000", "rl_h1000_20k", "rl_b1000_0k",
-        "rl_i1000_0k", "rl_o1000_0k"}
+        "rl_i1000_0k", "rl_o1000_0k", "rl_b1000_20k", "rl_i1000_20k",
+        "rl_o1000_20k"}
 
 
 # --------------------------------------------------------------------------

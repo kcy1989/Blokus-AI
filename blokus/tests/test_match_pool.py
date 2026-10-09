@@ -152,7 +152,7 @@ def test_the_four_presets_match_the_registry_and_partition_all():
     are exactly `all`, and every pool is in key order.
 
     The literal count survives elsewhere: `GOLDEN_POOL` below is a
-    fourteen-element list compared against `expand_pool("all")`, so a roster
+    seventeen-element list compared against `expand_pool("all")`, so a roster
     edit still fails loudly, in a test that says which key moved.
     """
     for name, keys in POOL_PRESETS.items():
@@ -366,12 +366,11 @@ def test_no_pool_at_all_means_all():
 # this was an ordering change and nothing else - the eleven keys are the same
 # eleven.
 #
-# **Recaptured a fourth time by plan9a stage 6**, which registered the three
-# 1000-step students. This one *is* a composition change: the pool is fourteen
-# keys, so the index every draw reads has moved for every key that sorts after
-# `rl_b1000_0k`, and all three seeds changed again. `hc_2000` and `hc_10000`
-# stay in the pool (the user's ruling), which is why the pool is fourteen and
-# not the twelve the plan originally wrote.
+# **Recaptured a fifth time by plan9's publication of the three students' 20k
+# policies** (2026-10-09). Composition change again: seventeen keys, so every
+# index at or after `rl_b1000_20k` moved and all three seeds changed. Old
+# values, new values and the command they were recaptured with are in
+# README.md under 「GOLDEN 重採（plan9 發布三個 20k）」.
 #
 # **The pool is spelled out rather than read.** `GOLDEN_POOL` below is a literal
 # list: GOLDEN is evidence, and evidence that derives itself from the registry
@@ -380,22 +379,23 @@ def test_no_pool_at_all_means_all():
 # are allowed to meet, and it is what turns a roster edit into a loud failure
 # here rather than a silent drift.
 GOLDEN_POOL = ["builder", "chess", "fox", "hc_10000", "hc_2000", "hunter",
-               "intruder", "optimizer", "rl_b1000_0k", "rl_h1000_0k",
-               "rl_h1000_20k", "rl_i1000_0k", "rl_o1000_0k", "wolf"]
+               "intruder", "optimizer", "rl_b1000_0k", "rl_b1000_20k",
+               "rl_h1000_0k", "rl_h1000_20k", "rl_i1000_0k", "rl_i1000_20k",
+               "rl_o1000_0k", "rl_o1000_20k", "wolf"]
 
 GOLDEN = {
-    20260928: [('rl_h1000_20k', 'green', 0), ('rl_b1000_0k', 'red', 18),
-               ('hc_2000', 'yellow', 12), ('rl_i1000_0k', 'blue', 9),
-               ('hunter', 'green', 14), ('rl_h1000_0k', 'blue', 8),
-               ('hc_10000', 'yellow', 10), ('rl_i1000_0k', 'red', 12)],
-    7: [('hunter', 'green', 25), ('fox', 'red', 26), ('intruder', 'yellow', 5),
-        ('rl_h1000_20k', 'blue', 5), ('rl_h1000_20k', 'blue', 11),
-        ('wolf', 'green', 25), ('optimizer', 'red', 21),
-        ('hc_2000', 'yellow', 4)],
-    99: [('intruder', 'yellow', 19), ('intruder', 'red', 9),
-         ('hc_10000', 'blue', 20), ('rl_h1000_0k', 'green', 16),
-         ('builder', 'green', 30), ('intruder', 'red', 10),
-         ('hunter', 'blue', 12), ('fox', 'yellow', 21)],
+    20260928: [('rl_b1000_0k', 'red', 17), ('chess', 'blue', 17),
+               ('intruder', 'green', 9), ('hc_10000', 'yellow', 15),
+               ('rl_h1000_20k', 'yellow', 5), ('rl_h1000_20k', 'blue', 0),
+               ('hc_10000', 'red', 19), ('fox', 'green', 38)],
+    7: [('rl_h1000_0k', 'green', 13), ('hc_2000', 'yellow', 19),
+        ('rl_i1000_0k', 'red', 14), ('chess', 'blue', 27),
+        ('hunter', 'green', 8), ('hc_10000', 'yellow', 27),
+        ('intruder', 'red', 16), ('rl_h1000_20k', 'blue', 9)],
+    99: [('rl_i1000_0k', 'yellow', 7), ('rl_i1000_0k', 'red', 13),
+         ('intruder', 'blue', 17), ('hunter', 'green', 4),
+         ('rl_i1000_20k', 'yellow', 7), ('fox', 'red', 32),
+         ('hc_2000', 'green', 4), ('rl_b1000_20k', 'blue', 4)],
 }
 
 
@@ -445,6 +445,17 @@ def test_all_equals_the_three_presets_that_partition_it():
 # ------------------------------------------------------------------- output
 
 def test_each_seat_row_carries_its_own_rank_and_points():
+    """The rule the ranking follows, not one draw's outcome.
+
+    This used to assert `[1, 2, 3, 4]` for seed 20260928, which pinned a
+    *no-tie* result that happened to hold while the roster was what it was.
+    Publishing the three 20k policies moved the default pool's indices, this
+    game now ties two seats on 17 cells, and a tie shares its place on purpose
+    (`records.rank_rows`). So what is checked is the ranking itself: equal
+    remaining shares rank and points, strictly better remaining ranks strictly
+    better, and the ranks start at 1 without a gap - every draw satisfies that,
+    whatever the roster does to it.
+    """
     rows = run_league(1, seed=20260928)
     assert len(rows) == 1 and len(rows[0]) == 4
     for row in rows[0]:
@@ -454,8 +465,18 @@ def test_each_seat_row_carries_its_own_rank_and_points():
         assert colour in ("blue", "green", "red", "yellow")
         assert isinstance(rank, int) and 1 <= rank <= 4
         assert isinstance(points, int) and 1 <= points <= 4
-    assert sorted(r for _k, _c, _rem, r, _p in rows[0]) == [1, 2, 3, 4]
-    assert sorted(p for _k, _c, _rem, _r, p in rows[0]) == [1, 2, 3, 4]
+    remaining = [row[2] for row in rows[0]]
+    ranks = [row[3] for row in rows[0]]
+    points = [row[4] for row in rows[0]]
+    for i in range(4):
+        for j in range(4):
+            tied = remaining[i] == remaining[j]
+            assert (ranks[i] == ranks[j]) == tied, (i, j)
+            assert (points[i] == points[j]) == tied, (i, j)
+            if remaining[i] < remaining[j]:
+                assert ranks[i] < ranks[j] and points[i] > points[j], (i, j)
+    assert min(ranks) == 1
+    assert sorted(set(ranks)) == list(range(1, len(set(ranks)) + 1))
 
 
 def test_a_repeated_option_keeps_two_distinct_places():

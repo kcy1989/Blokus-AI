@@ -51,7 +51,7 @@ KIND_RL = "rl"
 KIND_HUMAN = "human"
 KIND_HUMAN_LOG = "human_log"
 # Not a kind of contestant but a deferred choice: a seat left on this is dealt
-# one of the fourteen automated options when the game starts, the same way a
+# one of the seventeen automated options when the game starts, the same way a
 # "random" colour is dealt one of what is left. It is resolved before anything
 # looks at the seat, so a game in progress never contains one.
 KIND_RANDOM_AI = "random_ai"
@@ -122,6 +122,9 @@ IMITATION_KEYS = {1000: "rl_h1000_0k", 2000: "hc_2000", 10000: "hc_10000"}
 # decided here, because that is a fact about the code and not about a file.
 RL_SEATS = (
     ("rl_h1000_20k", "data/rl1/step_000040.pt"),
+    ("rl_o1000_20k", "data/rl_o1000/step_000040.pt"),
+    ("rl_b1000_20k", "data/rl_b1000/step_000040.pt"),
+    ("rl_i1000_20k", "data/rl_i1000/step_000040.pt"),
 )
 
 # Every alias, the imitation ones and the trained-policy ones alike. This is
@@ -139,9 +142,8 @@ ALIASES = dict(registry_aliases())
 # The old spelling of `rl_h1000_20k`, from before plan9 step 1 renamed it, kept
 # resolving to the same policy. An alias rather than a second row in
 # `RL_SEATS`: a second row would put the same weights in the pool twice, taking
-# the pool from eleven options to twelve and giving every league a doubled
-# chance of drawing one model - which would silently change what a pool size
-# means.
+# the pool up by one option and giving every league a doubled chance of drawing
+# one model - which would silently change what a pool size means.
 #
 # A *view* of `ALIASES` rather than a table of its own - the aliases whose target
 # is one of `RL_SEATS`' own rows - so that asking "which old names name a trained
@@ -298,8 +300,8 @@ _IMITATION_KEYS = frozenset(k for k in registry_keys()
 
 
 def automated_options():
-    """The fourteen options something can be played by: seven personalities,
-    six imitation checkpoints and one trained policy. This is the pool
+    """The seventeen options something can be played by: seven personalities,
+    six imitation checkpoints and four trained policies. This is the pool
     `RANDOM_AI_KEY` draws from, and the same pool the league draws its four
     seats from.
 
@@ -319,10 +321,10 @@ def automated_options():
 
 
 def seat_options(include_humans=True):
-    """Every option a seat can be *set to*, in menu order: the fourteen
+    """Every option a seat can be *set to*, in menu order: the seventeen
     automated options by key, then (optionally) the two human seats.
 
-    14 without humans, 16 with them. The deferred "random AI" is not here,
+    17 without humans, 19 with them. The deferred "random AI" is not here,
     because it is not something a seat stays set to - `seat_menu_options` is
     what the picker offers, and it is this plus that one.
     """
@@ -333,17 +335,17 @@ def seat_options(include_humans=True):
 
 
 def seat_menu_options():
-    """What the seat screen offers: the sixteen, plus "random AI" at the end.
+    """What the seat screen offers: the nineteen, plus "random AI" at the end.
 
-    Seventeen entries, because the deferred choice is a fourth thing a seat can
-    say, sitting alongside the fourteen automated options and the two human
+    Twenty entries, because the deferred choice is a fourth thing a seat can
+    say, sitting alongside the seventeen automated options and the two human
     ones.
     """
     return seat_options(True) + (RANDOM_AI_KEY,)
 
 
 def resolve_random_ai(keys, rng):
-    """Deal any `RANDOM_AI_KEY` seat one of the fourteen, one draw per seat.
+    """Deal any `RANDOM_AI_KEY` seat one of the seventeen, one draw per seat.
 
     Each draw is independent, so two "random AI" seats may land on the same
     option - which is the same rule the colours follow. The result is a concrete

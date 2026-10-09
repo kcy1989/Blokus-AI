@@ -172,6 +172,18 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   註冊表推導**。GOLDEN 是證據，要靠「名册改了它就紅」失敗，而不是跟著名册動。
   兩者唯一允許相遇的是 `test_the_pinned_pool_is_still_the_registry_s_pool`。
 
+### 待辦：已知矛盾，尚未處理（別當已完成）
+
+- **`Records._load` 丟棄 `games = 0` 的 meta-only 列**（`records.py` 的
+  `if games > 0`），但 `rows()` 已經為「先給 provenance 再對局」留了
+  `if g <= 0: continue` 過濾並寫明那個意圖。兩者互相矛盾：`set_meta` 對一個
+  從未對局的選手**寫得進去、下次載入整條消失**。2026-10-09 發布三個 20k 時
+  據此**不寫** `records.json`（使用者裁決選 b），provenance 暫以
+  `eval/rl-single-train/README.md` 與各 `MANIFEST.json` 為準。日後獨立處理：
+  要嘛讓 `_load` 保留 meta-only 列（補測試），要嘛明寫「來源欄位只在對局後
+  才持久」。
+
+
 ---
 
 ## 五、新增一種 AI
@@ -204,6 +216,9 @@ import 只做結構驗證（含 **`enabled` 與 `selectable` 必須一致**，�
 指名那個 key）；**檔案存在與 sha256 在測試與 `python -m ai --check` 驗**，不要掛到
 import 上。**階段 4 已把 `rl_h1000_20k`、`rl_h1000_0k` 搬進 `ai/checkpoints/`，
 sha256 斷言因此重新納入測試**（`test_every_registered_checkpoint_hashes_as_recorded`）；
+**plan9 發布（2026-10-09）又把三個學生的 20k 搬進同一目錄並註冊**
+（`rl_o1000_20k`／`rl_b1000_20k`／`rl_i1000_20k`，來源 `data/rl_*1000/step_000040.pt`
+留磁碟不入版控），`ai/checkpoints/` 現在八個檔**全部在名冊上**，`all` 池 14 → 17。
 `hc_2000`／`hc_10000` 仍在 `data/`，重訓覆寫它們**會**讓這條紅 —— 那是刻意的，
 它們的數字不能在引用它們的證據底下悄悄改變。
 健康檢查的指令是 `python -m ai --check`：`python -m ai.registry --check` 會把同一個

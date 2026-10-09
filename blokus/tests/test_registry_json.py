@@ -300,7 +300,10 @@ def test_the_label_and_description_keys_exist_in_config():
                                      "imitation_optimizer_desc_fmt",
                                      "imitation_builder_desc_fmt",
                                      "imitation_intruder_desc_fmt",
-                                     "rl_desc_fmt")
+                                     "rl_desc_fmt",
+                                     "rl_optimizer_desc_fmt",
+                                     "rl_builder_desc_fmt",
+                                     "rl_intruder_desc_fmt")
 
 
 # --------------------------------------------------------------------------
@@ -642,15 +645,17 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     keys = [e["key"] for e in raw["entries"]]
-    # Stage 6 appended three students and touched no earlier row: the first
+    # Stage 6 appended three students, and plan9 publishing the three 20k
+    # policies appended three more, neither touching an earlier row: the first
     # eleven are exactly the list stage 3 pinned, which is what makes "the
     # re-sort came from a rule, not from an edit to the roster" still checkable
     # for those eleven.
     assert keys[:11] == ["wolf", "chess", "fox", "intruder", "optimizer",
                          "builder", "hunter", "rl_h1000_0k", "hc_2000",
                          "hc_10000", "rl_h1000_20k"]
-    assert keys[11:] == ["rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k"]
-    # The two slice pins above already fix the length at fourteen - a row
+    assert keys[11:] == ["rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k",
+                         "rl_o1000_20k", "rl_b1000_20k", "rl_i1000_20k"]
+    # The two slice pins above already fix the length at seventeen - a row
     # added or removed shows up there, against a list someone typed - so what
     # is left for the count to say is that no key appears twice.
     assert len(keys) == len(set(keys))
@@ -677,6 +682,9 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
         ("rl_o1000_0k", "network", "imitation"),
         ("rl_b1000_0k", "network", "imitation"),
         ("rl_i1000_0k", "network", "imitation"),
+        ("rl_o1000_20k", "network", "rl"),
+        ("rl_b1000_20k", "network", "rl"),
+        ("rl_i1000_20k", "network", "rl"),
     }
 
 

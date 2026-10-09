@@ -20,6 +20,7 @@ import pytest
 
 import ai
 import engine
+import match
 import seats
 from pieces import MASTER
 from config import CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER
@@ -98,8 +99,10 @@ def test_every_option_is_one_of_the_three_kinds_of_contestant():
                                                                   2000, 10000]
     assert imitating == sorted(imitating)
     # the trained policy is its own kind, so `imitation_only` keeps meaning the
-    # checkpoints that were trained by imitation
-    assert trained == list(seats.rl_keys())
+    # checkpoints that were trained by imitation. `trained` walks the pool,
+    # which is key order, while `RL_SEATS` follows the JSON array order (the
+    # test that pins that reads the JSON), so the two meet after sorting.
+    assert trained == sorted(seats.rl_keys())
 
 
 def test_a_trained_policy_seat_names_a_file_that_exists():
@@ -120,6 +123,43 @@ def test_a_trained_policy_seat_names_a_file_that_exists():
         path = seats.rl_checkpoint(key)
         assert os.path.exists(path), (key, path)
         assert path.startswith(("data/", "ai/")), path
+
+
+def test_every_trained_policy_shares_the_published_fingerprint():
+    """Same engine, same features, same action table as the first-published one.
+
+    `rl_h1000_20k` is the trained policy whose checkpoint has carried these
+    three fields since it was written, so it is the reference rather than a
+    second opinion. The three students published on 2026-10-09 were trained by
+    the same code, and a mismatch in any field would mean one of them was built
+    against a different engine, feature builder or action table - which is the
+    one way two checkpoints that both load are not the same policy at all.
+    "Loading" is checked elsewhere; this is what the loaded blobs say.
+    """
+    import torch
+    reference = torch.load(seats.rl_checkpoint("rl_h1000_20k"),
+                           map_location="cpu", weights_only=False)
+    for key in seats.rl_keys():
+        blob = torch.load(seats.rl_checkpoint(key), map_location="cpu",
+                          weights_only=False)
+        for field in ("engine_version", "feature_version", "action_table_hash"):
+            assert blob[field] == reference[field], (key, field, blob[field])
+
+
+def test_every_trained_policy_can_be_drawn_from_a_pool_and_load():
+    """What `--pool` does with them, exercised the way a command line does.
+
+    `expand_pool("rl_only")` is the list a pool of trained policies becomes,
+    and `build_brain` is the call that would fail at game start if the file the
+    registry names could not be opened or was not a checkpoint.
+    """
+    pool = match.expand_pool("rl_only")
+    assert pool == sorted(seats.rl_keys())
+    assert set(pool) == {k for k in seats.seat_options(False)
+                         if seats.kind_of(k) == seats.KIND_RL}
+    for key in pool:
+        brain = seats.build_brain(key, random.Random(0), mode="argmax")
+        assert brain is not None, key
 
 
 def _is_gitignored(path):

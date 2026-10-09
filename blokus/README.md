@@ -128,7 +128,10 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 | `rl_h1000_0k` | 模仿 1000 步 | 網絡 | H-C2 模仿資料上訓 1,000 步（舊名 `hc_1000`，仍為永久別名） |
 | `hc_2000` | 模仿 2000 步 | 網絡 | 同上，2,000 步 |
 | `hc_10000` | 模仿 10000 步 | 網絡 | 同上，10,000 步 |
-| `rl_h1000_20k` | 強化學習 rl_h1000_20k | 網絡 | 從 `rl_h1000_0k` 出發的 PPO，40 輪共 20,000 局 |
+| `rl_h1000_20k` | 強化學習 rl_h1000_20k | 網絡 | 從 `rl_h1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `hunter`） |
+| `rl_o1000_20k` | 強化學習 rl_o1000_20k | 網絡 | 從 `rl_o1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `optimizer`） |
+| `rl_b1000_20k` | 強化學習 rl_b1000_20k | 網絡 | 從 `rl_b1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `builder`） |
+| `rl_i1000_20k` | 強化學習 rl_i1000_20k | 網絡 | 從 `rl_i1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `intruder`） |
 
 ### 訓練策略名稱的兩段數字單位不同
 
@@ -144,8 +147,8 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 所以 `rl_h1000_0k` 的 `1000` 與 `rl_h1000_20k` 的 `20k` 單位不同：前者數模仿步、後者
 數對局。兩個改名都用**別名**而不是第二列（`seats.ALIASES`）：舊名 `rl_1000_20k`
 與 `hc_1000` 仍解析到同一座位，舊指令與舊的 `records.json` 紀錄都讀得到；別名**不**
-進 `automated_options()`，所以池裡只列正式名，池大小不因別名增加（現為 14，
-見「GOLDEN 重採（plan9a 階段 6）」），排行榜也仍是同一列。
+進 `automated_options()`，所以池裡只列正式名，池大小不因別名增加（現為 17，
+見「GOLDEN 重採（plan9 發布三個 20k）」），排行榜也仍是同一列。
 
 權重檔本身沒有改名：`data/rl1/step_000040.pt` 的檔名編碼的是**第幾輪**，不是策略
 名稱。
@@ -171,6 +174,18 @@ commit 欄位）。
 
 **修法在訓練端**：`rl/rl_train.py` 應比照 `rl/collect.py` 的 `code_hash()`，把
 commit 與 dirty 記進 checkpoint。那是訓練程式碼，屬於之後動訓練時要一起處理的事。
+
+**三個學生的 20k（`rl_o1000_20k` / `rl_b1000_20k` / `rl_i1000_20k`）的 `commit`
+同樣留 `null`**（使用者裁決 2026-10-09）。它們的 `data/rl_*1000/MANIFEST.json` 確實
+記了 `commit = 88c8a18f…`，但那是開跑時 `git rev-parse HEAD` 的結果，**沒有記工作樹
+是否乾淨**，按同一個標準（`code_hash()` 的那句註解）不足以識別訓練資料，所以**不採用**。
+同日定案的其他欄位：`history` = 「模仿 1000 步 + 單打 20k」、`train_seed` =
+**`7200000`（int，種子基底）**，範圍 **`7200000–7219999`** 記於本檔與
+`eval/rl-single-train/README.md`、`teacher` = 各自的老師、`pool_contains_teacher` =
+`true`。**這些欄位本次尚未寫進 `records.json`**：`Records._load` 只保留 `games > 0`
+的列，三個 20k 從未對局，寫了下次載入就整條消失（`rows()` 已為「先給 provenance 再
+對局」留了過濾，持久化沒跟上 —— 見 AGENTS 待辦）。在那之前，**三個 20k 的
+provenance 以 `eval/rl-single-train/README.md` 與各 `data/rl_*1000/MANIFEST.json` 為準**。
 
 ### 權重式
 
@@ -453,7 +468,7 @@ runpy 會先噴一條 `RuntimeWarning`；掛在套件上就沒有這個問題。
 | 檔案**存在** + **sha256** | **測試** 與 **`python -m ai --check`** |
 
 `enabled` 與 `selectable` 文案上是兩個問題（進常規池 vs. 出現在 UI 與隨機抽籤），
-但它們今天切的是同一組十四個 key 的兩種視圖，所以**兩個必須一起翻**；不一致會在
+但它們今天切的是同一組十七個 key 的兩種視圖，所以**兩個必須一起翻**；不一致會在
 import 就被拒絕，錯誤訊息指名那個 key。
 
 **`anchors()` 目前只有測試呼叫**。它回傳 `("rl_h1000_0k",)`，但 `rl/rl_train.py`
@@ -466,14 +481,24 @@ import 就被拒絕，錯誤訊息指名那個 key。
 
 ### 階段 4 完成狀態：權重搬進 `ai/checkpoints/`
 
-**只搬了兩個。** 依裁決 B2-(甲)，`rl_o1000_0k` / `rl_b1000_0k` / `rl_i1000_0k`
-還沒有註冊（它們要到階段 6 才進名冊），所以「`ai/checkpoints/` 內無未登記權重」
-這條驗證要求**先搬已註冊的兩個**；三個學生等階段 6 註冊時一起搬。
+**階段 4 當時只搬了兩個。** 依裁決 B2-(甲)，`rl_o1000_0k` / `rl_b1000_0k` /
+`rl_i1000_0k` 尚未註冊，「`ai/checkpoints/` 內無未登記權重」這條驗證要求**先搬已註冊的
+兩個**。**plan9 發布（2026-10-09）把三個學生的 20k 補齊並一併註冊**，名冊與目錄重新
+對齊：`ai/checkpoints/` 八個檔全部在名冊上，`python -m ai --check` 全綠。
 
 | key | 來源（`source`，仍在 `data/`） | 載入路徑（`checkpoint`，已入版控） | sha256（來源 == 目的地） |
 |---|---|---|---|
 | `rl_h1000_20k` | `data/rl1/step_000040.pt` | `ai/checkpoints/rl_h1000_20k/step_000040.pt` | `e1dc6230…4801636` |
 | `rl_h1000_0k` | `data/hc2/step_001000.pt` | `ai/checkpoints/rl_h1000_0k/step_001000.pt` | `fc0052d3…cd11b74` |
+| `rl_o1000_20k` | `data/rl_o1000/step_000040.pt` | `ai/checkpoints/rl_o1000_20k/step_000040.pt` | `272b2edf…c1ad90` |
+| `rl_b1000_20k` | `data/rl_b1000/step_000040.pt` | `ai/checkpoints/rl_b1000_20k/step_000040.pt` | `63aeb600…1daa6a` |
+| `rl_i1000_20k` | `data/rl_i1000/step_000040.pt` | `ai/checkpoints/rl_i1000_20k/step_000040.pt` | `3db862d3…18c9d0` |
+
+三個學生的 `step_000040.pt` 入庫前做了**兩方雜湊核對**：檔案本身 vs 32 個驗收批次
+`adhoc` payload 記的 md5（每個 key 各 14 筆）**逐筆相同** —— o `b0f7c122…`、
+b `0a8c0341…`、i `430c28cb…`。`MANIFEST.json` **沒有雜湊欄**（只有 name / init /
+anchor / seed / commit / command），所以「三方一致」的第三方不存在，記為事實，
+不補、不改訓練端（使用者裁決 2026-10-09）。
 
 複製前後逐檔 `sha256` 比對通過才繼續；`hc_2000` / `hc_10000` 依裁決 B **不搬**，
 `checkpoint` 仍是 `data/hc2/step_002000.pt` / `step_010000.pt`。
@@ -728,16 +753,17 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
 每一個 key 都讀到不同的 index，三個種子全部改變。這是**組成變更**，不是排序
 或改名 —— 與階段 3 不同，這次是真的多出三個 key。
 
-| 池 | 階段 6 前 | 階段 6 後 |
-|---|---|---|
-| `all` | 11 | 14 |
-| `imitation_only` | 3 | 6 |
-| `no_imitation` | 7 | 7 |
-| `rl_only` | 1 | 1 |
+| 池 | 階段 6 前 | 階段 6 後 | plan9 發布後（2026-10-09） |
+|---|---|---|---|
+| `all` | 11 | 14 | **17** |
+| `imitation_only` | 3 | 6 | 6 |
+| `no_imitation` | 7 | 7 | 7 |
+| `rl_only` | 1 | 1 | **4** |
 
 `hc_2000` / `hc_10000` **維持在池內**（使用者裁決），所以是 14/6 而不是
 已定決策寫的 12/4 —— 退出常規池與 `.gitignore` 兩行留在
-[plan9a 的「待清理項目」](plan9a-ai.md)。
+[plan9a 的「待清理項目」](plan9a-ai.md)。plan9 發布只把 `rl_only` 從 1 變 4，
+兩個 `hc_*` 與 `no_imitation` 都沒動。
 
 | | commit |
 | --- | --- |
@@ -785,6 +811,93 @@ GOLDEN 是證據，證據要靠「名册改了它就紅」來失敗，而不是�
 釘住池不變 = 非組成路徑逐位元未動；`GOLDEN` 的變化全部來自池本身。
 `tests/test_match_paired_rng.py` 的 `LEGACY_GOLDEN_MD5`
 （`3fa9fba063a5f1cd3868098454b05b4c`）同樣釘住四個人格，**未改動**。
+
+### GOLDEN 重採（plan9 發布三個 20k，2026-10-09）
+
+把 `rl_o1000_20k` / `rl_b1000_20k` / `rl_i1000_20k` 註冊進名冊並搬進
+`ai/checkpoints/` 之後，`all` 池從 **14 列變 17 列**。這是**組成變更**（與階段 6
+同類，不是排序、也不是改名）：`rng.choice` 抽的是 index，`rl_b1000_20k` 起每一個
+排序位置都讀到不同的 key，三個種子全部改變。
+
+| 池 | 階段 6 後 | plan9 發布後 |
+|---|---|---|
+| `all` | 14 | **17** |
+| `imitation_only` | 6 | 6 |
+| `no_imitation` | 7 | 7 |
+| `rl_only` | 1 | **4** |
+
+**重算命令**（新值由這支命令在本提交的樹上產出；舊值即上一節的「新值」，由同一支
+命令在前一個 commit `7378167` 上產出）：
+
+```bash
+.venv-rl/bin/python - <<'EOF'
+from match import expand_pool, run_league
+
+def flat(rows):
+    return [r for game in rows for r in game]
+
+def seats_of(rows):
+    return [(k, c, r) for k, c, r, _rk, _p in flat(rows)]
+
+print(expand_pool("all"))
+for seed in (20260928, 7, 99):
+    print(seed, seats_of(run_league(2, seed=seed, options=expand_pool("all"))))
+EOF
+```
+
+舊值（十四 key 池）：
+
+```
+20260928  [('rl_h1000_20k','green',0), ('rl_b1000_0k','red',18),
+           ('hc_2000','yellow',12), ('rl_i1000_0k','blue',9), ('hunter','green',14),
+           ('rl_h1000_0k','blue',8), ('hc_10000','yellow',10),
+           ('rl_i1000_0k','red',12)]
+7         [('hunter','green',25), ('fox','red',26), ('intruder','yellow',5),
+           ('rl_h1000_20k','blue',5), ('rl_h1000_20k','blue',11),
+           ('wolf','green',25), ('optimizer','red',21), ('hc_2000','yellow',4)]
+99        [('intruder','yellow',19), ('intruder','red',9), ('hc_10000','blue',20),
+           ('rl_h1000_0k','green',16), ('builder','green',30), ('intruder','red',10),
+           ('hunter','blue',12), ('fox','yellow',21)]
+```
+
+新值（十七 key 池）：
+
+```
+20260928  [('rl_b1000_0k','red',17), ('chess','blue',17), ('intruder','green',9),
+           ('hc_10000','yellow',15), ('rl_h1000_20k','yellow',5),
+           ('rl_h1000_20k','blue',0), ('hc_10000','red',19), ('fox','green',38)]
+7         [('rl_h1000_0k','green',13), ('hc_2000','yellow',19),
+           ('rl_i1000_0k','red',14), ('chess','blue',27), ('hunter','green',8),
+           ('hc_10000','yellow',27), ('intruder','red',16), ('rl_h1000_20k','blue',9)]
+99        [('rl_i1000_0k','yellow',7), ('rl_i1000_0k','red',13),
+           ('intruder','blue',17), ('hunter','green',4), ('rl_i1000_20k','yellow',7),
+           ('fox','red',32), ('hc_2000','green',4), ('rl_b1000_20k','blue',4)]
+```
+
+`GOLDEN_POOL` 同步改成 17 個 key 的字面清單。**其餘因名册變動而重採的字面釘**：
+
+| 測試 | 原本釘住 | 改法 |
+|---|---|---|
+| `test_registry_json::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` | `keys[11:]` 三個 0k ＋ 14 列三元組 | 補上三個 20k（前 11 列不動） |
+| `test_seat_alias_hc::test_the_rename_left_every_other_seat_where_it_was` | 字面 14 key 集合 | 補上三個 20k → 17 |
+| `test_seat_alias_hc::test_the_alias_does_not_enter_the_pool` | `rl_only == ("rl_h1000_20k",)` | 改為「無重複、別名不在內、等於名册的訓練席集合」 |
+| `test_seat_rename::test_both_names_are_recognised_as_a_trained_policy` | `rl_keys() == (NEW,)` | 改為「新名在、舊名不在、表內無重複」 |
+| `test_seat_rename::test_the_alias_does_not_enter_the_pool` | `rl_only == (NEW,)` | 改為與 `REG.pool("rl_only")` 同集合＋舊名不在 |
+| `test_seats::test_every_option_is_one_of_the_three_kinds_of_contestant` | `trained == list(rl_keys())` | 改為 `sorted(rl_keys())`（池是 key 序，`RL_SEATS` 是 JSON 列序） |
+| `test_match_pool::test_each_seat_row_carries_its_own_rank_and_points` | 預設池同種子無平手 `[1,2,3,4]` | 改為「平手共享名次、嚴格更好嚴格名次、名次從 1 起無缺口」——種子 20260928 現在真的平手 |
+| `test_ui_smoke::test_picking_from_the_menu_assigns_to_that_seat_only` | 點 `option:wolf`（排序最後一個） | 菜單 17 → 20 項，第一窗格夠不到 `wolf` → 改點 `option:hunter`；斷言只換成對應的預期值 |
+| `test_ui_smoke::test_every_selectable_option_has_a_name_and_a_description_of_its_own` | 十七個席位的**描述**也必須互不相同 | 三個新 20k 沿用 `rl_desc_fmt` 會撞描述 → `config.I` 新增 `rl_optimizer/builder/intruder_desc_fmt`，registry 的 `desc_key` 對應指向它們（`rl_h1000_20k` 仍用 `rl_desc_fmt`，它本來就唯一） |
+| `test_registry_json::test_the_label_and_description_keys_exist_in_config` | `desc_key` 的**字面允許清單** | 同上三個新 key 補進允許清單（`label` 清單不動，三個都用 `rl_fmt`） |
+
+同次新增兩項：`test_seats::test_every_trained_policy_shares_the_published_fingerprint`
+（四個訓練策略的 `engine_version` / `feature_version` / `action_table_hash` 與
+`rl_h1000_20k` 一致）、`test_seats::test_every_trained_policy_can_be_drawn_from_a_pool_and_load`
+（`expand_pool("rl_only")` 逐個 `build_brain` 成功）。
+
+| | commit |
+| --- | --- |
+| 舊值（十四 key 池） | `7378167` |
+| 新值（十七 key 池） | 本提交 |
 
 ### 依主題
 
@@ -990,7 +1103,7 @@ plan9a 階段 8 把「池有多少個」全部改為與 `ai/registry.json` 比�
 `eval/imitation/README.md`、`plan9a-ai.md` 與本檔既有章節為準。這四項（0.063、
 i 過弱、o 未播種、`imitation_only` 不一致）就是 plan9a「README 必須記錄」的
 第 1、2、3、5 項；寫入端的別名行為見「排行榜資料」，第 6 項（key 排序與
-GOLDEN 重採）見本檔既有三節，索引在本節末。
+GOLDEN 重採）見本檔既有四節，索引在本節末。
 
 ### 0.063 間距門檻已廢止，過擬合改為只看 val 曲線
 
@@ -1062,9 +1175,9 @@ plan9a「README 必須記錄」原第 4 項「舊三模仿者移出常規池(使
 
 ### 抽籤順序與 GOLDEN 重採（plan9a 必須記錄第 6 項的索引）
 
-原因、舊值與 commit 都已寫在本檔三處：「池的順序：一律依 key 排序」、
-「GOLDEN 重採（plan9a 階段 3）」、「GOLDEN 重採（plan9a 階段 6）」。
-這裡只留索引，不重抄。
+原因、舊值與 commit 都已寫在本檔四處：「池的順序：一律依 key 排序」、
+「GOLDEN 重採（plan9a 階段 3）」、「GOLDEN 重採（plan9a 階段 6）」、
+「GOLDEN 重採（plan9 發布三個 20k）」。這裡只留索引，不重抄。
 
 ### `data/` 與 `ai/` 的分工
 

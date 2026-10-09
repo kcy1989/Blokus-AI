@@ -682,13 +682,21 @@ def test_a_colour_another_seat_took_is_not_on_offer():
 
 
 def test_picking_from_the_menu_assigns_to_that_seat_only():
+    """A pick changes the seat it was made on and no other.
+
+    The option clicked used to be `wolf`, which is simply the last key the
+    menu sorts to. Publishing the three 20k policies took the menu from
+    seventeen entries to twenty, and stage 7's window no longer reaches that
+    far, so `wolf` is not in the first window to click on - `hunter` is, and
+    the claim under test never depended on which option was picked.
+    """
     u = make_ui()
     at_seat_screen(u)
     click(u, u.seat_rects()["2:option"].center)
     assert u.seat_pick == (2, "option")
-    click(u, u.menu_rects()["option:wolf"].center)
+    click(u, u.menu_rects()["option:hunter"].center)
     assert u.seat_pick is None
-    assert u.seat_keys == ["human", "chess", "wolf", "chess"]
+    assert u.seat_keys == ["human", "chess", "hunter", "chess"]
     assert u.state == "SETUP_SEATS"
 
 
