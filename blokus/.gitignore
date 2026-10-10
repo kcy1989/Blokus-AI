@@ -63,17 +63,34 @@ env/
 # then its contents re-excluded, and only then can the one file be named.
 #
 # plan9a stage 4 published two of these four into `ai/checkpoints/` (verified
-# sha256 against the source first), so their negations are gone: the weights a
-# seat loads from now live with the code. `hc_2000` and `hc_10000` are the
-# deliberate exception - they were never published, so their two negations stay
-# and `data/` still carries them in the repository. That is a transitional
-# state, not a plan: stage 6 turns both `enabled` off, and this block gets a
-# third look when it does. See README, 「階段 4 完成狀態」.
+# sha256 against the source first), so their negations came out; plan9 task 4
+# then retired all six imitation seats and put the 0k originals back under
+# version control, which is what the four negations below do. `ai/checkpoints/`
+# now holds only the four trained policies, so the only copy of the 0k weights
+# that a fresh clone has is `data/` - and `data/` is where the retired-seat
+# replays (`match.py --adhoc`) and `rl/`'s own tests read them from. Every one
+# of the four was md5-checked against the `ai/checkpoints/` copy it replaces
+# before that copy was deleted.
+#
+# `step_002000.pt` / `step_010000.pt` keep their negations for a different
+# reason: those two were never published and are no longer a seat's load path
+# either - they are simply the H-C2 weights the evidence cites, and deleting
+# them was never on the table.
 data/*
 !data/hc2/
 data/hc2/*
+!data/hc2/step_001000.pt
 !data/hc2/step_002000.pt
 !data/hc2/step_010000.pt
+!data/imit_o1000/
+data/imit_o1000/*
+!data/imit_o1000/step_001000.pt
+!data/imit_b1000/
+data/imit_b1000/*
+!data/imit_b1000/step_001000.pt
+!data/imit_i1000/
+data/imit_i1000/*
+!data/imit_i1000/step_001000.pt
 !data/rl1/
 data/rl1/*
 

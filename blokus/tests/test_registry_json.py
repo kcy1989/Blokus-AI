@@ -295,18 +295,10 @@ def test_ai_checkpoints_holds_nothing_unpublished():
     it, a stray copy left in `ai/checkpoints/` ships forever: it weighs 5.6 MB,
     it looks official because of where it sits, and nothing names it.
 
-    Plan9 task 4 retired the six imitation seats, and the four published 0k
-    copies stayed on disk for the length of one commit: they are deleted by the
-    *second* commit of that task, together with the `.gitignore` change that
-    puts their `data/` originals back under version control. `PENDING_REMOVAL`
-    is the typed list of those four, so the gap between the two commits is a
-    pinned fact rather than a silently widened assertion - commit 2 deletes the
-    list along with the files.
+    Plan9 task 4's second commit then deleted the four published 0k copies -
+    `ai/checkpoints/` holds exactly the four trained policies again, and the
+    `data/` originals took their place under version control.
     """
-    PENDING_REMOVAL = ["rl_b1000_0k/step_001000.pt",
-                       "rl_h1000_0k/step_001000.pt",
-                       "rl_i1000_0k/step_001000.pt",
-                       "rl_o1000_0k/step_001000.pt"]
     root = os.path.join(os.path.dirname(R.__file__), "checkpoints")
     if not os.path.isdir(root):
         pytest.skip("ai/checkpoints/ does not exist in this checkout")
@@ -319,9 +311,7 @@ def test_ai_checkpoints_holds_nothing_unpublished():
         for e in R.ENTRIES
         if e["kind"] == "network"
         and e["checkpoint"].startswith("ai/checkpoints/"))
-    assert published == sorted(set(registered) | set(PENDING_REMOVAL))
-    # and the pending list really is unregistered, not a second copy of a row
-    assert not (set(PENDING_REMOVAL) & set(registered))
+    assert published == registered
 
 
 def test_check_files_reports_a_missing_checkpoint(tmp_path, monkeypatch):

@@ -137,6 +137,14 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 當常規池選項、preset 或 `--subject`。`imitation_only` preset 同時退役，所以 preset
 只剩 `all`（11）／`no_imitation`（7 個人格）／`rl_only`（4 個訓練策略）。
 
+**四個 0k 權重的版本控制跟著收口**（同一任務的第二個提交）：`ai/checkpoints/` 下
+的四份 0k 副本刪除（刪之前逐位 md5 比對過，與 `data/` 原件完全相同），`.gitignore`
+加回四條反白，把 `data/hc2/step_001000.pt` 與 `data/imit_{o,b,i}1000/step_001000.pt`
+納入版控 —— 它們是這些權重**唯一**還在版本控制裡的副本，`rl/` 的測試與舊證據重放都開
+這些檔。已提交的證據裡 `checkpoint` / `control_checkpoint` 欄**不改**（那也是證據），
+`tests/test_eval_evidence.py` 讀檔時經 `RETIRED_0K_PATHS` 對照到 `data/` 再算 md5。
+`data/hc2/step_002000.pt` / `step_010000.pt` 兩行反白維持原狀。
+
 ### 訓練策略名稱的兩段數字單位不同
 
 `rl_h1000_20k` 裡的兩個數字**不是同一種東西的兩次计数**，讀錯單位會把訓練量低估

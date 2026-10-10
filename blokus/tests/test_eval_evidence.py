@@ -33,6 +33,20 @@ PERSONALITIES = {"hunter", "optimizer", "builder", "intruder", "fox", "chess",
                  "wolf"}
 ZERO_K = {"rl_h1000_0k", "rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k"}
 
+# The pair files were written when the 0k seats were still published under
+# `ai/checkpoints/`, and their bytes are evidence - so the paths *in the file*
+# stay as they are. Plan9 task 4 deleted those four copies (md5-identical to the
+# `data/` originals, verified before the deletion) and put the originals under
+# version control instead, so this is where a recorded path is translated for
+# reading. Every value is the file that `ai/registry.json` used to name as
+# `source` for that seat.
+RETIRED_0K_PATHS = {
+    "ai/checkpoints/rl_h1000_0k/step_001000.pt": "data/hc2/step_001000.pt",
+    "ai/checkpoints/rl_o1000_0k/step_001000.pt": "data/imit_o1000/step_001000.pt",
+    "ai/checkpoints/rl_b1000_0k/step_001000.pt": "data/imit_b1000/step_001000.pt",
+    "ai/checkpoints/rl_i1000_0k/step_001000.pt": "data/imit_i1000/step_001000.pt",
+}
+
 
 def load(rel):
     with open(os.path.join(ROOT, rel), encoding="utf-8") as fh:
@@ -45,6 +59,7 @@ def load_batch(rel):
 
 
 def md5_of(rel):
+    rel = RETIRED_0K_PATHS.get(rel, rel)
     h = hashlib.md5()
     with open(os.path.join(ROOT, rel), "rb") as fh:
         for chunk in iter(lambda: fh.read(1 << 20), b""):

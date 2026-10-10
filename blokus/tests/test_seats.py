@@ -207,6 +207,38 @@ def test_every_network_seat_is_actually_in_the_repository():
     assert checked == len(seen), "git could not be consulted at all"
 
 
+def test_the_retired_0k_weights_are_still_in_the_repository():
+    """Plan9 task 4's second commit: retired, but not thrown away.
+
+    The six seats left the roster; the bytes they played with did not leave the
+    repository. `ai/checkpoints/`'s four 0k copies were deleted, so `data/` is
+    now the *only* copy a fresh clone gets - and both the `--adhoc` replays of
+    the committed evidence and `rl/`'s own tests open these files. A missing
+    negation in `.gitignore` would show up as a red assertion here rather than
+    as a first replay that cannot find its weights.
+    """
+    retired = [
+        "data/hc2/step_001000.pt",
+        "data/imit_o1000/step_001000.pt",
+        "data/imit_b1000/step_001000.pt",
+        "data/imit_i1000/step_001000.pt",
+    ]
+    checked = 0
+    for path in retired:
+        assert os.path.exists(path), path
+        ignored = _is_gitignored(path)
+        if ignored is None:
+            continue                       # no git here; nothing to assert
+        assert not ignored, (
+            "%s is gitignored - a fresh clone would have neither the weights "
+            "nor any way to replay the evidence that cites them" % path)
+        checked += 1
+    assert checked == len(retired), "git could not be consulted at all"
+    # and the copies under ai/checkpoints/ really are gone, not merely unlisted
+    assert not any(k.startswith("rl_") and k.endswith("_0k")
+                   for k in seats.rl_keys())
+
+
 def test_the_rl_key_prefix_alone_is_not_a_registered_seat():
     """`rl_9999` has the right shape and no file behind it."""
     assert not seats.is_rl_key("rl_9999")

@@ -53,14 +53,14 @@ N_ORIENT = 91
 def default_checkpoint_dir():
     """H-C2's own training directory, asked of `seats`.
 
-    A *fallback* for a caller that names a step and not a file. No single
-    directory describes the pool any more: step 1000 was published into
-    `ai/checkpoints/rl_h1000_0k/` at plan9a stage 4 while 2000 and 10000 stay
-    under `data/hc2`, so `seats.build_brain` resolves per key through
-    `ai/registry.json` and does not land here. What still belongs to `seats` is
-    *which run* this is - a second hard-coded path is how the pool once said
-    `data/hc2` while this function said `data/hb2`. The import stays inside the
-    function so `rl` still does not depend on the game layer at import time.
+    A *fallback* for a caller that names a step and not a file. Plan9 task 4
+    retired the imitation seats and deleted the `ai/checkpoints/` copies, so
+    this directory is once again where all three files are - but it is a fact
+    about the *run*, not about a seat, and no registered key resolves through
+    here. What still belongs to `seats` is *which run* this is - a second
+    hard-coded path is how the pool once said `data/hc2` while this function
+    said `data/hb2`. The import stays inside the function so `rl` still does
+    not depend on the game layer at import time.
     """
     import seats
     return seats.IMITATION_CHECKPOINT_DIR

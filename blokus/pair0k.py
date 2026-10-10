@@ -64,8 +64,19 @@ def md5_of(path):
 
 
 def checkpoint_of(key):
-    """The file `key` loads from - the registry's answer, not a guess."""
-    return seats.registry_checkpoint(seats.canonical_key(key))
+    """The file `key` loads from - an `--adhoc` binding first, then the registry.
+
+    Plan9 task 4 retired the six imitation seats, so a pair run against one of
+    them has to bind the file explicitly (`--adhoc KEY=PATH`, the same call
+    `match.py` makes). The binding is per process and is recorded by
+    `match.run_league`'s payload; this function just has to answer with the
+    path that will actually be opened rather than raising on a key the roster
+    no longer has.
+    """
+    key = seats.canonical_key(key)
+    if key in seats.ADHOC:
+        return seats.ADHOC[key]["path"]
+    return seats.registry_checkpoint(key)
 
 
 def softmax_entropy(logits, temperature=I.DEFAULT_TEMPERATURE):
@@ -278,6 +289,9 @@ def main(argv=None):
                          "即 7 個人格）")
     ap.add_argument("--pool-order", choices=("sorted", "literal"),
                     default="sorted", help="池順序，與 match.py 同義")
+    ap.add_argument("--adhoc", action="append", default=[], metavar="KEY=PATH",
+                    help="把一個未註冊的檢查點檔當席位用（僅本程序有效），"
+                         "與 match.py --adhoc 同義；退休的 0k 席位要用它才綁得回來")
     ap.add_argument("--games", type=int, default=200, help="局數（預設 200）")
     ap.add_argument("--seed", type=int, default=6_100_000,
                     help="種子基底；第 i 局用第 i 個派生流（預設 6100000）")
@@ -291,11 +305,19 @@ def main(argv=None):
     if os.path.exists(args.out):
         raise SystemExit("%s already exists; refusing to overwrite it"
                          % args.out)
+    for spec in args.adhoc:
+        if "=" not in spec:
+            raise SystemExit("--adhoc expects KEY=PATH, got %r" % (spec,))
+        key, _sep, path = spec.partition("=")
+        if not key or not path:
+            raise SystemExit("--adhoc expects KEY=PATH, got %r" % (spec,))
+        seats.register_adhoc(key, path)
     student = seats.canonical_key(args.student)
     if seats.kind_of(student) not in (seats.KIND_IMITATION, seats.KIND_RL):
         raise SystemExit("--student must name a checkpoint seat, got %r"
                          % args.student)
     control_key = seats.canonical_key(CONTROL)
+    seats.kind_of(control_key)          # loud, if the control is not bound
     pool = match.expand_pool(args.pool, order=args.pool_order)
 
     print("池        : %s（%d 席）" % (args.pool, len(pool)))

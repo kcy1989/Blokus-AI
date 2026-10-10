@@ -74,11 +74,13 @@ HUMAN_LOG_KEY = "human_log"
 # that a stale key cannot silently resolve to a checkpoint trained on data whose
 # `stuck` column disagreed with the rules.
 #
-# Since plan9a stage 4 this directory is where H-C2 **trained**, not where the
-# product reads: step 1000 was published into `ai/checkpoints/rl_h1000_0k/`,
-# while 2000 and 10000 are still this run's own output. Which path a key loads
-# from is `ai/registry.json`'s `checkpoint`; this constant stays because the
-# source is still true and `source` cross-checks against it.
+# Since plan9a stage 4 this used to be only where H-C2 **trained** - step 1000
+# was published into `ai/checkpoints/rl_h1000_0k/` while 2000 and 10000 stayed
+# here. Plan9 task 4 retired all six imitation seats and deleted that published
+# copy, so the directory is again the one place the three files live, and the
+# only authority for their path. No registered key loads from it: these three
+# are read by `rl/` (by step + directory) and by a `--adhoc` replay, not by a
+# seat.
 IMITATION_STEPS = (1000, 2000, 10000)
 IMITATION_CHECKPOINT_DIR = "data/hc2"
 
@@ -264,13 +266,11 @@ def imitation_step(key):
 def imitation_checkpoint(key):
     """The checkpoint file an imitation key loads from.
 
-    The path comes from `ai/registry.json` as of plan9a stage 4. `imitation_step`
-    still says *which* checkpoint, and the filename still follows H-C2's
-    `step_%06d.pt` convention - but the directory is per key now, because step
-    1000 was published into `ai/checkpoints/rl_h1000_0k/` while 2000 and 10000
-    are still H-C2's own output under `data/hc2`. One directory for all three
-    stopped being true at that moment, which is why this exists rather than
-    `os.path.join(IMITATION_CHECKPOINT_DIR, ...)`.
+    The path used to come from `ai/registry.json`. Plan9 task 4 removed the last
+    imitation row, so this now refuses every key - which is the point: an
+    imitation seat is not something the product can be set up with any more.
+    The files themselves are back under `data/hc2` (see `IMITATION_STEPS`), and
+    `rl/` reads them by step and directory rather than through here.
     """
     key = canonical_key(key)
     if not is_imitation_key(key):
@@ -527,10 +527,11 @@ def build_brain(key, rng, kind=None, checkpoint_dir=None,
             # Resolved here rather than as a default argument, which would bind
             # the directory once at import and quietly ignore a later
             # rebinding - the same trap `records.Records.__init__` sets with its
-            # path. It is per *key* rather than one constant for the three,
-            # because plan9a stage 4 published step 1000 into
-            # `ai/checkpoints/rl_h1000_0k/` while 2000 and 10000 stayed under
-            # `data/hc2`: one directory for all three stopped being true there.
+            # path. It is per *key* rather than one constant for the three.
+            # Plan9 task 4 put every file back under `data/` and retired the
+            # seats, so this branch is unreachable today - it is kept so that
+            # re-registering an imitation row does not also need a rewrite of
+            # how the path is found.
             checkpoint_dir = os.path.dirname(imitation_checkpoint(key))
         # The seat key is handed to the brain rather than rebuilt from the step:
         # `choose_move` traces and `test_seats` both require
