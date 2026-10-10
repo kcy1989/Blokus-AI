@@ -38,6 +38,7 @@ plan*/
 # the two directories is enough.
 !eval/imitation/
 !eval/rl-single-train/
+!eval/rl-multiple-train/
 
 # Virtual environments. `.venv-rl/` is the stage-G reinforcement-learning
 # environment: about 4 GiB of CUDA wheels, regenerateable with one pip command.

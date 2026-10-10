@@ -120,6 +120,15 @@ RESERVED_RANGES = (
     # in step with `rl.rollout.RL_STUDENTS_BLOCK`, because the guard exempts a
     # claim by exact triple.
     ("stage RL students", 7_200_000, 7_219_999),
+    # plan10 task 2: the four learners' same-table games (10 seeds a step),
+    # their fixed-pool games (260 a step), and the fixed evaluation set every
+    # progress curve is measured on. Three rows rather than one so the two
+    # training streams cannot be confused for each other when a step's layout
+    # is read off a log. Labels and ranges must stay in step with
+    # `rl.multi.TABLE_BLOCK` / `FIXED_BLOCK` / `EVAL_BLOCK`.
+    ("stage RL multiple table", 7_300_000, 7_300_999),
+    ("stage RL multiple fixed", 7_310_000, 7_335_999),
+    ("stage RL multiple validation", 7_400_000, 7_400_999),
 )
 
 PAIRS_A = 2_000

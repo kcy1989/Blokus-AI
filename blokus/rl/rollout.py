@@ -92,6 +92,14 @@ RL_STUDENTS_BLOCK = ("stage RL students", RL_STUDENTS_SEED_BASE,
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
 
+# Plan10 task 2: a same-table game records one episode per network seat, so
+# each needs a sampling stream of its own. These two constants put them in an
+# integer range `seed * 2` / `seed * 2 + 1` cannot reach; the stride is 2**24
+# and every seed block this module claims is below it, so `(seat, seed)` is
+# injective across the whole reserved space.
+_LEARNER_STREAM_BASE = 0x1000_0000
+_LEARNER_STREAM_STRIDE = 0x100_0000
+
 
 class Spec(NamedTuple):
     """One episode's whole input: `(seed, learner_seat, opponent_names)`."""
@@ -248,9 +256,20 @@ class Episode:
         }
 
 
+def log_move(eps, move):
+    """Append one ply to every episode's move log.
+
+    The log is of the **game**, not of one seat's trajectory, so when one table
+    records four episodes they all get the same list - which is what lets a
+    caller compare the whole game move for move against `match.py`'s.
+    """
+    for ep in eps.values():
+        ep.moves.append(move)
+
+
 def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
                  mode=LEARNER_MODE, checkpoint_dir=None, record_moves=False,
-                 learner_key=None):
+                 learner_key=None, opponent_pool=None):
     """Play one episode. Returns an `Episode`.
 
     `spec.seed` fixes everything: the seat keys, the colours, who opens, and
@@ -269,6 +288,74 @@ def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
     `device` must be the device the update will run on. The log_probs recorded
     here are the old policy's, and a policy scored on one device and updated on
     another would have its ratio built from a number it never produced.
+
+    `opponent_pool` replaces the seven personalities as the set opponents are
+    drawn from. Left as `None` the three opponents must be **distinct
+    personalities**, which is the rule every published batch was recorded under
+    and the rule `tests/test_rl_rollout.py` pins. A caller that names a pool
+    (plan10's fixed pool of eleven) is saying duplicates are fine and that a
+    network may sit opposite the learner - both of which `Game.setup_seats`
+    already allows.
+    """
+    if not 0 <= spec.learner_seat < 4:
+        raise ValueError("learner_seat %r is not a seat" % (spec.learner_seat,))
+    names = tuple(spec.opponent_names)
+    if len(names) != 3:
+        raise ValueError("an episode has three opponents, got %d" % len(names))
+    if opponent_pool is None:
+        if len(set(names)) != 3:
+            raise ValueError("opponents must be distinct, got %r" % (names,))
+        pool = PERSONALITY_POOL
+        pool_name = "the personality pool"
+    else:
+        pool = tuple(opponent_pool)
+        pool_name = "the pool %r" % (pool,)
+    for n in names:
+        if n not in pool:
+            raise ValueError("%r is not in %s" % (n, pool_name))
+
+    seat_key, needs_swap = seat_for(net, learner_key)
+    keys = list(names)
+    keys.insert(spec.learner_seat, seat_key)
+    eps = play_game(keys, {spec.learner_seat: net}, spec.seed,
+                    device=device, temperature=temperature, mode=mode,
+                    checkpoint_dir=checkpoint_dir, record_moves=record_moves)
+    ep = eps[spec.learner_seat]
+    # The spec is the caller's, not the one `play_game` rebuilt: a batch's
+    # manifest and `tests/test_rl_rollout.py` both read `ep.spec`, and a
+    # rebuilt stand-in would answer the same three fields but compare unequal
+    # to what was asked for.
+    ep.spec = spec
+    ep.opponent_names = names
+    if needs_swap is False:
+        # `seat_for` only says that when the seat key already *is* the learner's
+        # own registered key, which would mean `setup_seats` loaded the frozen
+        # registry weights into the learner's seat. `play_game` always swaps the
+        # handed network in, so this is unreachable - kept as a check because
+        # silently training against frozen weights is the failure it would be.
+        raise RuntimeError("seat_for refused to stand %r in; the learner would "
+                           "have played the frozen registry weights" % (seat_key,))
+    return ep
+
+
+def play_game(keys, seat_nets, seed, device=None,
+              temperature=DEFAULT_TEMPERATURE, mode=LEARNER_MODE,
+              checkpoint_dir=None, record_moves=False):
+    """Play one game and record every seat that has a network.
+
+    Returns `{seat: Episode}` - one Episode per entry in `seat_nets`, each with
+    `learner_seat` set to its own seat, so the four go straight to four separate
+    `ppo.batch_from_episodes` calls without any repacking.
+
+    `keys` are the four option keys handed to `Game.setup_seats`, in seat order,
+    and a key may repeat - two identical frozen policies at one table is a game,
+    not an error. `seat_nets` maps a seat index to the network that seat really
+    plays; **after** setup that seat's brain is replaced by `as_brain(net)`, so a
+    seat in `seat_nets` always plays the network it was handed and never the
+    weights its key happens to name. Seats not in `seat_nets` keep whatever brain
+    `setup_seats` built for them.
+
+    `seed` fixes everything, exactly as `play_episode` says it does.
     """
     from rl.collect import _Budget
     from rl.imitation import action_to_move, state_from_game
@@ -276,79 +363,80 @@ def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
 
     import torch
 
-    if not 0 <= spec.learner_seat < 4:
-        raise ValueError("learner_seat %r is not a seat" % (spec.learner_seat,))
-    names = tuple(spec.opponent_names)
-    if len(names) != 3:
-        raise ValueError("an episode has three opponents, got %d" % len(names))
-    if len(set(names)) != 3:
-        raise ValueError("opponents must be distinct, got %r" % (names,))
-    for n in names:
-        if n not in PERSONALITY_POOL:
-            raise ValueError("%r is not in the personality pool" % (n,))
+    keys = list(keys)
+    if len(keys) != 4:
+        raise ValueError("a game has four seats, got %d keys" % len(keys))
+    if not seat_nets:
+        raise ValueError("a game needs at least one network seat")
+    for s in seat_nets:
+        if not 0 <= int(s) < 4:
+            raise ValueError("seat %r is not a seat" % (s,))
+    if mode not in ("softmax", "argmax"):
+        raise ValueError("unknown learner mode %r; use softmax or argmax"
+                         % (mode,))
 
-    game_rng, learner_rng = episode_streams(spec.seed)
-    seat_key, needs_swap = seat_for(net, learner_key)
-    keys = list(names)
-    keys.insert(spec.learner_seat, seat_key)
+    game_rng, _ = episode_streams(seed)
+    streams = _learner_streams(seed, sorted(int(s) for s in seat_nets))
 
-    ep = Episode(spec, names, spec.learner_seat, spec.seed)
+    eps = {}
+    for s in sorted(int(s) for s in seat_nets):
+        others = tuple(keys[o] for o in range(4) if o != s)
+        eps[s] = Episode(Spec(seed, s, others), others, s, seed)
+
+    def record(owner, state, legal, ply):
+        """One network seat's decision. Returns True if a move was played."""
+        ep = eps[owner]
+        with torch.no_grad():
+            logits, value = forward_batched(net_by_seat[owner], [state],
+                                            device=device)
+            if mode == "argmax":
+                action = int(logits.argmax(dim=-1).item())
+            else:
+                action = _sample_from_masked(logits[0], streams[owner],
+                                             temperature)
+            log_prob, _entropy = log_prob_entropy(
+                logits, torch.tensor([action]))
+        cols = _state_columns(state)
+        ep.own_bits.append(cols["own_bits"])
+        ep.hand_bits.append(cols["hand_bits"])
+        ep.stuck.append(cols["stuck"])
+        ep.to_move.append(int(state.to_move))
+        ep.action_index.append(int(action))
+        ep.log_prob.append(float(log_prob[0]))
+        ep.value.append(float(value[0]))
+        ep.n_legal.append(int(legal.size))
+        ep.ply.append(ply)
+        name, oi, base = action_to_move(action, state)
+        game.act(name, oi, base % 20, base // 20)
+        if record_moves:
+            log_move(eps, (owner, name, oi, base % 20, base // 20))
+        return True
+
+    net_by_seat = {int(s): n for s, n in seat_nets.items()}
     with _Budget(False), _ThreadBudget(1):
         game = Game(game_rng)
         game.setup_seats(keys, None, game_rng, checkpoint_dir=checkpoint_dir,
                          device=device, mode="argmax")
-        if needs_swap:
+        for s, net in net_by_seat.items():
             # the whole point of the stand-in: this seat plays `net`, not
             # whatever its key named
-            game.brains[spec.learner_seat] = as_brain(net, key=seat_key)
+            game.brains[s] = as_brain(net, key=keys[s])
         game.start()
         ply = 0
         while game.state == "PLAYING":
             owner = game.current_owner()
-            if owner == spec.learner_seat:
+            if owner in net_by_seat:
                 state = state_from_game(game)
                 if engine.legal_move_mask(state, owner) == 0:
                     # A pass is not a choice, so it is not a decision and is not
                     # recorded as one. Counted, because how much of an episode
                     # was spent skipping is worth knowing.
-                    ep.learner_passes += 1
+                    eps[owner].learner_passes += 1
                     if record_moves:
-                        ep.moves.append((owner, None, None, None, None))
+                        log_move(eps, (owner, None, None, None, None))
                     game.act_pass()
                     continue
-                legal = legal_indices(state, owner)
-                # No gradients: this is the old policy being *scored*, and PPO's
-                # gradient comes from the update pass over the recorded numbers.
-                # `rl.policy.forward_batched` deliberately leaves grad enabled for
-                # the training path, so the rollout is the side that has to ask
-                # for this - and asking here rather than inside the shared
-                # function is what keeps both callers honest.
-                with torch.no_grad():
-                    logits, value = forward_batched(net, [state], device=device)
-                    if mode == "argmax":
-                        action = int(logits.argmax(dim=-1).item())
-                    elif mode == "softmax":
-                        action = _sample_from_masked(logits[0], learner_rng,
-                                                     temperature)
-                    else:
-                        raise ValueError("unknown learner mode %r; use softmax "
-                                         "or argmax" % (mode,))
-                    log_prob, _entropy = log_prob_entropy(
-                        logits, torch.tensor([action]))
-                cols = _state_columns(state)
-                ep.own_bits.append(cols["own_bits"])
-                ep.hand_bits.append(cols["hand_bits"])
-                ep.stuck.append(cols["stuck"])
-                ep.to_move.append(int(state.to_move))
-                ep.action_index.append(int(action))
-                ep.log_prob.append(float(log_prob[0]))
-                ep.value.append(float(value[0]))
-                ep.n_legal.append(int(legal.size))
-                ep.ply.append(ply)
-                name, oi, base = action_to_move(action, state)
-                game.act(name, oi, base % 20, base // 20)
-                if record_moves:
-                    ep.moves.append((owner, name, oi, base % 20, base // 20))
+                record(owner, state, legal_indices(state, owner), ply)
             else:
                 move = ai.choose_move(game.board, game.hands[owner].names,
                                       owner, game.brains[owner], game_rng,
@@ -361,17 +449,17 @@ def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
                                                    for o in range(4)})
                 if move:
                     if record_moves:
-                        ep.moves.append((owner,) + tuple(move))
+                        log_move(eps, (owner,) + tuple(move))
                     game.act(*move)
                 else:
                     if record_moves:
-                        ep.moves.append((owner, None, None, None, None))
+                        log_move(eps, (owner, None, None, None, None))
                     game.act_pass()
             ply += 1
-        ep.turns = ply
+        for ep in eps.values():
+            ep.turns = ply
 
     remaining = tuple(game.remaining_cells(o) for o in range(4))
-    ep.remaining = remaining
     # `rank_rows` returns the seats **best first**, not in seat order, so its
     # rows have to be written back through their key. Reading them positionally
     # would put the leader's rank on owner 3 and leave `ranks` disagreeing with
@@ -382,10 +470,33 @@ def play_episode(spec, net, device=None, temperature=DEFAULT_TEMPERATURE,
     for key, rank, point, _rem in rank_rows([(o, remaining[o]) for o in range(4)]):
         ranks[key] = rank
         points[key] = point
-    ep.ranks = tuple(ranks)
-    ep.points = tuple(points)
-    ep.rewards = tuple(episode_reward(remaining, o) for o in range(4))
-    return ep
+    rewards = tuple(episode_reward(remaining, o) for o in range(4))
+    for ep in eps.values():
+        ep.remaining = remaining
+        ep.ranks = tuple(ranks)
+        ep.points = tuple(points)
+        ep.rewards = rewards
+    return eps
+
+
+def _learner_streams(seed, seats):
+    """`{seat: rng}` for the network seats' own action sampling.
+
+    One network seat keeps `seed * 2 + 1`, the stream every published batch was
+    recorded with. Switching it would change every trajectory the existing
+    evidence rests on and buys nothing, so the single-seat path is frozen.
+
+    Two or more get a generator each, keyed injectively by `(seat, seed)` in a
+    range `seed * 2` and `seed * 2 + 1` can never reach - the setup and opponent
+    stream must not be able to collide with a sampling stream, or a learner's
+    draw would shift the colours. The stride is `2**24` and every seed this
+    module claims is below it, so two seats cannot collide either.
+    """
+    if len(seats) == 1:
+        return {seats[0]: random.Random(seed * 2 + 1)}
+    return {s: random.Random(_LEARNER_STREAM_BASE + s * _LEARNER_STREAM_STRIDE
+                             + int(seed))
+            for s in seats}
 
 
 def as_brain(net, key=None):
@@ -605,23 +716,71 @@ def _worker_init():
     torch.set_num_threads(1)
 
 
-def _worker(job):
-    """Play a chunk of specs, loading the weights once per process."""
-    specs, weights_path, device, temperature, mode, checkpoint_dir = job
-    if _WORKER.get("path") != weights_path:
-        import torch
+def _learner_net(weights_path, device):
+    """The one network a worker keeps for `weights_path`, loading it once.
+
+    A worker that inherited a network through `fork` would be sharing its memory
+    with a parent that is about to exit, so every worker reads the file itself.
+    Keyed by path rather than by "the last one", because a same-table worker
+    holds four at a time and a single-slot cache would reload all four for every
+    game.
+    """
+    cache = _WORKER.setdefault("nets", {})
+    if weights_path not in cache:
         from rl.policy import load_policy
         net, meta = load_policy(weights_path, device=device)
         key = _key_for(weights_path, meta)
         if key:
             net.key = key
-        _WORKER["path"] = weights_path
-        _WORKER["net"] = net
-        _WORKER["meta"] = meta
-    net = _WORKER["net"]
+        cache[weights_path] = net
+    return cache[weights_path]
+
+
+def _worker(job):
+    """Play a chunk of specs, loading the weights once per process."""
+    (specs, weights_path, device, temperature, mode, checkpoint_dir, pool,
+     learner_key) = job
+    net = _learner_net(weights_path, device)
     return [play_episode(s, net, device=device, temperature=temperature,
-                         mode=mode, checkpoint_dir=checkpoint_dir)
+                         mode=mode, checkpoint_dir=checkpoint_dir,
+                         opponent_pool=pool, learner_key=learner_key)
             for s in specs]
+
+
+def _paired_worker(job):
+    """Play a chunk of specs once per learner, loading each learner's weights.
+
+    The four copies of one fixed-pool game share the spec, and therefore the
+    seed, the opponents, the colours and the opening player - which is what
+    makes them paired. They differ only in which network sat down.
+    """
+    (specs, weight_paths, device, temperature, mode, checkpoint_dir, pool,
+     learner_keys) = job
+    nets = tuple(_learner_net(p, device) for p in weight_paths)
+    out = []
+    for s in specs:
+        out.append({i: play_episode(s, net, device=device,
+                                    temperature=temperature, mode=mode,
+                                    checkpoint_dir=checkpoint_dir,
+                                    opponent_pool=pool,
+                                    learner_key=learner_keys[i])
+                    for i, net in enumerate(nets)})
+    return out
+
+
+def _table_worker(job):
+    """Play a chunk of same-table specs, loading each learner's weights once."""
+    specs, weight_paths, device, temperature, mode = job
+    nets = tuple(_learner_net(p, device) for p in weight_paths)
+    out = []
+    for spec in specs:
+        seat_nets = {seat: nets[spec.order[seat]] for seat in range(4)}
+        eps = play_game(list(spec.keys), seat_nets, spec.seed, device=device,
+                        temperature=temperature, mode=mode)
+        # keyed by *learner*, not by seat: the caller groups a step's episodes
+        # per learner, and a seat-keyed dict would have to be remapped anyway.
+        out.append({spec.order[seat]: ep for seat, ep in eps.items()})
+    return out
 
 
 def _key_for(weights_path, meta):
@@ -644,7 +803,7 @@ def _key_for(weights_path, meta):
 
 def play_batch(specs, weights_path, n_procs=1, device=None,
                temperature=DEFAULT_TEMPERATURE, mode=LEARNER_MODE,
-               checkpoint_dir=None):
+               checkpoint_dir=None, opponent_pool=None, learner_key=None):
     """Play every spec, in **spec order**, however the work was scheduled.
 
     With `n_procs=1` this is a plain loop in this process. Above that, the
@@ -659,36 +818,31 @@ def play_batch(specs, weights_path, n_procs=1, device=None,
     `tests/test_rl_rollout.py` checks rather than hopes. It holds because the
     thread count is pinned on both paths - see `_ThreadBudget` - and not because
     the work is deterministic, which multi-threaded float32 is not.
+
+    `opponent_pool` is handed straight to `play_episode`: `None` for the seven
+    personalities, or an explicit pool for plan10's fixed eleven.
+    `learner_key` names the seat the learner stands in under - required now
+    that `seat_for`'s fallback left the roster, and the reason a training
+    checkpoint can be played without binding a retired seat.
     """
     specs = list(specs)
     if not specs:
         return []
-    if device is not None and n_procs > 1:
-        import torch
-        if torch.device(device).type == "cuda":
-            raise ValueError("device=%r with n_procs=%d would give every worker "
-                             "its own CUDA context on one GPU; pass device=None "
-                             "and let each worker choose, or run on CPU"
-                             % (device, n_procs))
+    _refuse_cuda(device, n_procs)
     with _ThreadBudget(1):
         if n_procs <= 1:
-            from rl.policy import load_policy
-            net, meta = load_policy(weights_path, device=device)
-            key = _key_for(weights_path, meta)
-            if key:
-                net.key = key
+            net = _learner_net(weights_path, device)
             return [play_episode(s, net, device=device,
                                  temperature=temperature, mode=mode,
-                                 checkpoint_dir=checkpoint_dir)
+                                 checkpoint_dir=checkpoint_dir,
+                                 opponent_pool=opponent_pool,
+                                 learner_key=learner_key)
                     for s in specs]
-
         per = max(1, -(-len(specs) // int(n_procs)))
         chunks = [specs[i:i + per] for i in range(0, len(specs), per)]
-        jobs = [(chunk, weights_path, device, temperature, mode, checkpoint_dir)
-                for chunk in chunks]
-        with mp.get_context("fork").Pool(len(jobs),
-                                         initializer=_worker_init) as pool:
-            results = pool.map(_worker, jobs)
+        jobs = [(chunk, weights_path, device, temperature, mode, checkpoint_dir,
+                 opponent_pool, learner_key) for chunk in chunks]
+        results = _pool_map(_worker, jobs)
     # `map` preserves input order, and the chunks were cut in order too, so
     # flattening is already spec order. The length check is here because a
     # silently short result would index-align against the wrong spec for every
@@ -698,6 +852,106 @@ def play_batch(specs, weights_path, n_procs=1, device=None,
         raise RuntimeError("expected %d episodes, got %d"
                            % (len(specs), len(out)))
     return out
+
+
+def play_table_batch(specs, weight_paths, n_procs=1, device=None,
+                     temperature=DEFAULT_TEMPERATURE, mode=LEARNER_MODE):
+    """Play every same-table spec, returning one row per spec of
+    `{learner: Episode}`.
+
+    `weight_paths` is the four learners' checkpoint files in **learner** order,
+    and `spec.order` says which learner sits at which seat - so a worker holds
+    all four networks and one game produces four episodes, one per learner.
+    `spec.keys` is the seat key each seat is set up under, which is what makes a
+    table's `Game.owner_key` readable and what a replay would have to name.
+
+    Same ordering guarantee as `play_batch`: the result is in spec order
+    whatever the scheduling did, and nothing about it depends on `n_procs`.
+    """
+    specs = list(specs)
+    if not specs:
+        return []
+    if len(weight_paths) != 4:
+        raise ValueError("a table needs four weight paths, got %d"
+                         % len(weight_paths))
+    _refuse_cuda(device, n_procs)
+    with _ThreadBudget(1):
+        if n_procs <= 1:
+            nets = tuple(_learner_net(p, device) for p in weight_paths)
+            rows = []
+            for spec in specs:
+                seat_nets = {seat: nets[spec.order[seat]] for seat in range(4)}
+                eps = play_game(list(spec.keys), seat_nets, spec.seed,
+                                device=device, temperature=temperature,
+                                mode=mode)
+                rows.append({spec.order[seat]: ep for seat, ep in eps.items()})
+            return rows
+        per = max(1, -(-len(specs) // int(n_procs)))
+        chunks = [specs[i:i + per] for i in range(0, len(specs), per)]
+        jobs = [(chunk, tuple(weight_paths), device, temperature, mode)
+                for chunk in chunks]
+        results = _pool_map(_table_worker, jobs)
+    out = [row for chunk in results for row in chunk]
+    if len(out) != len(specs):
+        raise RuntimeError("expected %d tables, got %d"
+                           % (len(specs), len(out)))
+    return out
+
+
+def play_paired_batch(specs, weight_paths, learner_keys, n_procs=1, device=None,
+                      temperature=DEFAULT_TEMPERATURE, mode=LEARNER_MODE,
+                      checkpoint_dir=None, opponent_pool=None):
+    """Play every spec **once per learner**, returning one row per spec of
+    `{learner: Episode}`.
+
+    Same specs, same seeds, four different networks - the pairing plan10 asks
+    for on its fixed-pool games. One process pool for all four learners rather
+    than one per learner: a pool costs a fork per worker and a model load per
+    worker, and four pools in a row paid both four times over.
+    """
+    specs = list(specs)
+    if not specs:
+        return []
+    if len(weight_paths) != 4 or len(learner_keys) != 4:
+        raise ValueError("a paired batch needs four paths and four keys, got "
+                         "%d and %d" % (len(weight_paths), len(learner_keys)))
+    _refuse_cuda(device, n_procs)
+    with _ThreadBudget(1):
+        if n_procs <= 1:
+            nets = tuple(_learner_net(p, device) for p in weight_paths)
+            return [{i: play_episode(s, net, device=device,
+                                     temperature=temperature, mode=mode,
+                                     checkpoint_dir=checkpoint_dir,
+                                     opponent_pool=opponent_pool,
+                                     learner_key=learner_keys[i])
+                     for i, net in enumerate(nets)} for s in specs]
+        per = max(1, -(-len(specs) // int(n_procs)))
+        chunks = [specs[i:i + per] for i in range(0, len(specs), per)]
+        jobs = [(chunk, tuple(weight_paths), device, temperature, mode,
+                 checkpoint_dir, opponent_pool, tuple(learner_keys))
+                for chunk in chunks]
+        results = _pool_map(_paired_worker, jobs)
+    out = [row for chunk in results for row in chunk]
+    if len(out) != len(specs):
+        raise RuntimeError("expected %d paired games, got %d"
+                           % (len(specs), len(out)))
+    return out
+
+
+def _refuse_cuda(device, n_procs):
+    if device is not None and n_procs > 1:
+        import torch
+        if torch.device(device).type == "cuda":
+            raise ValueError("device=%r with n_procs=%d would give every worker "
+                             "its own CUDA context on one GPU; pass device=None "
+                             "and let each worker choose, or run on CPU"
+                             % (device, n_procs))
+
+
+def _pool_map(worker, jobs):
+    with mp.get_context("fork").Pool(len(jobs),
+                                     initializer=_worker_init) as pool:
+        return pool.map(worker, jobs)
 
 
 def thread_report():
