@@ -29,16 +29,38 @@ from config import CLOCKWISE_OWNERS, PLAYER_OWNER
 from game import Game
 
 STEP = seats.IMITATION_STEPS[0]
-# Where step 1000 was *published* to, not where H-C2 trained: plan9a stage 4
-# copied it into `ai/checkpoints/rl_h1000_0k/` and untracked the `data/`
-# original, so `IMITATION_CHECKPOINT_DIR` would name a file a fresh clone lacks.
-CHECKPOINT_DIR = os.path.dirname(
-    seats.imitation_checkpoint(seats.imitation_key(STEP)))
+# Plan9 task 4 retired `rl_h1000_0k` from the roster and moved the weights back
+# under H-C2's own directory, so `IMITATION_CHECKPOINT_DIR` names a file a fresh
+# clone carries again. The registry has no row for it any more, which is why this
+# is a path rather than `seats.imitation_checkpoint`.
+CHECKPOINT_DIR = seats.IMITATION_CHECKPOINT_DIR
+# The 0k seat under the name it used to be registered as. Nothing in the roster
+# answers to it now; `bind_retired_0k` below is what makes it a seat again, the
+# same way `match.py --adhoc` does.
+LEARNER_KEY = "rl_h1000_0k"
 
 
 def _have_checkpoint(step=STEP):
     from rl.imitation import checkpoint_path
     return os.path.exists(checkpoint_path(step, CHECKPOINT_DIR))
+
+
+@pytest.fixture(scope="module", autouse=True)
+def bind_retired_0k():
+    """Seat the retired 0k checkpoint for the duration of one test.
+
+    `rl_h1000_0k` left the roster in plan9 task 4, and `--adhoc` is the
+    supported way to bring it back for a run - so this makes the same call
+    `match.py --adhoc KEY=PATH` makes rather than reaching into `kind_of`.
+    Scoped and undone, so the roster every other test sees is the real one.
+    """
+    path = os.path.join(CHECKPOINT_DIR, "step_%06d.pt" % STEP)
+    if not os.path.exists(path):
+        yield
+        return
+    seats.register_adhoc(LEARNER_KEY, path)
+    yield
+    seats.ADHOC.pop(LEARNER_KEY, None)
 
 
 needs_checkpoint = pytest.mark.skipif(
@@ -48,7 +70,7 @@ needs_checkpoint = pytest.mark.skipif(
 def make_game(seed=0, options=None, colours=None, mode="argmax"):
     rng = random.Random(seed)
     g = Game(rng)
-    keys = options or [seats.imitation_key(STEP)] * 4
+    keys = options or [LEARNER_KEY] * 4
     g.setup_seats(keys, colours, rng, checkpoint_dir=CHECKPOINT_DIR,
                   mode=mode)
     g.start()
@@ -135,7 +157,7 @@ def test_a_checkpoint_loads_read_only():
     import rl.imitation as I
     brain = I.load_brain(STEP, checkpoint_dir=CHECKPOINT_DIR, device="cpu")
     assert brain.step == STEP
-    assert brain.key == seats.imitation_key(STEP)
+    assert brain.key == LEARNER_KEY
     assert brain.mode == "argmax"
     # read-only: eval mode, no gradients, no optimiser state carried
     assert not brain.net.training
@@ -350,7 +372,7 @@ def test_it_plays_from_every_opening_player():
         rng = random.Random(60 + start)
         g = Game(rng)
         g.turn_order = [CLOCKWISE_OWNERS[(start + i) % 4] for i in range(4)]
-        g.owner_key = {o: seats.imitation_key(STEP) for o in range(4)}
+        g.owner_key = {o: LEARNER_KEY for o in range(4)}
         g.colors = {o: c for o, c in zip(CLOCKWISE_OWNERS,
                                          seats.COLOR_NAMES)}
         g.brains = {o: shared for o in range(4)}

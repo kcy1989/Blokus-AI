@@ -75,8 +75,12 @@ def test_every_option_is_one_of_the_three_kinds_of_contestant():
     together no longer pass everything - the `family` half stops matching the
     typed triple.
 
-    Independent of all of that, the three counts have to add up to the pool -
-    the invariant that would break if a key were in no kind at all.
+    Since plan9 task 4 the `imitation` family has no members at all, which is
+    asserted rather than assumed below: an empty list would otherwise make this
+    test agree with itself about a family that no longer exists.
+
+    Independent of all of that, the counts have to add up to the pool - the
+    invariant that would break if a key were in no kind at all.
     """
     options = seats.seat_options(False)
     ai_only = [k for k in options if seats.kind_of(k) == seats.KIND_AI]
@@ -90,18 +94,15 @@ def test_every_option_is_one_of_the_three_kinds_of_contestant():
     assert set(ai_only) == set(ai.personality_keys()) == set(families["personality"])
     assert imitating == sorted(families["imitation"])
     assert trained == sorted(families["rl"])
-    # The six checkpoints come out in *key* order, which is not step order:
-    # plan9a stage 3 sorts every pool by key, and `hc_10000` sorts first. Four
-    # of them are at step 1000 - the H-C2 checkpoint plus the three students -
-    # which is exactly why `imitation_step` reads the filename.
-    assert sorted(seats.imitation_step(k) for k in imitating) == [1000, 1000,
-                                                                  1000, 1000,
-                                                                  2000, 10000]
-    assert imitating == sorted(imitating)
-    # the trained policy is its own kind, so `imitation_only` keeps meaning the
-    # checkpoints that were trained by imitation. `trained` walks the pool,
-    # which is key order, while `RL_SEATS` follows the JSON array order (the
-    # test that pins that reads the JSON), so the two meet after sorting.
+    # Plan9 task 4 retired every imitation seat, so this family is empty - and
+    # emptiness is asserted rather than inherited, so a row quietly added back
+    # under `family: imitation` fails here instead of vanishing into a list
+    # comparison both sides of which also changed.
+    assert families["imitation"] == []
+    assert imitating == []
+    # `trained` walks the pool, which is key order, while `RL_SEATS` follows the
+    # JSON array order (the test that pins that reads the JSON), so the two meet
+    # after sorting.
     assert trained == sorted(seats.rl_keys())
 
 
@@ -184,18 +185,16 @@ def test_every_network_seat_is_actually_in_the_repository():
 
     The paths come from the accessors the product itself uses, because that is
     the thing under test: whatever `build_brain` will open has to survive
-    `git check-ignore`. Stage 4 published two of the four into
-    `ai/checkpoints/` beside the code; `hc_2000` and `hc_10000` were never
-    published and still ride on a negation in `.gitignore`, which is a
-    transitional state stage 6 revisits.
+    `git check-ignore`. Since plan9 task 4 the only network seats are the four
+    trained policies, all published into `ai/checkpoints/` beside the code.
+    The H-C2 chain is covered separately - it is opened by `rl/`, not by a
+    seat - in `test_the_hc2_chain_still_points_at_hc2_files`.
 
     The failure mode this guards is not a red assertion but a fresh clone that
     cannot start a game - which reads as a broken checkout rather than as a
     missing blob, and is the sort of thing nobody connects to a `data/*` line.
     """
     seen = [(key, seats.rl_checkpoint(key)) for key in seats.rl_keys()]
-    seen += [(key, seats.imitation_checkpoint(key))
-             for key in (seats.imitation_key(s) for s in seats.IMITATION_STEPS)]
     checked = 0
     for key, path in seen:
         ignored = _is_gitignored(path)
@@ -216,36 +215,41 @@ def test_the_rl_key_prefix_alone_is_not_a_registered_seat():
         seats.rl_checkpoint("rl_9999")
 
 
-def test_the_checkpoint_seats_are_the_hc2_run():
-    """The pool names H-C2, and only H-C2.
+def test_the_hc2_chain_still_points_at_hc2_files():
+    """The training chain is a fact about `data/hc2`, not about the roster.
 
     H-B2's four checkpoints are still on disk and `load_brain` would still open
-    one, so this pins the *source run* as well as the steps: a pool that pointed
-    at `data/hb2` with the new key names would pass every key-shape test above
-    and quietly serve networks trained on the old `stuck` column.
+    one, so this pins the *source run* as well as the steps: a table that pointed
+    at `data/hb2` would pass every key-shape test above and quietly serve
+    networks trained on the old `stuck` column.
 
-    Since plan9a stage 4 `IMITATION_CHECKPOINT_DIR` is where H-C2 **trained**,
-    not necessarily where a seat loads from - step 1000 was published into
-    `ai/checkpoints/rl_h1000_0k/`. What has to hold either way: the source is
-    H-C2's run for all three, the filename still follows its `step_%06d`
-    convention (which `build_brain` rebuilds the path from), and the file the
-    seat actually opens is there.
+    Plan9 task 4 took the registry rows away but not the files, so the shape
+    changed with them: `IMITATION_KEYS` still names the chain for `rl/` (which
+    loads by step and directory, not by seat), while the *seat* accessors now
+    refuse every one of those names. Both halves are asserted - a table that
+    still answered `kind_of` would put a retired seat back in the product, and a
+    table that forgot the chain would break `rl.imitation`'s own tests.
     """
     assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
     assert seats.IMITATION_STEPS == (1000, 2000, 10000)
     assert seats.IMITATION_KEYS == {1000: "rl_h1000_0k", 2000: "hc_2000",
                                     10000: "hc_10000"}
-    from ai import registry as reg
     for step in seats.IMITATION_STEPS:
         key = seats.imitation_key(step)
-        assert seats.imitation_step(key) == step
-        entry = reg.entry(key)
-        assert os.path.dirname(entry["source"]) == \
-            seats.IMITATION_CHECKPOINT_DIR, key
-        assert os.path.basename(entry["source"]) == "step_%06d.pt" % step
-        assert os.path.basename(entry["checkpoint"]) == "step_%06d.pt" % step
-        assert os.path.exists(seats.imitation_checkpoint(key)), key
-    # A step with no registered name is refused rather than given a key of the
+        path = os.path.join(seats.IMITATION_CHECKPOINT_DIR,
+                            "step_%06d.pt" % step)
+        assert os.path.basename(path) == "step_%06d.pt" % step
+        assert os.path.exists(path), key
+        # the name is kept for the chain, and kept *out* of the product
+        assert seats.canonical_key(key) == key
+        assert key not in seats.automated_options()
+        assert not seats.is_imitation_key(key)
+        for refuse in (lambda: seats.imitation_step(key),
+                       lambda: seats.imitation_checkpoint(key),
+                       lambda: seats.kind_of(key)):
+            with pytest.raises(ValueError):
+                refuse()
+    # A step with no name at all is still refused rather than given a key of the
     # right shape and no file behind it - the `hc_9999` the prefix scheme made.
     with pytest.raises(ValueError):
         seats.imitation_key(9999)
@@ -568,8 +572,12 @@ def test_random_ai_draws_from_the_automated_options_only():
     assert list(pool) == sorted(selectable)
     assert len(set(pool)) == len(pool)
     assert not any(k.startswith("human") for k in pool)
-    assert any(seats.is_imitation_key(k) for k in pool)
+    # plan9 task 4: the draw is personalities and trained policies, nothing else
+    assert not any(seats.is_imitation_key(k) for k in pool)
     assert any(seats.is_rl_key(k) for k in pool)
+    for retired in ("hc_1000", "hc_2000", "hc_10000", "rl_h1000_0k",
+                    "rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k"):
+        assert retired not in pool
     # neither a checkpoint nor a trained policy is a personality, and nothing
     # else is in the pool either
     assert set(k for k in pool
@@ -648,8 +656,10 @@ def test_four_random_seats_mix_ai_and_checkpoints():
         g = Game(rng)
         g.setup_seats([seats.RANDOM_AI_KEY] * 4, None, rng)
         kinds |= set(g.seat_kinds.values())
-    assert kinds == {seats.KIND_AI, seats.KIND_IMITATION,
-                     seats.KIND_RL}, kinds
+    # `KIND_IMITATION` used to appear here too; the imitation family has been
+    # empty since plan9 task 4, so a random seat can only be a personality or a
+    # trained policy.
+    assert kinds == {seats.KIND_AI, seats.KIND_RL}, kinds
 
 
 def test_a_random_seat_beside_a_human_still_resolves():

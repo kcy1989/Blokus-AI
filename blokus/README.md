@@ -108,7 +108,7 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 
 ---
 
-## 七種 AI 人格
+## 七種 AI 人格，加四個訓練策略（共 11 個自動席位）
 
 人格分兩類：
 
@@ -125,13 +125,17 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 | `optimizer` | 優化者 | 規則 | 效率 — 大塊先放、留住可放空間 |
 | `builder` | 築城者 | 規則 | 築城 — 圍住一整塊放得下大棋的地 |
 | `hunter` | 獵手 | 規則 | 攻勢 — 開局定式，其後搶對手的可放空間 |
-| `rl_h1000_0k` | 模仿 1000 步 | 網絡 | H-C2 模仿資料上訓 1,000 步（舊名 `hc_1000`，仍為永久別名） |
-| `hc_2000` | 模仿 2000 步 | 網絡 | 同上，2,000 步 |
-| `hc_10000` | 模仿 10000 步 | 網絡 | 同上，10,000 步 |
 | `rl_h1000_20k` | 強化學習 rl_h1000_20k | 網絡 | 從 `rl_h1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `hunter`） |
 | `rl_o1000_20k` | 強化學習 rl_o1000_20k | 網絡 | 從 `rl_o1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `optimizer`） |
 | `rl_b1000_20k` | 強化學習 rl_b1000_20k | 網絡 | 從 `rl_b1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `builder`） |
 | `rl_i1000_20k` | 強化學習 rl_i1000_20k | 網絡 | 從 `rl_i1000_0k` 出發的 PPO，40 輪共 20,000 局（老師 `intruder`） |
+
+**六個模仿席位已於 plan9 任務四退出名册**（2026-10-10）：`rl_h1000_0k`（舊名
+`hc_1000`）、`hc_2000`、`hc_10000`，以及三個 1000 步學生
+`rl_{o,b,i}1000_0k`。它們**仍然是磁碟上的檔**（`data/hc2/` 與 `data/imit_*/`），
+`match.py --adhoc KEY=PATH` 仍然可以把其中一個綁成席位來重放舊證據；不能的是把它們
+當常規池選項、preset 或 `--subject`。`imitation_only` preset 同時退役，所以 preset
+只剩 `all`（11）／`no_imitation`（7 個人格）／`rl_only`（4 個訓練策略）。
 
 ### 訓練策略名稱的兩段數字單位不同
 
@@ -145,10 +149,11 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 | `20k` | **RL 局數** | PPO 單打 20,000 **局**（40 輪 × 500 局），**不是** 20 個模仿步 |
 
 所以 `rl_h1000_0k` 的 `1000` 與 `rl_h1000_20k` 的 `20k` 單位不同：前者數模仿步、後者
-數對局。兩個改名都用**別名**而不是第二列（`seats.ALIASES`）：舊名 `rl_1000_20k`
-與 `hc_1000` 仍解析到同一座位，舊指令與舊的 `records.json` 紀錄都讀得到；別名**不**
-進 `automated_options()`，所以池裡只列正式名，池大小不因別名增加（現為 17，
-見「GOLDEN 重採（plan9 發布三個 20k）」），排行榜也仍是同一列。
+數對局。改名一律用**別名**而不是第二列（`seats.ALIASES`）：別名**不**
+進 `automated_options()`，所以池裡只列正式名，池大小不因別名增加（現為 11，
+見「GOLDEN 重採（plan9 任務四）」），排行榜也仍是同一列。別名現在只剩一個
+（`rl_1000_20k` → `rl_h1000_20k`）：`hc_1000` 跟著 `rl_h1000_0k` 一起退出名册，
+兩個拼法都不再解析，舊的 `records.json` 列原樣保留、照樣讀得到。
 
 權重檔本身沒有改名：`data/rl1/step_000040.pt` 的檔名編碼的是**第幾輪**，不是策略
 名稱。
@@ -468,12 +473,14 @@ runpy 會先噴一條 `RuntimeWarning`；掛在套件上就沒有這個問題。
 | 檔案**存在** + **sha256** | **測試** 與 **`python -m ai --check`** |
 
 `enabled` 與 `selectable` 文案上是兩個問題（進常規池 vs. 出現在 UI 與隨機抽籤），
-但它們今天切的是同一組十七個 key 的兩種視圖，所以**兩個必須一起翻**；不一致會在
+但它們今天切的是同一組十一個 key 的兩種視圖，所以**兩個必須一起翻**；不一致會在
 import 就被拒絕，錯誤訊息指名那個 key。
 
-**`anchors()` 目前只有測試呼叫**。它回傳 `("rl_h1000_0k",)`，但 `rl/rl_train.py`
-還自己寫死 `hc_1000`：那是 `data/rl1/eval.jsonl` 的列名，改了會把同一條基線切成
-兩欄。RL 端要不要改接這個函式，是後續階段的決定。
+`ai/registry.py` 曾經有過 `anchors()` 與 `RL_KL_ANCHOR`（KL 錨的席位名），以及一條
+「anchor 必須在名册」的 roster 校驗；plan9 任務四把六個模仿席位退出名册時一併刪除，
+因為 KL 錨本身就是那個 0k 檔案，而它已經不是席位。`rl/rl_train.py` 的
+`INIT_CHECKPOINT` / `ANCHOR_CHECKPOINT` 與 eval 列名 `hc_1000` **沒有動**：那是檔案層
+的引用與歷史欄名，註解已標明「0k 已退役、僅檔案層引用」。
 
 **池的順序 = 依 key 排序**（plan9a 階段 3）。排序規則只有一處 ——
 `ai.registry.pool_order()`，見 `## 測試` 底下的「池的順序」。註冊表陣列順序
@@ -898,6 +905,109 @@ EOF
 | --- | --- |
 | 舊值（十四 key 池） | `7378167` |
 | 新值（十七 key 池） | 本提交 |
+
+### GOLDEN 重採（plan9 任務四：退出六個模仿席位，2026-10-10）
+
+plan9 任務四把 `rl_h1000_0k` / `hc_2000` / `hc_10000` / `rl_{o,b,i}1000_0k` 六列
+移出 `ai/registry.json`，`all` 池從 **17 列變 11 列**，`imitation_only` preset
+整組退役（它的六個成員一個都不剩，`no_imitation` 就是七個人格）。這是**組成變更**：
+`rng.choice` 抽的是 index，17 個排序位置全部重排，三個種子全部改變。
+
+| 池 | 任務四前 | 任務四後 |
+|---|---|---|
+| `all` | 17 | **11** |
+| `imitation_only` | 6 | **退役** |
+| `no_imitation` | 7 | 7 |
+| `rl_only` | 4 | 4 |
+
+**重算命令**（新值由這支命令在本提交的樹上產出；舊值即上一節的「新值」，由同一支
+命令在前一個 commit `30ee54e` 上產出）：
+
+```bash
+.venv-rl/bin/python - <<'EOF'
+from match import expand_pool, run_league
+
+def flat(rows):
+    return [r for game in rows for r in game]
+
+def seats_of(rows):
+    return [(k, c, r) for k, c, r, _rk, _p in flat(rows)]
+
+print(expand_pool("all"))
+for seed in (20260928, 7, 99):
+    print(seed, seats_of(run_league(2, seed=seed, options=expand_pool("all"))))
+EOF
+```
+
+舊值（十七 key 池）：
+
+```
+20260928  [('rl_b1000_0k','red',17), ('chess','blue',17), ('intruder','green',9),
+           ('hc_10000','yellow',15), ('rl_h1000_20k','yellow',5),
+           ('rl_h1000_20k','blue',0), ('hc_10000','red',19), ('fox','green',38)]
+7         [('rl_h1000_0k','green',13), ('hc_2000','yellow',19),
+           ('rl_i1000_0k','red',14), ('chess','blue',27), ('hunter','green',8),
+           ('hc_10000','yellow',27), ('intruder','red',16), ('rl_h1000_20k','blue',9)]
+99        [('rl_i1000_0k','yellow',7), ('rl_i1000_0k','red',13),
+           ('intruder','blue',17), ('hunter','green',4), ('rl_i1000_20k','yellow',7),
+           ('fox','red',32), ('hc_2000','green',4), ('rl_b1000_20k','blue',4)]
+```
+
+新值（十一 key 池）：
+
+```
+20260928  [('wolf','red',24), ('rl_i1000_20k','yellow',8), ('intruder','blue',17),
+           ('builder','green',8), ('chess','red',20), ('fox','green',37),
+           ('rl_i1000_20k','yellow',4), ('rl_o1000_20k','blue',18)]
+7         [('optimizer','green',21), ('fox','red',18), ('rl_b1000_20k','yellow',12),
+           ('wolf','blue',36), ('rl_b1000_20k','red',8), ('wolf','blue',18),
+           ('optimizer','green',9), ('builder','yellow',22)]
+99        [('rl_b1000_20k','yellow',8), ('rl_b1000_20k','red',4),
+           ('hunter','blue',18), ('rl_o1000_20k','green',20),
+           ('rl_i1000_20k','yellow',9), ('wolf','blue',33), ('chess','green',41),
+           ('rl_h1000_20k','red',0)]
+```
+
+`GOLDEN_POOL` 同步改成 11 個 key 的字面清單。**其餘因名册變動而重採或放寬的斷言，
+逐條說明**：
+
+| 測試 | 原本釘住 | 改法與理由 |
+|---|---|---|
+| `test_registry_json::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` | `keys[:11]` ＋ `keys[11:]` 兩段切片、17 個 `(key,kind,family)` 三元組 | 改成**一份**11 列的字面列序＋11 個三元組。原本拆兩段是為了「前 11 列正是階段 3 釘過的那份」；這次從**中間**移除六列，那個說法不再成立，所以整列重釘。釘的力道沒有變弱：仍然是一份人手打的清單 |
+| `test_registry_json::test_anchors_names_one_seat_and_it_is_the_registered_spelling` | `anchors() == ("rl_h1000_0k",)`、anchor 必須可 resolve | **除檔**（裁決 3）。被測的函式與常數已刪 |
+| `test_registry_json::test_an_anchor_that_is_not_registered_is_refused` | `_validate_roster` 對缺席 anchor raise | **除檔**（裁決 3）。校驗整段刪除，函式體確認只有 anchor 一項檢查 |
+| `test_registry_json::test_the_json_lists_the_checkpoints_in_step_order` | 模仿家族的列序等於 `IMITATION_KEYS` 的列序 | 改為 `test_the_imitation_family_is_empty`：家族空了就沒有第二邊可比，改釘「空」本身。`IMITATION_KEYS` 表由 `test_seats::test_the_hc2_chain_still_points_at_hc2_files` 接手 |
+| `test_registry_json::test_every_imitation_key_step_is_its_checkpoint_filename_step` | 每個模仿 key 的 `checkpoint` 檔名解析回它的 step | **除檔**：迴圈在空家族上是空真，留下來只會讓人以為還在驗什麼 |
+| `test_registry_json::test_a_checkpoint_name_that_is_not_a_step_file_raises` | monkeypatch `registry_checkpoint` 回一個不合慣例的路徑 → `imitation_step` raise | **除檔**：被驗的解析讀的是 registry 的 `checkpoint` 欄，而模仿席位已經沒有那一欄。檔名慣例的另一半（`step_%06d.pt` 且檔案真的在）改由 `test_seats::test_the_hc2_chain_still_points_at_hc2_files` 對 `data/hc2` 的三個檔驗 |
+| `test_registry_json::test_ai_checkpoints_holds_nothing_unpublished` | `ai/checkpoints/` 內容 == 已註冊的 `ai/checkpoints/` 路徑 | **過渡態**：四個 0k 副本在本提交仍在磁碟上（刪除是同一任務的第二個提交）。改成 `已註冊 ∪ PENDING_REMOVAL`，`PENDING_REMOVAL` 是四個檔名的字面清單，並多斷言它與已註冊集合不相交。第二個提交連檔帶清單一起刪 |
+| `test_seats::test_the_checkpoint_seats_are_the_hc2_run` | 每個 H-C2 step 經 `registry.entry` 對上 `source` / `checkpoint` | 改為 `test_the_hc2_chain_still_points_at_hc2_files`：registry 沒有那些列了，改釘「`IMITATION_STEPS` / `IMITATION_KEYS` / `IMITATION_CHECKPOINT_DIR` 仍指向 `data/hc2` 的三個檔」＋「三個名字都不再是席位」（`kind_of` / `imitation_step` / `imitation_checkpoint` 一律 raise）。這是**放寬**：原本還驗 `source` 欄與 sha256 對應關係，那欄已隨列刪除；換來的是「退休後沒有靜默路徑」這條新性質 |
+| `test_seats::test_every_option_is_one_of_the_three_kinds_of_contestant` | `imitation_step` 對六個模仿席位解出 `[1000,1000,1000,1000,2000,10000]` | 改為斷言 `families["imitation"] == []` 且 `imitating == []`。**放寬**：step 解析那條不再在這驗，改由 H-C2 鏈測試對檔名驗 |
+| `test_seats::test_every_network_seat_is_actually_in_the_repository` | 逐個 `imitation_checkpoint(imitation_key(s))` 走 `git check-ignore` | 只留四個 `rl_checkpoint`。**收窄，但性質更準**：這條測的是「`build_brain` 會開的檔必須在版本控制裡」，而 `build_brain` 現在只會開訓練策略的檔 |
+| `test_seats::test_random_ai_draws_from_the_automated_options_only` | `any(is_imitation_key(k))` 為真 | 改為「為假」＋逐個斷言七個退休名不在池內 |
+| `test_seats::test_four_random_seats_mix_ai_and_checkpoints` | 六十次隨機開局湊齊 `{KIND_AI, KIND_IMITATION, KIND_RL}` | 改為 `{KIND_AI, KIND_RL}`，並註明 `KIND_IMITATION` 已不可能出現 |
+| `test_match::test_only_imitation_options_can_be_asked_for` | `is_imitation_key` 篩出六個，字面釘其列序 | 改為 `test_the_retired_imitation_options_are_not_league_options`：六個退休名逐個斷言「不在 `league_options()`、`canonical_key` 原樣回傳、`kind_of` 與 `expand_pool` raise」。字面清單留下來當證據，不從空家族推導 |
+| `test_match_pool` 的 preset 測試 | `imitation_only` 與三子池分割 | 改名 `test_the_three_presets_match_the_registry_and_partition_all`，分割斷言改為 `no_imitation ∪ rl_only == all` 且兩者不相交，並多斷言 `set(POOL_PRESETS) == set(POOL_NAMES)`；`test_the_imitation_preset_on_its_own`（真的跑一場 imitation_only 聯賽）改為 `test_the_retired_imitation_preset_is_a_usage_error`（`--pool imitation_only` 是 usage error 且不產出檔） |
+| `test_match_pool` 的混合清單測試 | 用 `hc_2000` / `hc_10000` 當「preset 之外再加一個」的範例 | 全部換成 `rl_h1000_20k` / `rl_o1000_20k`：仍然在 `no_imitation` 之外、仍然是已註冊席位，範例想說的事（聯集、去重、順序與輸入無關）一項不變 |
+| `test_match_pool::test_a_repeated_option_keeps_two_distinct_places` | 單一選項池、種子 3 → 名次 `[1,2,3,4]` 且餘格四個都不同 | 換成 `rl_h1000_20k` 之後種子 3 會平手（名次 `[1,1,3,4]`）。改斷言「四列不因選項相同而合併」＋把並列規則（名次 = 嚴格更好的席位數 + 1）從餘格重述。**放寬**：不再要求四個名次互異，因為那是當時那副權重碰巧的結果，不是性質 |
+| `test_match_pool::test_each_seat_row_carries_its_own_rank_and_points` | 名次集合從 1 起**無缺口** | 同上，改為並列規則重述。**修正**：無缺口在有平手時本來就不成立（競賽排名會跳號），先前只是那局沒平手 |
+| `test_match_pool::test_literal_replays_a_batch_committed_before_the_sort` | `--subject hc_1000` 直接可用 | 補 `--adhoc hc_1000=data/hc2/step_001000.pt`。**這是裁決 7 要的形狀**：舊證據的席位用 `--adhoc` 綁回來，其餘逐位比對不變 |
+| `test_match_pool::test_a_literal_run_keeps_the_batch_spelling_and_normalises_the_leaderboard` | `--pool hc_1000` → 排行榜長出 `rl_h1000_0k` 列 | 換成唯一還活著的別名 `rl_1000_20k` → `rl_h1000_20k`。**性質不變**（批次保留 caller 拼法、排行榜寫正規名）；用 `hc_1000` 會變成在測 `--adhoc` 而不是別名 |
+| `test_seat_alias_hc.py` 整檔 | 兩個拼法是同一席位：都解析、都載同一份權重、寫入會併到新名 | **整檔改寫**（裁決 4）：改成「兩個舊拼寫**都**不在名册」——不在 `keys()`、不在 `automated_options()`、不在任何 pool、不是別名、`kind_of`/`expand_pool` raise；`canonical_key` 對它們原樣回傳，所以舊 `records.json` 列讀得到、新寫入也留在原名下。原來那幾條（同一份權重、同一手棋、write-through 併列）測的席位已不存在，連同斷言一起退場；權重相同這件事由兩邊的 md5 與 `test_eval_evidence` 繼續釘 |
+| `test_ui_smoke::test_a_leaderboard_row_under_the_old_key_is_named_in_chinese` | `seat_label("hc_1000") == seat_label("rl_h1000_0k")` 且不是鍵名 | 改為「退休鍵原樣印出、不炸也不空」。別名沒了，就沒有中文名可給；不變的性質是「排行榜印檔案裡的鍵，且對不認識的鍵有定義良好的行為」 |
+| `test_ui_smoke` 的重複選項三條測試 | 用 `hc_10000` / `hc_2000` 當兩個同選項的席位 | 換成 `rl_o1000_20k` / `rl_b1000_20k`，斷言一字未改 |
+| `test_match_paired_rng` 的四條 | `hc_1000` 當「人格 ↔ 網絡」邊界的另一端、`S.build_brain("hc_1000", …)` | 換成 `rl_h1000_20k`：仍然是已註冊的訓練策略、仍然「建構時不從 rng 抽牌」，不對稱照樣存在 |
+| `tests/test_{ppo,rl_policy,rl_train,rl_imitation,rl_rollout}.py` 模組頭 | `CHECKPOINT_DIR = dirname(imitation_checkpoint(imitation_key(1000)))` | 改為 `seats.IMITATION_CHECKPOINT_DIR`（就是 `data/hc2`，第二個提交把它納入版控）。四個會「開一局」的模組各加一個 module-scoped 的 `bind_retired_0k`：`seats.register_adhoc("rl_h1000_0k", …)`——與 `match.py --adhoc` 同一個呼叫，所以測試走的是支援路徑而不是私有後門 |
+
+同次新增：`test_registry_json::test_the_imitation_family_is_empty`、
+`test_seats::test_the_hc2_chain_still_points_at_hc2_files`、
+`test_match::test_the_retired_imitation_options_are_not_league_options`、
+`test_match_pool::test_the_retired_imitation_preset_is_a_usage_error`、
+`test_seat_alias_hc` 的六條退休斷言。
+
+| | commit |
+| --- | --- |
+| 舊值（十七 key 池） | `30ee54e` |
+| 新值（十一 key 池） | 本提交 |
 
 ### 依主題
 

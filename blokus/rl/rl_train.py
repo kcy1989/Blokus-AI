@@ -63,6 +63,10 @@ from rl import rollout as rollout_mod
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_OUT_DIR = os.path.join(PROJECT_DIR, "data", "rl1")
+# The 0k weights as a *file*. Plan9 task 4 retired `rl_h1000_0k` (and the
+# `hc_1000` spelling) from the roster, so neither names a seat any more - this
+# is a path reference only, and it stays a path because training starts from
+# bytes, not from a seat option. Nothing here resolves it through `seats`.
 INIT_CHECKPOINT = os.path.join("data", "hc2", "step_001000.pt")
 ANCHOR_CHECKPOINT = INIT_CHECKPOINT
 SEED_BASE = rollout_mod.RL_SEED_BASE
@@ -477,6 +481,9 @@ def evaluate(current_path, anchor_path, cfg, device=None):
     """
     specs, _man = eval_specs(cfg)
     rows = {}
+    # "hc_1000" is the *column name* in `data/rl1/eval.jsonl`, not a seat: the
+    # 0k checkpoint left the roster in plan9 task 4 and this label is kept
+    # because renaming it would split one baseline into two columns of history.
     for label, path in (("current", current_path), ("hc_1000", anchor_path)):
         eps = rollout_mod.play_batch(specs, path, n_procs=min(cfg.n_procs, 4),
                                      device=None, mode="argmax")
@@ -714,6 +721,9 @@ def _load_anchor(path, device=None, kl_coef=0.0):
         return None, None
     from rl.policy import load_policy
     net, _meta = load_policy(path, device=device)
+    # File-level label only. The 0k checkpoint is no longer a registered seat
+    # (plan9 task 4); this string travels with the anchor net inside the
+    # training process and is never handed to `seats` or to a game.
     net.key = "hc_1000"
     return net, None
 

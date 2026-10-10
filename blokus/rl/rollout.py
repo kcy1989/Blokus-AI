@@ -431,10 +431,19 @@ def seat_for(net, learner_key=None):
     code `plan8-A` found should stay the single definition.
 
     The stand-in is the first H-C2 seat - `rl_h1000_0k`, which the retired
-    `hc_1000` still resolves to - rather than a personality on purpose: if the
+    `hc_1000` used to resolve to - rather than a personality on purpose: if the
     swap were ever missed, a personality would silently play the learner's moves
     and the run would look fine. A wrong stand-in's moves are at least a
     different policy from round one.
+
+    Since plan9 task 4 that name has left the roster, so the fallback is no
+    longer a seat on its own: it is only reached when neither `learner_key` nor
+    the network's own `key` is one. Checking it here rather than letting
+    `Game.setup_seats` reject it keeps the failure where the cause is - the
+    caller forgot to name or bind the learner - instead of surfacing as a
+    roster complaint about a seat nobody just asked for. Binding the file with
+    `seats.register_adhoc` makes the old name a seat again and the fallback
+    keeps answering.
     """
     import seats
     candidates = []
@@ -449,7 +458,16 @@ def seat_for(net, learner_key=None):
         except ValueError:
             continue
         return key, swap
-    return seats.imitation_key(seats.IMITATION_STEPS[0]), True
+    key = seats.imitation_key(seats.IMITATION_STEPS[0])
+    try:
+        seats.kind_of(key)
+    except ValueError:
+        raise ValueError(
+            "no seat key to stand the learner in under: %r left the roster "
+            "when plan9 task 4 retired the 0k checkpoints, and neither "
+            "learner_key nor net.key names a seat. Pass learner_key, set "
+            "net.key, or bind the file with seats.register_adhoc" % (key,))
+    return key, True
 
 
 def make_specs(start_seed, n, rng_seed=None, own=None):

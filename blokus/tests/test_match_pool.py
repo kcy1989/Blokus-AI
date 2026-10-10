@@ -40,6 +40,11 @@ AUTOMATED = seats_mod.automated_options()
 PERSONALITIES = [k for k in AUTOMATED
                  if not seats_mod.is_imitation_key(k)
                  and not seats_mod.is_rl_key(k)]
+# Empty since plan9 task 4, which retired the imitation family outright. Kept
+# as a name rather than inlined, because every assertion below that used to say
+# "and the imitation preset is exactly these" still has to say *something* about
+# the family - "no key is one" is the claim, and it is not vacuous just because
+# the list is.
 STEPS = [k for k in AUTOMATED if seats_mod.is_imitation_key(k)]
 TRAINED = [k for k in AUTOMATED if seats_mod.is_rl_key(k)]
 
@@ -77,7 +82,7 @@ def test_an_unknown_name_is_refused_and_lists_what_is_legal():
         expand_pool("wizard")
     msg = str(exc.value)
     assert "wizard" in msg
-    for name in ("all", "no_imitation", "imitation_only"):
+    for name in R.POOL_NAMES:
         assert name in msg
     for name in AUTOMATED:
         assert name in msg
@@ -140,36 +145,39 @@ def test_the_cli_reports_a_bad_pool_as_a_usage_error(tmp_path):
 
 # ----------------------------------------------------------------- presets
 
-def test_the_four_presets_match_the_registry_and_partition_all():
+def test_the_three_presets_match_the_registry_and_partition_all():
     """Stage 8: the sizes follow the roster, so the shape has to carry the test.
 
     Every `== 14` that used to live here is now a comparison against
-    `ai/registry.json`, which means registering a fifteenth seat does not
+    `ai/registry.json`, which means registering a twelfth seat does not
     touch this file. What still has to hold at *any* roster size - and what
     takes the place of those numbers - is the structure: `match` and the
-    registry read the same membership, the three sub-pools are pairwise
-    disjoint (the plan names `imitation_only & rl_only == []`), together they
-    are exactly `all`, and every pool is in key order.
+    registry read the same membership, the two sub-pools are disjoint, together
+    they are exactly `all`, and every pool is in key order.
 
-    The literal count survives elsewhere: `GOLDEN_POOL` below is a
-    seventeen-element list compared against `expand_pool("all")`, so a roster
+    There used to be three sub-pools. `imitation_only` went with the six
+    retired imitation seats in plan9 task 4 - a preset whose every member had
+    left the roster is not a preset - so the partition is now personalities
+    against trained policies, and `no_imitation & rl_only == []` is the whole
+    disjointness claim.
+
+    The literal count survives elsewhere: `GOLDEN_POOL` below is an
+    eleven-element list compared against `expand_pool("all")`, so a roster
     edit still fails loudly, in a test that says which key moved.
     """
+    assert set(POOL_PRESETS) == set(R.POOL_NAMES)
     for name, keys in POOL_PRESETS.items():
         assert list(keys) == list(R.pool(name)), name
         assert list(expand_pool(name)) == list(keys), name
         assert list(keys) == sorted(keys), name
     sets = {n: set(k) for n, k in POOL_PRESETS.items()}
-    assert sets["no_imitation"] & sets["imitation_only"] == set()
     assert sets["no_imitation"] & sets["rl_only"] == set()
-    assert sets["imitation_only"] & sets["rl_only"] == set()
-    assert (sets["no_imitation"] | sets["imitation_only"]
-            | sets["rl_only"]) == sets["all"]
+    assert (sets["no_imitation"] | sets["rl_only"]) == sets["all"]
     assert sets["all"] == set(expand_pool(None)) == set(league_options())
-    # and the three sub-pools are still the three kinds of contestant
+    # and the two sub-pools are still the two kinds of contestant left
     assert sets["no_imitation"] == set(PERSONALITIES)
-    assert sets["imitation_only"] == set(STEPS)
     assert sets["rl_only"] == set(TRAINED)
+    assert STEPS == []
 
 
 def test_no_imitation_leaves_out_the_trained_policy_too():
@@ -179,8 +187,6 @@ def test_no_imitation_leaves_out_the_trained_policy_too():
     assert "rl_h1000_20k" not in POOL_PRESETS["no_imitation"]
     assert "rl_h1000_20k" not in expand_pool("no_imitation")
     assert "rl_h1000_20k" in POOL_PRESETS["all"]
-    # and imitation_only keeps meaning imitation
-    assert "rl_h1000_20k" not in POOL_PRESETS["imitation_only"]
     # the pre-rename spelling resolves to the same option and so is excluded too
     assert "rl_1000_20k" not in expand_pool("no_imitation")
 
@@ -188,23 +194,28 @@ def test_no_imitation_leaves_out_the_trained_policy_too():
 def test_presets_expand_to_the_expected_names():
     assert expand_pool("all") == list(AUTOMATED)
     assert expand_pool("no_imitation") == PERSONALITIES
-    assert expand_pool("imitation_only") == STEPS
     assert expand_pool("rl_only") == TRAINED
+    with pytest.raises(ValueError) as exc:
+        expand_pool("imitation_only")
+    assert "imitation_only" in str(exc.value)
 
 
 # -------------------------------------------------------------- mixed lists
 
 def test_a_preset_plus_one_name_is_a_union():
-    """`no_imitation,hc_2000` is every personality plus one checkpoint.
+    """`no_imitation,rl_h1000_20k` is every personality plus one checkpoint.
 
     Said as membership rather than as a length: the length was 8 only while
     the roster had seven personalities, and a union does not need to know
-    either number to be right.
+    either number to be right. The checkpoint used to be `hc_2000`; plan9 task
+    4 retired it, and the trained policy is the seat that took its place in
+    this example - still outside `no_imitation`, which is what the example is
+    about.
     """
-    pool = expand_pool("no_imitation,hc_2000")
+    pool = expand_pool("no_imitation,rl_h1000_20k")
     assert pool == [k for k in AUTOMATED
-                    if k in PERSONALITIES or k == "hc_2000"]
-    assert set(pool) == set(PERSONALITIES) | {"hc_2000"}
+                    if k in PERSONALITIES or k == "rl_h1000_20k"]
+    assert set(pool) == set(PERSONALITIES) | {"rl_h1000_20k"}
     assert len(pool) == len(set(pool))
 
 
@@ -215,12 +226,12 @@ def test_the_ruled_mixed_examples():
     different hat; membership is what the examples were ever about, and it
     holds for any roster.
     """
-    assert set(expand_pool("no_imitation,hc_2000")) == \
-        set(PERSONALITIES) | {"hc_2000"}
+    assert set(expand_pool("no_imitation,rl_h1000_20k")) == \
+        set(PERSONALITIES) | {"rl_h1000_20k"}
     assert expand_pool("no_imitation,hunter") == PERSONALITIES
-    assert set(expand_pool("no_imitation,hc_2000,hc_10000")) == \
-        set(PERSONALITIES) | {"hc_2000", "hc_10000"}
-    assert expand_pool("hc_2000,hc_2000") == ["hc_2000"]
+    assert set(expand_pool("no_imitation,rl_h1000_20k,rl_o1000_20k")) == \
+        set(PERSONALITIES) | {"rl_h1000_20k", "rl_o1000_20k"}
+    assert expand_pool("rl_h1000_20k,rl_h1000_20k") == ["rl_h1000_20k"]
 
 
 def test_an_overlapping_name_adds_no_weight():
@@ -235,24 +246,24 @@ def test_an_overlapping_name_adds_no_weight():
 
 
 def test_a_repeated_item_collapses_to_one():
-    assert expand_pool("hc_2000,hc_2000") == ["hc_2000"]
-    assert len(expand_pool("hc_2000,hc_2000")) == 1
+    assert expand_pool("rl_h1000_20k,rl_h1000_20k") == ["rl_h1000_20k"]
+    assert len(expand_pool("rl_h1000_20k,rl_h1000_20k")) == 1
 
 
 # ------------------------------------------------------------------- order
 
 def test_the_expanded_order_does_not_depend_on_the_input_order():
-    pairs = [("hc_2000,no_imitation", "no_imitation,hc_2000"),
-             ("all", "no_imitation,imitation_only,rl_only"),
+    pairs = [("rl_h1000_20k,no_imitation", "no_imitation,rl_h1000_20k"),
+             ("all", "no_imitation,rl_only"),
              ("hunter,wolf", "wolf,hunter"),
-             ("hc_10000,imitation_only,no_imitation,rl_only", "all")]
+             ("rl_o1000_20k,no_imitation,rl_only", "all")]
     for a, b in pairs:
         assert expand_pool(a) == expand_pool(b), (a, b)
 
 
 def test_the_expanded_order_is_the_fixed_option_order():
-    for text in ("all", "hc_10000,hc_2000", "hunter,wolf",
-                 "no_imitation,imitation_only,rl_only"):
+    for text in ("all", "rl_o1000_20k,rl_h1000_20k", "hunter,wolf",
+                 "no_imitation,rl_only"):
         pool = expand_pool(text)
         assert pool == [k for k in AUTOMATED if k in set(pool)], text
 
@@ -260,18 +271,20 @@ def test_the_expanded_order_is_the_fixed_option_order():
 def test_the_same_pool_played_in_two_orders_gives_the_same_games():
     """Not just the same list - the same games. The draw is over the list, so a
     different order would shuffle every seat."""
-    a = seats_of(run_league(2, seed=5, options=expand_pool("no_imitation,hc_2000")))
-    b = seats_of(run_league(2, seed=5, options=expand_pool("hc_2000,no_imitation")))
+    a = seats_of(run_league(2, seed=5,
+                            options=expand_pool("no_imitation,rl_h1000_20k")))
+    b = seats_of(run_league(2, seed=5,
+                            options=expand_pool("rl_h1000_20k,no_imitation")))
     assert a == b
 
 
 def test_whitespace_and_quoting_are_tolerated():
-    want = expand_pool("no_imitation,hc_2000")
-    for text in ("no_imitation,hc_2000",
-                 "no_imitation, hc_2000",
-                 "  no_imitation ,  hc_2000  ",
-                 '"no_imitation,hc_2000"',
-                 "'no_imitation,hc_2000'"):
+    want = expand_pool("no_imitation,rl_h1000_20k")
+    for text in ("no_imitation,rl_h1000_20k",
+                 "no_imitation, rl_h1000_20k",
+                 "  no_imitation ,  rl_h1000_20k  ",
+                 '"no_imitation,rl_h1000_20k"',
+                 "'no_imitation,rl_h1000_20k'"):
         assert expand_pool(text) == want, text
 
 
@@ -279,11 +292,11 @@ def test_whitespace_and_quoting_are_tolerated():
 
 def test_no_option_outside_the_pool_ever_appears():
     for text, allowed in (("no_imitation", set(PERSONALITIES)),
-                          ("imitation_only", set(STEPS)),
-                          ("hc_1000,hc_10000", {"rl_h1000_0k",
-                                                 "hc_10000"}),
-                          ("no_imitation,hc_2000",
-                           set(PERSONALITIES) | {"hc_2000"})):
+                          ("rl_only", set(TRAINED)),
+                          ("rl_h1000_20k,rl_o1000_20k",
+                           {"rl_h1000_20k", "rl_o1000_20k"}),
+                          ("no_imitation,rl_h1000_20k",
+                           set(PERSONALITIES) | {"rl_h1000_20k"})):
         rows = run_league(2, seed=11, options=expand_pool(text))
         assert {k for k, _c, _r, _rk, _p in flat(rows)} <= allowed, text
     # specifically: no imitation seat in the personality pool
@@ -324,7 +337,7 @@ def test_repeat_drawing_is_still_allowed():
 # ------------------------------------------------------------ reproducibility
 
 def test_the_same_seed_replays():
-    for text in ("all", "no_imitation", "no_imitation,hc_2000"):
+    for text in ("all", "no_imitation", "no_imitation,rl_h1000_20k"):
         a = seats_of(run_league(2, seed=31, options=expand_pool(text)))
         b = seats_of(run_league(2, seed=31, options=expand_pool(text)))
         assert a == b, text
@@ -372,30 +385,34 @@ def test_no_pool_at_all_means_all():
 # values, new values and the command they were recaptured with are in
 # README.md under 「GOLDEN 重採（plan9 發布三個 20k）」.
 #
+# **Recaptured a sixth time by plan9 task 4** (2026-10-10), which retired the six
+# imitation seats: seventeen keys down to eleven, so every index moved and all
+# three seeds changed again. Old values, new values and the recapture command
+# are in README.md under 「GOLDEN 重採（plan9 任務四：退出六個模仿席位）」.
+#
 # **The pool is spelled out rather than read.** `GOLDEN_POOL` below is a literal
 # list: GOLDEN is evidence, and evidence that derives itself from the registry
 # follows the registry instead of failing when the roster changes.
 # `test_the_pinned_pool_is_still_the_registry_s_pool` is the one place the two
 # are allowed to meet, and it is what turns a roster edit into a loud failure
 # here rather than a silent drift.
-GOLDEN_POOL = ["builder", "chess", "fox", "hc_10000", "hc_2000", "hunter",
-               "intruder", "optimizer", "rl_b1000_0k", "rl_b1000_20k",
-               "rl_h1000_0k", "rl_h1000_20k", "rl_i1000_0k", "rl_i1000_20k",
-               "rl_o1000_0k", "rl_o1000_20k", "wolf"]
+GOLDEN_POOL = ["builder", "chess", "fox", "hunter", "intruder", "optimizer",
+               "rl_b1000_20k", "rl_h1000_20k", "rl_i1000_20k", "rl_o1000_20k",
+               "wolf"]
 
 GOLDEN = {
-    20260928: [('rl_b1000_0k', 'red', 17), ('chess', 'blue', 17),
-               ('intruder', 'green', 9), ('hc_10000', 'yellow', 15),
-               ('rl_h1000_20k', 'yellow', 5), ('rl_h1000_20k', 'blue', 0),
-               ('hc_10000', 'red', 19), ('fox', 'green', 38)],
-    7: [('rl_h1000_0k', 'green', 13), ('hc_2000', 'yellow', 19),
-        ('rl_i1000_0k', 'red', 14), ('chess', 'blue', 27),
-        ('hunter', 'green', 8), ('hc_10000', 'yellow', 27),
-        ('intruder', 'red', 16), ('rl_h1000_20k', 'blue', 9)],
-    99: [('rl_i1000_0k', 'yellow', 7), ('rl_i1000_0k', 'red', 13),
-         ('intruder', 'blue', 17), ('hunter', 'green', 4),
-         ('rl_i1000_20k', 'yellow', 7), ('fox', 'red', 32),
-         ('hc_2000', 'green', 4), ('rl_b1000_20k', 'blue', 4)],
+    20260928: [('wolf', 'red', 24), ('rl_i1000_20k', 'yellow', 8),
+               ('intruder', 'blue', 17), ('builder', 'green', 8),
+               ('chess', 'red', 20), ('fox', 'green', 37),
+               ('rl_i1000_20k', 'yellow', 4), ('rl_o1000_20k', 'blue', 18)],
+    7: [('optimizer', 'green', 21), ('fox', 'red', 18),
+        ('rl_b1000_20k', 'yellow', 12), ('wolf', 'blue', 36),
+        ('rl_b1000_20k', 'red', 8), ('wolf', 'blue', 18),
+        ('optimizer', 'green', 9), ('builder', 'yellow', 22)],
+    99: [('rl_b1000_20k', 'yellow', 8), ('rl_b1000_20k', 'red', 4),
+         ('hunter', 'blue', 18), ('rl_o1000_20k', 'green', 20),
+         ('rl_i1000_20k', 'yellow', 9), ('wolf', 'blue', 33),
+         ('chess', 'green', 41), ('rl_h1000_20k', 'red', 0)],
 }
 
 
@@ -434,11 +451,10 @@ def test_the_pinned_pool_is_still_the_registry_s_pool():
     assert GOLDEN_POOL == sorted(GOLDEN_POOL)
 
 
-def test_all_equals_the_three_presets_that_partition_it():
+def test_all_equals_the_two_presets_that_partition_it():
     rows = seats_of(run_league(1, seed=20260928, options=expand_pool("all")))
     same = seats_of(run_league(1, seed=20260928,
-                               options=expand_pool("no_imitation,imitation_only,"
-                                                   "rl_only")))
+                               options=expand_pool("no_imitation,rl_only")))
     assert rows == same
 
 
@@ -476,17 +492,37 @@ def test_each_seat_row_carries_its_own_rank_and_points():
             if remaining[i] < remaining[j]:
                 assert ranks[i] < ranks[j] and points[i] > points[j], (i, j)
     assert min(ranks) == 1
-    assert sorted(set(ranks)) == list(range(1, len(set(ranks)) + 1))
+    # Competition ranking, restated from the rows rather than from the ranks:
+    # a seat's place is 1 plus the number of seats strictly ahead of it. The
+    # "no gap" assertion that used to stand here was the same claim in a form
+    # that only holds when nothing ties - seed 20260928 now puts two seats on
+    # 8 cells and the places run 1, 1, 3, 4.
+    for i in range(4):
+        assert ranks[i] == 1 + sum(1 for j in range(4)
+                                   if remaining[j] < remaining[i]), \
+            (i, remaining, ranks)
 
 
 def test_a_repeated_option_keeps_two_distinct_places():
     """The fix that made same-option seats score separately: with a one-option
-    pool all four seats share a key, and each still carries its own rank."""
-    rows = run_league(1, seed=3, options=expand_pool("hc_2000"))
-    assert {k for k, *_ in rows[0]} == {"hc_2000"}
-    assert sorted(r for _k, _c, _rem, r, _p in rows[0]) == [1, 2, 3, 4]
-    # a tie would share a place, so distinct ranks means distinct scores
-    assert len({rem for _k, _c, rem, _r, _p in rows[0]}) == 4
+    pool all four seats share a key, and each still carries its own row.
+
+    Ties share a place on purpose (`records.rank_rows`), so this cannot demand
+    four distinct ranks - what it can demand is that the four seats did not
+    collapse into one row, and that the places are the competition rule's.
+    """
+    rows = run_league(1, seed=3, options=expand_pool("rl_h1000_20k"))
+    assert len(rows[0]) == 4
+    assert {k for k, *_ in rows[0]} == {"rl_h1000_20k"}
+    remaining = [row[2] for row in rows[0]]
+    ranks = [row[3] for row in rows[0]]
+    points = [row[4] for row in rows[0]]
+    for i in range(4):
+        assert ranks[i] == 1 + sum(1 for j in range(4)
+                                   if remaining[j] < remaining[i]), \
+            (i, remaining, ranks)
+        assert points[i] == [4, 3, 2, 1][ranks[i] - 1], (ranks, points)
+    assert min(ranks) == 1
 
 
 def test_summarise_counts_every_seat_not_every_key():
@@ -548,7 +584,7 @@ def test_the_cli_writes_its_own_file_and_not_the_leaderboard(tmp_path, monkeypat
 
 def test_the_default_output_path_is_under_data_and_not_records(tmp_path, monkeypatch):
     monkeypatch.setattr(match, "DEFAULT_OUT_DIR", str(tmp_path / "m"), raising=False)
-    path = match.default_out_path(7, 3, "no_imitation,hc_2000")
+    path = match.default_out_path(7, 3, "no_imitation,rl_h1000_20k")
     assert os.path.dirname(path) == str(tmp_path / "m")
     assert path.endswith(".json")
     assert "records" not in os.path.basename(path)
@@ -557,8 +593,8 @@ def test_the_default_output_path_is_under_data_and_not_records(tmp_path, monkeyp
 
 def test_the_default_output_path_is_the_same_for_the_same_run(tmp_path, monkeypatch):
     monkeypatch.setattr(match, "DEFAULT_OUT_DIR", str(tmp_path / "m"), raising=False)
-    a = match.default_out_path(7, 3, "no_imitation,hc_2000")
-    b = match.default_out_path(7, 3, "no_imitation,hc_2000")
+    a = match.default_out_path(7, 3, "no_imitation,rl_h1000_20k")
+    b = match.default_out_path(7, 3, "no_imitation,rl_h1000_20k")
     assert a == b
 
 
@@ -580,31 +616,20 @@ def test_the_steps_flag_says_it_is_unrecognised():
     assert "unrecognized arguments: --steps" in err.stderr
 
 
-def test_the_imitation_preset_on_its_own(tmp_path):
-    """What `--steps` used to do, now said the one way."""
-    out = tmp_path / "imitation.json"
-    assert main(["--games", "2", "--seed", "5", "--pool", "imitation_only",
-                 "--dry", "--out", str(out)]) == 0
-    data = json.loads(out.read_text(encoding="utf-8"))
-    assert data["pool"] == STEPS
-    assert data["pool_size"] == len(data["pool"])
-    assert all(seats_mod.is_imitation_key(k) for k in data["pool"])
-    # Who actually *sat* is a draw, not a promise: eight seats cannot be
-    # assumed to cover every key in the pool once the pool grows, so this is
-    # containment rather than equality. What has to hold either way is that
-    # nothing outside the preset appeared.
-    assert set(data["appearances"]) <= set(STEPS)
-    assert sum(data["appearances"].values()) == 8
-    # and nothing outside the six ever appears
-    for game in data["games_detail"]:
-        for row in game:
-            assert row[0] in STEPS, row
-    # the same seed replays it
-    again = tmp_path / "again.json"
-    main(["--games", "2", "--seed", "5", "--pool", "imitation_only",
-          "--dry", "--out", str(again)])
-    assert json.loads(again.read_text(encoding="utf-8"))["games_detail"] == \
-        data["games_detail"]
+def test_the_retired_imitation_preset_is_a_usage_error(tmp_path):
+    """What `--steps` used to do, and then `imitation_only`: both gone.
+
+    The preset is not silently empty - an empty pool is refused by
+    `expand_pool` before anything is played - and the error names the item, so
+    a script still passing it fails on the argument and not three thousand
+    games later.
+    """
+    out = str(tmp_path / "imitation.json")
+    with pytest.raises(SystemExit) as exc:
+        main(["--games", "2", "--seed", "5", "--pool", "imitation_only",
+              "--dry", "--out", out])
+    assert exc.value.code == 2
+    assert not os.path.exists(out)
 
 
 def test_the_help_says_how_the_union_weights():
@@ -612,7 +637,9 @@ def test_the_help_says_how_the_union_weights():
                          capture_output=True, text=True).stdout
     assert "--pool" in out
     assert "--pool-order" in out
-    assert "no_imitation" in out and "imitation_only" in out and "all" in out
+    for name in R.POOL_NAMES:
+        assert name in out, name
+    assert "imitation_only" not in out
     # the weighting rule and the de-duplication are both documented
     assert "1/n" in out
     assert "去重" in out
@@ -705,11 +732,18 @@ def test_literal_replays_a_batch_committed_before_the_sort(tmp_path):
 
     n = 40
     out = tmp_path / "replay.json"
+    # The subject left the roster in plan9 task 4, so the file it names has to
+    # be bound for this process - which is exactly what `--adhoc` is for, and
+    # the same call the ruling's own replay made. The bytes are the ones the
+    # batch's `control_checkpoint` names, verified by `test_eval_evidence`.
+    zero_k = os.path.join(_ROOT, "data", "hc2", "step_001000.pt")
     rc = main(["--games", str(n), "--seed", str(payload["seed"]),
                "--pool", ",".join(payload["pool"]),
                "--pool-order", "literal",
                "--paired-rng", "--subject", payload["subject"],
-               "--mode", payload["mode"], "--dry", "--out", str(out)])
+               "--mode", payload["mode"], "--dry",
+               "--adhoc", "%s=%s" % (payload["subject"], zero_k),
+               "--out", str(out)])
     assert rc == 0
     got = json.loads(out.read_text(encoding="utf-8"))
     assert got["pool_order"] == "literal"
@@ -728,22 +762,28 @@ def test_a_literal_run_keeps_the_batch_spelling_and_normalises_the_leaderboard(
     old spelling has to survive into `games_detail` untouched. The
     leaderboard is a different artefact: a run that is neither `--dry` nor
     paired writes its results under canonical keys, so the same command that
-    records `hc_1000` in the batch grows the `rl_h1000_0k` row. One option
-    in the pool, so the draw cannot help but seat it.
+    records `rl_1000_20k` in the batch grows the `rl_h1000_20k` row. One
+    option in the pool, so the draw cannot help but seat it.
+
+    `rl_1000_20k` stands in for the `hc_1000` this test used to use: that
+    spelling left the roster with the seat it named in plan9 task 4, and it
+    takes a `--adhoc` binding to be seated at all - which would be testing the
+    binding rather than the alias. `rl_1000_20k` is the one alias that
+    survived, so the property is unchanged and still has a live subject.
     """
     rec = _seeded_leaderboard(tmp_path, monkeypatch)
     out = tmp_path / "batch.json"
     rc = main(["--games", "2", "--seed", "20261005",
-               "--pool", "hc_1000",
+               "--pool", "rl_1000_20k",
                "--pool-order", "literal", "--out", str(out)])
     assert rc == 0
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["pool_order"] == "literal"
-    assert payload["pool"] == ["hc_1000"]        # the caller's spelling, kept
+    assert payload["pool"] == ["rl_1000_20k"]    # the caller's spelling, kept
     entries = json.loads(rec.read_text(encoding="utf-8"))
-    assert "hc_1000" not in entries
+    assert "rl_1000_20k" not in entries
     # 2 games x 4 seats, every one of them the checkpoint
-    assert entries["rl_h1000_0k"]["games"] == 8
+    assert entries["rl_h1000_20k"]["games"] == 8
     assert entries["wolf"]["games"] == 9         # the seeded row, undisturbed
 
 

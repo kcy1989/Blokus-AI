@@ -40,11 +40,11 @@ from rl.actions import (index_to_move, legal_indices, legal_mask_view,
                         real_to_view, seat_of_mover)
 
 STEP = seats.IMITATION_STEPS[0]
-# Where step 1000 was *published* to, not where H-C2 trained: plan9a stage 4
-# copied it into `ai/checkpoints/rl_h1000_0k/` and untracked the `data/`
-# original, so `IMITATION_CHECKPOINT_DIR` would name a file a fresh clone lacks.
-CHECKPOINT_DIR = os.path.dirname(
-    seats.imitation_checkpoint(seats.imitation_key(STEP)))
+# Plan9 task 4 retired `rl_h1000_0k` from the roster and moved the weights back
+# under H-C2's own directory, so `IMITATION_CHECKPOINT_DIR` names a file a fresh
+# clone carries again. The registry has no row for it any more, which is why this
+# is a path rather than `seats.imitation_checkpoint`.
+CHECKPOINT_DIR = seats.IMITATION_CHECKPOINT_DIR
 CHECKPOINT = os.path.join(CHECKPOINT_DIR, "step_%06d.pt" % STEP)
 SEED = 7_770_201
 N_POSITIONS = 40

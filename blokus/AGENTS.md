@@ -128,23 +128,33 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   歷史夾出來的推論，無法證明訓練時工作樹乾淨。**要補這個欄位就改訓練端**，不要在
   排行榜端填一個看起來合理的值。
 - **訓練出來的策略是池裡的一等選項，但不是 `KIND_IMITATION`。** `rl_h1000_20k`
-  走自己的 `KIND_RL`，所以 `imitation_only` 仍然只含三個模仿檢查點
-  （`rl_h1000_0k`、`hc_2000`、`hc_10000`），而 `no_imitation` 排除的其實是
-  「所有網絡席位」而不是「所有模仿席位」。若把訓練結果塞進 `KIND_IMITATION`，
-  那兩個 preset 的名字就會開始說謊。
-- **改名用別名，不用第二列。** `rl_1000_20k` → `rl_h1000_20k` 與 `hc_1000` →
-  `rl_h1000_0k` 都由 `seats.ALIASES` 解析，不要在表裡加第二列：同一份權重進池
-  兩次會讓池變大，而變大的池會讓每一個選項被抽到的機率悄悄改變。別名**不**進
-  `automated_options()`，所以池大小與排行榜維持一列一策略。代價是排行榜本來就有
-  的問題——`records.json` 以對局時用的名稱為 key，不認得別名，所以透過別名記錄的
-  結果會另開一列。plan9 步驟 1 改名時把那一列改掉了；**plan9a 階段 1 刻意不改**
-  （計畫要求「records 舊 key 可讀」），所以排行榜上 `hc_1000`（1 局）與
-  `rl_h1000_0k` 會是同一份權重的兩列，看榜時要合併著讀。
-- **`rl/rl_train.py` 的 eval 列名維持 `hc_1000`。** `("hc_1000", anchor_path)`
-  與 `net.key = "hc_1000"` 是為了與既有 `data/rl1/eval.jsonl` 的序列連續——同一條
-  基線改名會被切成兩段，兩段看起來像兩個不同的錨點。**待 RL 階段決定是否改名**，
-  屆時要一併補讀取端的別名映射，讓讀舊檔仍然認得 `hc_1000`。`rl/rollout.py` 裡
-  真正會進 `Game.owner_key` 的席位 key 已改為 `rl_h1000_0k`。
+  走自己的 `KIND_RL`，而 `no_imitation` 排除的其實是「所有網絡席位」而不是
+  「所有模仿席位」。若把訓練結果塞進 `KIND_IMITATION`，preset 的名字就會開始說謊。
+- **plan9 任務四（2026-10-10）把六個模仿席位退出名册**：`rl_h1000_0k` /
+  `hc_2000` / `hc_10000` / `rl_{o,b,i}1000_0k`。`ai/registry.json` 11 列
+  （7 人格 + 4 個 20k），`imitation_only` preset 同時退役（`POOL_NAMES` 只剩
+  `all` / `no_imitation` / `rl_only`），`family: imitation` 的列數是 0，
+  `seats._IMITATION_KEYS` 因而是空的 —— `kind_of` 對任何退休名都 raise。
+  **權重沒有刪**：`data/hc2/` 與 `data/imit_*/` 的檔全留，舊證據要重放就用
+  `match.py --adhoc KEY=PATH` 綁回來（`tests/test_match_pool.py` 的
+  `test_literal_replays_a_batch_committed_before_the_sort` 就是這個形狀）。
+  `seats.IMITATION_STEPS` / `IMITATION_KEYS` / `IMITATION_CHECKPOINT_DIR` 仍描述
+  H-C2 的訓練鏈（`rl/` 按 step + 目錄載入，不按席位），由
+  `test_seats::test_the_hc2_chain_still_points_at_hc2_files` 釘住。
+- **改名用別名，不要在表裡加第二列。** 同一份權重進池兩次會讓池變大，而變大的池
+  會讓每一個選項被抽到的機率悄悄改變。別名**不**進 `automated_options()`，所以池
+  大小與排行榜維持一列一策略。`seats.ALIASES` 現在只剩一個：`rl_1000_20k` →
+  `rl_h1000_20k`。`hc_1000` 那個跟著 `rl_h1000_0k` 在 plan9 任務四一起退場，
+  **兩個拼法都不再解析**（`canonical_key` 原樣回傳），由
+  `tests/test_seat_alias_hc.py` 釘住；舊 `records.json` 列原樣保留、照樣讀得到。
+- **`rl/rl_train.py` 的 eval 列名維持 `hc_1000`，且只當檔案層引用。**
+  `INIT_CHECKPOINT` / `ANCHOR_CHECKPOINT` 指向 `data/hc2/step_001000.pt`，
+  `("hc_1000", anchor_path)` 與 `net.key = "hc_1000"` 是為了與既有
+  `data/rl1/eval.jsonl` 的序列連續——同一條基線改名會被切成兩段。plan9 任務四
+  **只加註解**標明「0k 已退役、僅檔案層引用」，行為一字未動（裁決）。`rl/rollout.py`
+  的 `seat_for` 與 `rl/imitation.py` 的 `key=None` 回退則改成**明確報錯**：退休名
+  不再是席位，寧可在这里說清楚，也不要讓 `Game.setup_seats` 稍後用一句
+  「no such seat option」把鍋甩給名册。
 - **策略名裡的兩個數字單位不同。** `rl_h1000_20k` 的 `1000` 是**模仿步數**
   （0k 版 `rl_h1000_0k`，舊名 `hc_1000`），`20k` 是**RL 局數**（40 輪 × 500 局）。
   同一個名字裡混用兩種單位，寫報告或設終止條件時不要讀錯。
@@ -218,13 +228,16 @@ import 上。**階段 4 已把 `rl_h1000_20k`、`rl_h1000_0k` 搬進 `ai/checkpo
 sha256 斷言因此重新納入測試**（`test_every_registered_checkpoint_hashes_as_recorded`）；
 **plan9 發布（2026-10-09）又把三個學生的 20k 搬進同一目錄並註冊**
 （`rl_o1000_20k`／`rl_b1000_20k`／`rl_i1000_20k`，來源 `data/rl_*1000/step_000040.pt`
-留磁碟不入版控），`ai/checkpoints/` 現在八個檔**全部在名冊上**，`all` 池 14 → 17。
-`hc_2000`／`hc_10000` 仍在 `data/`，重訓覆寫它們**會**讓這條紅 —— 那是刻意的，
-它們的數字不能在引用它們的證據底下悄悄改變。
+留磁碟不入版控）。**plan9 任務四**（2026-10-10）把四個 0k 席位退出名册，
+`all` 池 17 → 11，`ai/checkpoints/` 只剩四個 20k；四個 0k 副本連同
+`data/hc2/step_001000.pt` 與 `data/imit_*/step_001000.pt` 的版控歸屬由同一任務的
+**第二個提交**處理（刪 `ai/checkpoints` 副本、`.gitignore` 反白把 `data/` 原件
+納入版控），第一個提交裡 `test_ai_checkpoints_holds_nothing_unpublished` 因此有一個
+字面的 `PENDING_REMOVAL` 過渡清單。
 健康檢查的指令是 `python -m ai --check`：`python -m ai.registry --check` 會把同一個
 模組執行兩次（`ai/__init__` 已經匯出它），runpy 會噴 `RuntimeWarning`。
-`anchors()` 目前**只有測試呼叫**，`rl/rl_train.py` 仍自己寫死 `hc_1000`（
-`eval.jsonl` 的列名），RL 端接入與否是後續階段的決定。
+`ai/registry.py` 的 `anchors()` / `RL_KL_ANCHOR` / `_validate_roster` 已於 plan9
+任務四**整段刪除**（裁決 3）：KL 錨就是那個 0k 檔案，而它不再是席位。
 
 ### 權重檔案放哪、誰說了算
 
@@ -236,20 +249,30 @@ sha256 斷言因此重新納入測試**（`test_every_registered_checkpoint_hash
 - **`build_brain` 對模仿席位是「目錄跟著 key 走」**：`os.path.dirname(imitation_checkpoint(key))`，
   因為三份檢查點已經不在同一個目錄。代價是 JSON 的 `checkpoint` 檔名**必須**繼續
   符合 `step_%06d.pt`，`test_network_entries_name_the_files_the_seats_load` 釘住這點。
-- **`.gitignore` 目前是過渡狀態**：`step_001000.pt` 與 `step_000040.pt` 的反白已撤
-  （檔不入版控，靠 `ai/checkpoints/`）；`step_002000.pt`／`step_010000.pt` 的反白
-  **保留**，因為 `hc_2000`／`hc_10000` 沒有發布。**階段 6 把它們設 `enabled: false`
-  之後要回來處理這兩行**，詳見 README「階段 4 完成狀態」。
+- **`.gitignore` 是過渡狀態，plan9 任務四的第二個提交收口**：`step_002000.pt` /
+  `step_010000.pt` 的反白**保留**（檔仍在版控，只是不再是任何席位的載入路徑）；
+  `step_001000.pt` 與 `data/imit_*/step_001000.pt` 會加回反白 —— 0k 席位退場、
+  `ai/checkpoints/` 的副本刪除之後，`data/` 原件是這些權重唯一還在版本控制裡的
+  位置，而舊證據重放與 `rl/` 的測試都要開它們。**在那個提交之前，這四個檔只存在
+  於磁碟**（gitignored），這是刻意的一提交寬限期，不是疏漏。
 
 ---
 
 ## 六、測試規則
 
-**日常全套用 `-n 8`：**
+**日常全套用 `-n 8`，並把三個線程環境變數釘成 1：**
 
 ```bash
-.venv-rl/bin/python -m pytest tests/ -q -n 8     # 601 項，約 160–175 秒
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+    .venv-rl/bin/python -m pytest tests/ -q -n 8   # 1031 項，約 300 秒
 ```
+
+**三個環境變數不是可選的。** 2026-10-10 實測：少了它們，純 `-n 8` 兩次都卡死在
+`tests/test_rl_caches.py` 的 `multiprocessing` fork 上（單獨跑 16 passed 16.6 s，
+與改動檔串行跑 178 passed，都不是問題）。pytest 本身也對每次 fork 印
+`DeprecationWarning: This process is multi-threaded, use of fork() may lead to
+deadlocks in the child` —— 訊息就是字面意思：OpenMP/MKL/OpenBLAS 的執行緒在
+fork 之後的子進程裡會死結。釘成 1 之後沒有任何 hang。
 
 **不得用 `-n 12` 或更高。** 這不是保守，是實測：`tests/test_rl_env.py` 有三個模組
 層級的快取（`test_rl_env.py` 的 `_FINISHED`、`test_rl_paired.py` 的 `_CACHE`、

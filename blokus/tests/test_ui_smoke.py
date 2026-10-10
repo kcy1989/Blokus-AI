@@ -1581,18 +1581,19 @@ def test_every_selectable_option_has_a_name_and_a_description_of_its_own():
     assert len(set(descs)) == len(descs), descs
 
 
-def test_a_leaderboard_row_under_the_old_key_is_named_in_chinese():
-    """A pre-rename `records.json` row reads as a name, not as a key.
+def test_a_leaderboard_row_under_a_retired_key_is_still_named():
+    """The leaderboard prints the key straight out of the file, and must not
+    choke on one the roster has forgotten.
 
-    The leaderboard prints the key straight out of the file, so an `hc_1000`
-    row would show the retired spelling on screen unless `seat_label`
-    resolves the alias - which it does, without `records.py` touching the
-    row (plan9a stage 9: writes normalise, reads never).
+    Plan9a stage 9's rule is unchanged - writes normalise, reads never - but the
+    alias that used to translate `hc_1000` went with the seat in plan9 task 4,
+    so a pre-retirement row now prints its own spelling. What must not happen is
+    a crash or an empty cell: `seat_label` falls through to the key itself for
+    anything it does not recognise, which is also what it does for a key typed
+    by hand.
     """
-    assert ui.seat_label("hc_1000") == ui.seat_label("rl_h1000_0k")
-    assert ui.seat_label("hc_1000") != "hc_1000"
-    assert ui.seat_desc("hc_1000") == ui.seat_desc("rl_h1000_0k")
-    assert ui.seat_desc("hc_1000") != "hc_1000"
+    for key in ("hc_1000", "rl_h1000_0k", "hc_2000", "hc_10000"):
+        assert ui.seat_label(key) == key, key
 
 
 # --------------------------------- two seats on the same option, results screen
@@ -1627,17 +1628,18 @@ def test_two_seats_on_the_same_option_each_get_their_own_place(tmp_path):
     u.game = Game(random.Random(0))
     u.records = Records(str(tmp_path / "records.json"))
     _finish_with_remaining(u, [7, 15, 16, 17],
-                           ["hc_10000", "human", "hc_10000", "human_log"],
+                           ["rl_o1000_20k", "human", "rl_o1000_20k",
+                            "human_log"],
                            ["yellow", "blue", "green", "red"])
     rows = u.seat_rows()
     assert len(rows) == 4, rows
     assert [r[2] for r in rows] == [7, 15, 16, 17], rows
     assert [r[3] for r in rows] == [1, 2, 3, 4], rows
     assert [r[4] for r in rows] == [4, 3, 2, 1], rows
-    assert [r[1] for r in rows] == ["hc_10000", "human", "hc_10000",
+    assert [r[1] for r in rows] == ["rl_o1000_20k", "human", "rl_o1000_20k",
                                     "human_log"]
     # the two matching seats must not carry the same place
-    twins = [r[3] for r in rows if r[1] == "hc_10000"]
+    twins = [r[3] for r in rows if r[1] == "rl_o1000_20k"]
     assert twins == [1, 3], twins
     # and each row takes its colour from its own seat, not from the option
     assert [u.game.colors[r[0]] for r in rows] == ["yellow", "blue", "green",
@@ -1649,7 +1651,8 @@ def test_the_results_screen_renders_four_distinct_rows(tmp_path):
     u.game = Game(random.Random(0))
     u.records = Records(str(tmp_path / "records.json"))
     _finish_with_remaining(u, [7, 15, 16, 17],
-                           ["hc_10000", "human", "hc_10000", "human_log"],
+                           ["rl_o1000_20k", "human", "rl_o1000_20k",
+                            "human_log"],
                            ["yellow", "blue", "green", "red"])
     real = u.label
     texts = []
@@ -1670,9 +1673,9 @@ def test_a_leaderboard_row_for_a_repeated_contestant_is_neutral():
     swatch says so rather than borrowing one seat's."""
     u = make_ui()
     u.game = Game(random.Random(0))
-    u.game.setup_seats(["hc_2000", "fox", "hc_2000", "wolf"],
+    u.game.setup_seats(["rl_b1000_20k", "fox", "rl_b1000_20k", "wolf"],
                        ["blue", "green", "red", "yellow"], random.Random(0))
-    assert u.contestant_color("hc_2000") == (200, 200, 210)
+    assert u.contestant_color("rl_b1000_20k") == (200, 200, 210)
     assert u.contestant_color("fox") == COLORS["green"]
 
 

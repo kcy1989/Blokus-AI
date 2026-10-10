@@ -33,15 +33,36 @@ import seats
 from rl.policy import load_policy
 
 STEP = seats.IMITATION_STEPS[0]
-# Where step 1000 was *published* to, not where H-C2 trained: plan9a stage 4
-# copied it into `ai/checkpoints/rl_h1000_0k/` and untracked the `data/`
-# original, so `IMITATION_CHECKPOINT_DIR` would name a file a fresh clone lacks.
-CHECKPOINT_DIR = os.path.dirname(
-    seats.imitation_checkpoint(seats.imitation_key(STEP)))
+# Plan9 task 4 retired `rl_h1000_0k` from the roster and moved the weights back
+# under H-C2's own directory, so `IMITATION_CHECKPOINT_DIR` names a file a fresh
+# clone carries again. The registry has no row for it any more, which is why this
+# is a path rather than `seats.imitation_checkpoint`.
+CHECKPOINT_DIR = seats.IMITATION_CHECKPOINT_DIR
+# The 0k seat under the name it used to be registered as. Nothing in the roster
+# answers to it now; `bind_retired_0k` below is what makes it a seat again, the
+# same way `match.py --adhoc` does.
+LEARNER_KEY = "rl_h1000_0k"
 CHECKPOINT = os.path.join(CHECKPOINT_DIR, "step_%06d.pt" % STEP)
 
 needs_checkpoint = pytest.mark.skipif(
     not os.path.exists(CHECKPOINT), reason="no H-C2 checkpoint at %s" % CHECKPOINT)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def bind_retired_0k():
+    """Seat the retired 0k checkpoint for the duration of one test.
+
+    `rl_h1000_0k` left the roster in plan9 task 4, and `--adhoc` is the
+    supported way to bring it back for a run - so this makes the same call
+    `match.py --adhoc KEY=PATH` makes rather than reaching into `kind_of`.
+    Scoped and undone, so the roster every other test sees is the real one.
+    """
+    if not os.path.exists(CHECKPOINT):
+        yield
+        return
+    seats.register_adhoc(LEARNER_KEY, CHECKPOINT)
+    yield
+    seats.ADHOC.pop(LEARNER_KEY, None)
 
 
 @pytest.fixture(autouse=True)
@@ -56,7 +77,7 @@ def one_thread():
 @pytest.fixture(scope="module")
 def checkpoint():
     net, _meta = load_policy(CHECKPOINT)
-    net.key = seats.imitation_key(STEP)
+    net.key = LEARNER_KEY
     return net
 
 
@@ -73,7 +94,7 @@ def batch(episodes):
 
 def fresh():
     net, _ = load_policy(CHECKPOINT)
-    net.key = seats.imitation_key(STEP)
+    net.key = LEARNER_KEY
     return net
 
 

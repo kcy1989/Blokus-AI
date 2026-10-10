@@ -173,7 +173,7 @@ def test_building_a_personality_advances_the_stream_and_building_a_policy_does_n
 
     rng = random.Random(0)
     before = rng.getstate()
-    S.build_brain("hc_1000", rng, mode="argmax")
+    S.build_brain("rl_h1000_20k", rng, mode="argmax")
     assert rng.getstate() == before, "a trained policy should not have drawn"
 
 
@@ -434,7 +434,7 @@ def test_swapping_the_subject_leaves_every_setup_identical():
     would be comparing two different games.
     """
     a = _capture_subject_setups("hunter", games=10)
-    b = _capture_subject_setups("hc_1000", games=10)
+    b = _capture_subject_setups("rl_h1000_20k", games=10)
     c = _capture_subject_setups("rl_1000_20k", games=10)
     assert a == b == c
 
@@ -448,7 +448,7 @@ def test_the_swap_survives_the_personality_to_network_boundary():
     `hunter` to a checkpoint.
     """
     a = _capture_subject_setups("hunter", games=8)
-    b = _capture_subject_setups("hc_1000", games=8)
+    b = _capture_subject_setups("rl_h1000_20k", games=8)
     assert [s[0] for s in a] == [s[0] for s in b]      # the same seat
     assert [s[1] for s in a] == [s[1] for s in b]      # the same opponents
     assert [s[3] for s in a] == [s[3] for s in b]      # the same opening player
@@ -477,7 +477,7 @@ def test_an_unknown_subject_names_the_legal_options():
     # Read the names from the pool rather than writing them out, so that a
     # rename does not turn this into a test of the rename.
     legal = S.automated_options()
-    for key in ("rl_h1000_20k", "rl_h1000_0k", "wolf"):
+    for key in ("rl_h1000_20k", "rl_o1000_20k", "wolf"):
         assert key in legal
         assert key in str(e.value)
     assert list(legal) == list(REG.pool("all"))

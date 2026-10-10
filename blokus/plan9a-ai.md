@@ -56,7 +56,7 @@
   - pools:所屬池名稱清單
   - enabled(進常規池)、selectable(可出現在 UI 與隨機抽籤)
   - label、desc_key(指向 config.I)、note
-- 載入器提供:`automated_options()`、`pool(name)`、`resolve(key)`、`anchors()`。
+- 載入器提供:`automated_options()`、`pool(name)`、`resolve(key)`、`anchors()`。(`anchors()` 已於 plan9 任務四移除 —— KL 錨是 `data/hc2/step_001000.pt` 這個檔案,而 0k 席位當時已退出名册。)
 - 驗證(啟動與測試皆跑):
   - key 唯一;別名不與任何 key 衝突
   - pools 名稱合法;desc_key 存在於 config.I

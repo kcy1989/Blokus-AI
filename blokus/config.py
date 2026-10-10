@@ -113,13 +113,22 @@ I = {
     "random_ai_desc": "開局時從可用的對手中隨機抽一個",
     "human": "人類（不記錄）",
     "human_log": "人類（記錄）",
+    # `imitation_fmt` and the nine `imitation_*_fmt` / `imitation_*_desc_fmt`
+    # keys below are **unreferenced since plan9 task 4** (2026-10-10): they were
+    # `label` / `desc_key` values in `ai/registry.json`, and that file has no
+    # `family: imitation` row any more. They are kept, deliberately, per the
+    # ruling - a string that a future re-registration would want back is cheaper
+    # to keep than to reconstruct, and deleting them would also delete the only
+    # record of what those four rows said on screen. Nothing loads them:
+    # `ui.seat_label` / `ui.seat_desc` reach them only through the registry.
+    # (`imitation_mode_fmt` below is *not* dead - it captions the live
+    # "模仿選步" button, which still picks argmax/softmax for a checkpoint seat.)
     "imitation_fmt": "模仿 {0} 步",
     "imitation_mode_fmt": "模仿選步：{0}",
     "imitation_desc_fmt": "H-C2 第 {0} 步的檢查點",
-    # Four seats sit at step 1000, so step alone cannot tell them apart on the
-    # seat screen: each of the four carries the teacher it was distilled from.
-    # `hc_2000` / `hc_10000` keep the two keys above - their rows are frozen by
-    # the user's stage 6 ruling - and they are at steps no other seat shares.
+    # Four seats used to sit at step 1000, so step alone could not tell them
+    # apart on the seat screen: each carried the teacher it was distilled from.
+    # All six rows retired in plan9 task 4; the keys stay for the reason above.
     "imitation_hunter_fmt": "模仿 {0} 步（獵手）",
     "imitation_hunter_desc_fmt": "H-C2 第 {0} 步的檢查點；老師：獵手",
     "imitation_optimizer_fmt": "模仿 {0} 步（優化者）",
@@ -143,6 +152,7 @@ I = {
     "rl_intruder_desc_fmt": "PPO 訓練 40 輪、共 20,000 局；老師：入侵者",
     "ai_pool": "AI",
     "human_pool": "人類",
+    # Also unreferenced: nothing groups seats into a "模仿" tab any more.
     "imitation_pool": "模仿",
     "turn_order_first": "先手",
     "turn_order_fmt2": "行棋順序（順時針，先手為 {0}）",

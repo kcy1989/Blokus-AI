@@ -10,7 +10,7 @@ then register it here. Nothing about a seat's *file*, or about whether it is
 
 **Lower layer - "who is a contestant".** `ai/registry.json` is the single
 source of truth for the roster: which keys exist, under which aliases, with
-which `label` / `desc_key`, and which of the four pools list them under
+which `label` / `desc_key`, and which of the three pools list them under
 `enabled` / `selectable`. `seats.automated_options()` and `seats.ALIASES`
 read it, so changing the opponent pool is a data edit rather than a code
 change. The array's order is *registration* order and nothing else: every pool
@@ -114,11 +114,14 @@ from config import I
 REGISTRY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "registry.json")
 
-# The four pools `match.POOL_PRESETS` defines, named here rather than imported.
+# The three pools `match.POOL_PRESETS` defines, named here rather than imported.
 # `match` imports `seats`, and `seats` imports this module, so importing `match`
 # back would close the loop; `tests/test_registry_json.py` is what keeps this
-# constant and `match.POOL_PRESETS` telling the same story.
-POOL_NAMES = ("all", "no_imitation", "imitation_only", "rl_only")
+# constant and `match.POOL_PRESETS` telling the same story. `imitation_only` was
+# retired with the six 0k/`hc_*` seats in plan9 task 4, which also emptied the
+# `imitation` family - so `no_imitation` is now the personalities and nothing
+# else, and the split is really personalities against trained policies.
+POOL_NAMES = ("all", "no_imitation", "rl_only")
 
 KINDS = ("network", "heuristic")
 FAMILIES = ("personality", "imitation", "rl")
@@ -133,14 +136,6 @@ _ENTRY_FIELDS = frozenset(("key", "aliases", "kind", "family", "module",
                            "checkpoint", "source", "sha256", "pools",
                            "enabled", "selectable", "label", "desc_key",
                            "note"))
-
-# The seat PPO measures itself against: one, and it is the 0k checkpoint,
-# because that is where training starts and what stays frozen as the KL anchor.
-# Named as a *seat* rather than a file on purpose - `anchors()` answers with the
-# registered name, and the file still comes from `seats`. `hc_1000` is an alias
-# for the same seat and is never an anchor in its own right.
-RL_KL_ANCHOR = "rl_h1000_0k"
-
 
 def _validate(entries):
     """Every structural complaint about `entries`, collected before raising.
@@ -216,7 +211,7 @@ def _validate(entries):
                 bad("%s: `%s` must be true or false" % (where, f))
         # The two flags document two different questions - "is it in the
         # regular pool" and "can the seat menu and the random draw offer it" -
-        # but today they gate two views of the same seventeen keys, so flipping
+        # but today they gate two views of the same eleven keys, so flipping
         # one without the other would give the league and the seat menu two
         # different answers with no failure to show for it. They are flipped
         # together, and a disagreement is refused here rather than discovered
@@ -247,19 +242,6 @@ def _validate(entries):
                          + "\n  - ".join(problems))
 
 
-def _validate_roster(keys):
-    """Checks that only make sense against a whole roster, not one entry.
-
-    Split out so that `_validate` can be exercised entry by entry: the anchor
-    is a property of the roster, and demanding it of a single entry would make
-    every isolated validation report an unrelated complaint.
-    """
-    if keys and RL_KL_ANCHOR not in set(keys):
-        raise ValueError("ai/registry.json is not valid:\n  - "
-                         "RL_KL_ANCHOR %r is not a registered key"
-                         % RL_KL_ANCHOR)
-
-
 def _load():
     with open(REGISTRY_PATH, encoding="utf-8") as f:
         raw = json.load(f)
@@ -267,8 +249,6 @@ def _load():
         raise ValueError("ai/registry.json must be an object with an "
                          "`entries` list")
     _validate(raw["entries"])
-    _validate_roster([e["key"] for e in raw["entries"]
-                      if isinstance(e, dict) and isinstance(e.get("key"), str)])
     return tuple(raw["entries"])
 
 
@@ -342,7 +322,7 @@ def automated_options():
 
     What the seat menu shows, what `RANDOM_AI_KEY` draws and what a league draws
     its four seats from - one list, because those three have always been the same
-    seventeen things, and because one order means a pool produced by any of the
+    eleven things, and because one order means a pool produced by any of the
     three is the same pool.
     """
     return pool_order(e["key"] for e in ENTRIES if e["selectable"])
@@ -352,8 +332,8 @@ def pool(name):
     """The keys of one named pool, in `pool_order` - by key, ascending.
 
     `enabled` gates every pool at once rather than only "the regular one",
-    because at this stage the regular pool and the four presets are all the
-    same seventeen keys. `_validate` refuses an entry whose `enabled` and
+    because at this stage the regular pool and the three presets are all the
+    same eleven keys. `_validate` refuses an entry whose `enabled` and
     `selectable` disagree, so this view and `automated_options()` cannot drift
     apart behind a half-flipped flag.
     """
@@ -367,22 +347,6 @@ def pool(name):
 def pools():
     """Every named pool, as `{name: keys}` in `pool_order`."""
     return {name: pool(name) for name in POOL_NAMES}
-
-
-def anchors():
-    """The seats an RL run measures itself against, by registered name.
-
-    One seat, and `rl_h1000_0k` - the 0k checkpoint PPO starts from and keeps
-    frozen as its KL anchor. It answers with the *registered* name and never
-    with `hc_1000`: that spelling is an alias for the same seat, and an anchor
-    recorded two ways is how an eval log grows a second column for one model.
-
-    Nothing reads it yet. `rl/rl_train.py` still spells the anchor `hc_1000`
-    itself, because that spelling is what `data/rl1/eval.jsonl` rows are keyed
-    by and changing it would split one baseline into two columns. Wiring the RL
-    side to this function is a later-stage decision, not done here.
-    """
-    return (RL_KL_ANCHOR,)
 
 
 def label_key(key):

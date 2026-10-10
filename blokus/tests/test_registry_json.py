@@ -58,61 +58,19 @@ def test_the_json_lists_the_personalities_in_the_class_tables_order():
     assert from_code == R.personality_keys()
 
 
-def test_the_json_lists_the_checkpoints_in_step_order():
-    """What is left of the code/JSON agreement for the imitation family.
+def test_the_imitation_family_is_empty():
+    """Plan9 task 4 retired every imitation seat, so the roster has none.
 
-    Before plan9a stage 6 this was `from_json == from_code`: the JSON's whole
-    imitation family *was* `IMITATION_KEYS`, so membership and step were each
-    written down twice and the two copies had to agree. Decision beta made the
-    JSON the only authority on membership - it holds six imitation keys while
-    `IMITATION_KEYS` still holds H-C2's three, because four seats now sit at
-    step 1000 and no table keyed by step can name them all.
-
-    What that costs, stated rather than hidden:
-      * still caught here: a code-table name that has vanished from the JSON,
-        and the H-C2 chain coming out of the rows in the wrong order;
-      * no longer caught here: an extra imitation row the code table never
-        knew - that is legal now (the three students), not a divergence;
-      * moved to `test_every_imitation_key_step_is_its_checkpoint_filename_step`:
-        the step of every key, which comes from the filename from here on.
+    Replaces `test_the_json_lists_the_checkpoints_in_step_order`, which
+    compared the JSON's imitation family against `IMITATION_KEYS`. There is no
+    second side to compare any more: `IMITATION_KEYS` still names H-C2's chain
+    for `rl/`, which loads by step and directory rather than by seat, and
+    `tests/test_seats.py::test_the_hc2_chain_still_points_at_hc2_files` is what
+    pins that table now. What still belongs here is the emptiness itself - a row
+    quietly added back under `family: imitation` has to fail somewhere, and
+    everywhere else in this file compares a family to something derived from it.
     """
-    from_code = tuple(S.IMITATION_KEYS[step] for step in S.IMITATION_STEPS)
-    from_json = tuple(e["key"] for e in R.ENTRIES
-                      if e["family"] == "imitation")
-    positions = [from_json.index(key) for key in from_code]
-    assert positions == sorted(positions), from_json
-    assert len(set(from_json)) == len(from_json)
-
-
-def test_every_imitation_key_step_is_its_checkpoint_filename_step():
-    """Stage 6 (beta): the filename is the only authority for "which step".
-
-    `imitation_step` parses `checkpoint`, so this pins the parse against the
-    registry's own path for every imitation key: a path that stopped following
-    H-C2's `step_%06d.pt` convention, or a parse that returned a default
-    instead of raising, fails here rather than at load time.
-    """
-    for e in R.ENTRIES:
-        if e["family"] != "imitation":
-            continue
-        match = re.fullmatch(r"step_(\d{6})\.pt",
-                             os.path.basename(e["checkpoint"]))
-        assert match, (e["key"], e["checkpoint"])
-        assert S.imitation_step(e["key"]) == int(match.group(1)), e["key"]
-
-
-def test_a_checkpoint_name_that_is_not_a_step_file_raises(monkeypatch):
-    """The other half of beta: no default step, ever.
-
-    A registry path that does not follow the convention has to be a loud
-    failure at the moment somebody asks what step it is, because that answer is
-    what `build_brain` reopens the file with - a silent fallback would load a
-    different checkpoint than the seat claims to be.
-    """
-    monkeypatch.setattr(S, "registry_checkpoint",
-                        lambda key: "/somewhere/custom.pt")
-    with pytest.raises(ValueError, match="step_NNNNNN"):
-        S.imitation_step("rl_h1000_0k")
+    assert [e["key"] for e in R.ENTRIES if e["family"] == "imitation"] == []
 
 
 def test_the_json_lists_the_trained_policies_in_table_order():
@@ -307,24 +265,6 @@ def test_the_label_and_description_keys_exist_in_config():
 
 
 # --------------------------------------------------------------------------
-# anchors
-# --------------------------------------------------------------------------
-
-def test_anchors_names_one_seat_and_it_is_the_registered_spelling():
-    """The KL anchor is a seat, and never the retired spelling.
-
-    Two spellings for one anchor would give `data/rl1/eval.jsonl` a second
-    column for a single model, and the whole point of that file is that its
-    rows are comparable to each other.
-    """
-    assert R.anchors() == ("rl_h1000_0k",)
-    assert "hc_1000" not in R.anchors()
-    for key in R.anchors():
-        assert key in R.keys()
-        assert R.resolve(key) == key
-
-
-# --------------------------------------------------------------------------
 # files: existence is a suite concern, bytes are --check's
 # --------------------------------------------------------------------------
 
@@ -337,10 +277,12 @@ def test_every_registered_checkpoint_hashes_as_recorded():
     two published weights into `ai/checkpoints/`, where nothing but a deliberate
     re-publication can touch them, and `check_files()` runs in full again.
 
-    `hc_2000` and `hc_10000` are the remaining case, and hashing them on purpose:
-    they are still under `data/` and still in the registry, so a retrain that
-    overwrote one *should* fail here - it would mean the pool's numbers moved
-    underneath the evidence that cites them.
+    Every seat left in the roster is published under `ai/checkpoints/`, which is
+    the case this was written for: a deliberate re-publication is the only thing
+    that may touch those files, so a red assertion here always means the bytes
+    moved underneath the evidence that cites them. The retired 0k weights are
+    deliberately *not* hashed - they live under `data/` again, where a retrain
+    can rewrite them, and they are no longer a seat's identity.
     """
     assert R.check_files() == []
 
@@ -353,11 +295,18 @@ def test_ai_checkpoints_holds_nothing_unpublished():
     it, a stray copy left in `ai/checkpoints/` ships forever: it weighs 5.6 MB,
     it looks official because of where it sits, and nothing names it.
 
-    This is also why stage 4 published two weights and not five. The three
-    `rl_*1000_0k` students are not in the roster until stage 6, so moving them
-    here first would put exactly this file on disk with nothing to say what it
-    is.
+    Plan9 task 4 retired the six imitation seats, and the four published 0k
+    copies stayed on disk for the length of one commit: they are deleted by the
+    *second* commit of that task, together with the `.gitignore` change that
+    puts their `data/` originals back under version control. `PENDING_REMOVAL`
+    is the typed list of those four, so the gap between the two commits is a
+    pinned fact rather than a silently widened assertion - commit 2 deletes the
+    list along with the files.
     """
+    PENDING_REMOVAL = ["rl_b1000_0k/step_001000.pt",
+                       "rl_h1000_0k/step_001000.pt",
+                       "rl_i1000_0k/step_001000.pt",
+                       "rl_o1000_0k/step_001000.pt"]
     root = os.path.join(os.path.dirname(R.__file__), "checkpoints")
     if not os.path.isdir(root):
         pytest.skip("ai/checkpoints/ does not exist in this checkout")
@@ -370,7 +319,9 @@ def test_ai_checkpoints_holds_nothing_unpublished():
         for e in R.ENTRIES
         if e["kind"] == "network"
         and e["checkpoint"].startswith("ai/checkpoints/"))
-    assert published == registered
+    assert published == sorted(set(registered) | set(PENDING_REMOVAL))
+    # and the pending list really is unregistered, not a second copy of a row
+    assert not (set(PENDING_REMOVAL) & set(registered))
 
 
 def test_check_files_reports_a_missing_checkpoint(tmp_path, monkeypatch):
@@ -610,13 +561,6 @@ def test_one_alias_claimed_by_two_seats_is_refused():
     assert "claimed by both" in str(exc.value)
 
 
-def test_an_anchor_that_is_not_registered_is_refused():
-    with pytest.raises(ValueError) as exc:
-        R._validate_roster(["chess"])
-    assert "RL_KL_ANCHOR" in str(exc.value)
-    R._validate_roster(["chess", "rl_h1000_0k"])       # the real roster shape
-
-
 def test_validation_reports_every_problem_at_once():
     """An editor who made two mistakes should see both in one import."""
     with pytest.raises(ValueError) as exc:
@@ -645,19 +589,19 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     keys = [e["key"] for e in raw["entries"]]
-    # Stage 6 appended three students, and plan9 publishing the three 20k
-    # policies appended three more, neither touching an earlier row: the first
-    # eleven are exactly the list stage 3 pinned, which is what makes "the
-    # re-sort came from a rule, not from an edit to the roster" still checkable
-    # for those eleven.
-    assert keys[:11] == ["wolf", "chess", "fox", "intruder", "optimizer",
-                         "builder", "hunter", "rl_h1000_0k", "hc_2000",
-                         "hc_10000", "rl_h1000_20k"]
-    assert keys[11:] == ["rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k",
-                         "rl_o1000_20k", "rl_b1000_20k", "rl_i1000_20k"]
-    # The two slice pins above already fix the length at seventeen - a row
-    # added or removed shows up there, against a list someone typed - so what
-    # is left for the count to say is that no key appears twice.
+    # Registration order is pinned whole now rather than in two slices, because
+    # plan9 task 4 removed six rows from the *middle* of the file and the old
+    # "the first eleven are exactly what stage 3 pinned" claim stopped being
+    # true. What the pin is for has not changed: the array order is the one
+    # thing this file still owns that no pool reads, so it is typed here rather
+    # than derived, and a row added, removed or moved shows up against a list
+    # somebody wrote.
+    assert keys == ["wolf", "chess", "fox", "intruder", "optimizer",
+                    "builder", "hunter", "rl_h1000_20k", "rl_o1000_20k",
+                    "rl_b1000_20k", "rl_i1000_20k"]
+    # The pin above already fixes the length at eleven - a row added or removed
+    # shows up there - so what is left for the count to say is that no key
+    # appears twice.
     assert len(keys) == len(set(keys))
     assert sorted(keys) == list(S.automated_options())
     # `kind` and `family` are pinned too (user decision 10, 2026-10-08). The
@@ -675,13 +619,7 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
         ("optimizer", "heuristic", "personality"),
         ("builder", "heuristic", "personality"),
         ("hunter", "heuristic", "personality"),
-        ("rl_h1000_0k", "network", "imitation"),
-        ("hc_2000", "network", "imitation"),
-        ("hc_10000", "network", "imitation"),
         ("rl_h1000_20k", "network", "rl"),
-        ("rl_o1000_0k", "network", "imitation"),
-        ("rl_b1000_0k", "network", "imitation"),
-        ("rl_i1000_0k", "network", "imitation"),
         ("rl_o1000_20k", "network", "rl"),
         ("rl_b1000_20k", "network", "rl"),
         ("rl_i1000_20k", "network", "rl"),

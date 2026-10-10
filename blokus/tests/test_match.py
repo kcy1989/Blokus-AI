@@ -2,6 +2,8 @@
 into the leaderboard."""
 import random
 
+import pytest
+
 import ai.registry as REG
 import seats as seats_mod
 from config import PERSONALITY_ORDER
@@ -235,16 +237,25 @@ def test_the_league_draws_its_seats_through_setup_seats():
     assert firsts == {0, 1, 2, 3}, firsts
 
 
-def test_only_imitation_options_can_be_asked_for():
-    """The six imitation checkpoints and nothing else, in key order.
+def test_the_retired_imitation_options_are_not_league_options():
+    """Plan9 task 4 emptied the imitation family; these six are the reason.
 
-    Spelled out rather than derived, for the same reason `GOLDEN_POOL` is:
-    since plan9a stage 6 the family is the registry's `family` field and
-    `IMITATION_KEYS` only ever held H-C2's three steps - four seats share step
-    1000 now - so deriving this from the code table would assert that the code
-    table still knows the family, which is the thing beta stopped claiming.
-    Key order is not step order: `hc_10000` sorts before `hc_2000`.
+    Spelled out rather than derived, for the same reason `GOLDEN_POOL` is: a
+    test that derived this list from `is_imitation_key` would pass trivially
+    now that the family has no members, and would say nothing about the six
+    names that actually had to leave. They are still *files* under `data/`, and
+    `match.py --adhoc` can still seat one - what they cannot be is a league
+    option or a `--subject` without that binding.
     """
-    steps = [k for k in league_options() if seats_mod.is_imitation_key(k)]
-    assert steps == ["hc_10000", "hc_2000", "rl_b1000_0k", "rl_h1000_0k",
-                     "rl_i1000_0k", "rl_o1000_0k"]
+    from match import expand_pool
+
+    retired = ["hc_10000", "hc_2000", "rl_b1000_0k", "rl_h1000_0k",
+               "rl_i1000_0k", "rl_o1000_0k"]
+    assert [k for k in league_options() if seats_mod.is_imitation_key(k)] == []
+    for key in retired:
+        assert key not in league_options()
+        assert seats_mod.canonical_key(key) == key, "no alias was kept"
+        for refuse in (lambda: seats_mod.kind_of(key),
+                       lambda: expand_pool(key)):
+            with pytest.raises(ValueError):
+                refuse()

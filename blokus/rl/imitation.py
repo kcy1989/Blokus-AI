@@ -282,9 +282,24 @@ class ImitationBrain:
 
         if key is None:
             # `seats` owns option naming; ask it rather than format a name here,
-            # so an old key can never be rebuilt into a current one.
+            # so an old key can never be rebuilt into a current one. The answer
+            # is then checked rather than trusted: since plan9 task 4 none of the
+            # three H-C2 names is a seat any more, and handing one back would
+            # only fail later, inside `Game.setup_seats`, as "no such seat
+            # option" - which reads like a broken roster rather than like a
+            # retired one. Say it at the point where the name was chosen. A
+            # caller that bound the file with `seats.register_adhoc` (what
+            # `match.py --adhoc` does) passes this check and keeps working.
             import seats
             key = seats.imitation_key(step)
+            try:
+                seats.kind_of(key)
+            except ValueError:
+                raise ValueError(
+                    "step %s resolves to %r, which left the roster when plan9 "
+                    "task 4 retired the 0k checkpoints: pass key= for a seat "
+                    "you bound with seats.register_adhoc, or load the file "
+                    "directly with load_brain_at" % (step, key))
         self.key = key
         self.step = int(step)
         self.mode = mode

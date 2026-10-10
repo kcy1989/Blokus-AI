@@ -1,20 +1,21 @@
-"""All-AI league: each game draws four seats from the seventeen automated options,
+"""All-AI league: each game draws four seats from the eleven automated options,
 and the results feed the leaderboard.
 
 This is a tool for answering "which option is actually strongest"; it does not
 affect the flow of a normal player game.
 
-The seventeen are the seven personalities, the six imitation checkpoints (the
-three H-C2 steps plus the three 1000-step students), and four PPO-trained
-policies (the h chain plus the three plan9 students). The two human seats are
-excluded: a league of people cannot
+The eleven are the seven personalities and the four PPO-trained policies (the
+h chain plus the three plan9 students). The imitation checkpoints left the
+roster in plan9 task 4 - the 0k starting points and H-C2's steps 2000 and
+10000 are all retired - which is also when the `imitation_only` preset went
+with them. The two human seats are excluded: a league of people cannot
 be replayed from a seed, and a seat with no brain would have nothing to choose
 with.
 
     python3 match.py --games 100            # record into records.json
     python3 match.py --games 20 --dry       # run only, write nothing
     python3 match.py --games 100 --reset    # clear the leaderboard first
-    python3 match.py --games 5 --pool imitation_only   # only the checkpoints
+    python3 match.py --games 5 --pool rl_only       # only the trained policies
     python3 match.py --games 5 --pool no_imitation,hunter
 """
 import argparse
@@ -107,9 +108,15 @@ def paired_streams(seed, game_index):
 # Which entries are the imitation seats is asked of `seats.kind_of` rather than
 # tested against a string prefix. A prefix test is exactly what goes stale the
 # moment the key naming changes, and it fails *silently*: a prefix that matches
-# nothing turns `imitation_only` into an empty pool and `no_imitation` into the
-# whole pool. That is not hypothetical - the pool moved from `step_*` to `hc_*`
-# when H-B2's checkpoints were replaced by H-C2's.
+# nothing turns an imitation preset into an empty pool and `no_imitation` into
+# the whole pool. That is not hypothetical - the pool moved from `step_*` to
+# `hc_*` when H-B2's checkpoints were replaced by H-C2's.
+#
+# Since plan9 task 4 the registry holds no `family: imitation` row at all, so
+# `_is_imitation` answers False for every option and `no_imitation` is the
+# personalities. The predicate stays rather than being deleted, because it is
+# what *defines* the preset: dropping it would hard-code "personalities" into
+# `no_imitation` and leave the name explaining a split nobody computes any more.
 def _is_imitation(key):
     return seats_mod.kind_of(key) == seats_mod.KIND_IMITATION
 
@@ -125,17 +132,16 @@ POOL_PRESETS = {
     # is a network, so leaving it in here would make the name wrong.
     "no_imitation": tuple(k for k in _ORDER
                           if not _is_imitation(k) and not _is_rl(k)),
-    # Only the checkpoints that were trained *by imitation*, which is what the
-    # name has always meant here.
-    "imitation_only": tuple(k for k in _ORDER if _is_imitation(k)),
     # The trained policy alone - the question "how does it actually do" asked
-    # without also measuring three imitation checkpoints it is descended from.
+    # without also measuring checkpoints it is descended from. This used to be
+    # one of four presets: `imitation_only` went with the six retired imitation
+    # seats in plan9 task 4, and a preset nobody can name is not a preset.
     "rl_only": tuple(k for k in _ORDER if _is_rl(k)),
 }
 
 
 def league_options():
-    """The seventeen options a league seat can be drawn from."""
+    """The eleven options a league seat can be drawn from."""
     return seats_mod.seat_options(include_humans=False)
 
 
@@ -584,11 +590,9 @@ def main(argv=None):
     ap.add_argument("--pool", default=None,
                     help="逗號分隔,無空白。項目可為 preset 或單一 AI 名稱:"
                          " preset 有 all(%d 個)、no_imitation(%d 個人格)、"
-                         " imitation_only(%d 個模仿檢查點)、rl_only(%d 個訓練"
-                         "結果);名稱為 "
+                         " rl_only(%d 個訓練結果);名稱為 "
                          % (len(POOL_PRESETS["all"]),
                             len(POOL_PRESETS["no_imitation"]),
-                            len(POOL_PRESETS["imitation_only"]),
                             len(POOL_PRESETS["rl_only"]))
                          + ", ".join(seats_mod.automated_options()) + "。"
                          "展開後取聯集並去重,每個不同的 AI 權重相等(各 1/n);"

@@ -51,7 +51,7 @@ KIND_RL = "rl"
 KIND_HUMAN = "human"
 KIND_HUMAN_LOG = "human_log"
 # Not a kind of contestant but a deferred choice: a seat left on this is dealt
-# one of the seventeen automated options when the game starts, the same way a
+# one of the eleven automated options when the game starts, the same way a
 # "random" colour is dealt one of what is left. It is resolved before anything
 # looks at the seat, so a game in progress never contains one.
 KIND_RANDOM_AI = "random_ai"
@@ -300,8 +300,8 @@ _IMITATION_KEYS = frozenset(k for k in registry_keys()
 
 
 def automated_options():
-    """The seventeen options something can be played by: seven personalities,
-    six imitation checkpoints and four trained policies. This is the pool
+    """The eleven options something can be played by: seven personalities and
+    four trained policies. This is the pool
     `RANDOM_AI_KEY` draws from, and the same pool the league draws its four
     seats from.
 
@@ -321,10 +321,10 @@ def automated_options():
 
 
 def seat_options(include_humans=True):
-    """Every option a seat can be *set to*, in menu order: the seventeen
+    """Every option a seat can be *set to*, in menu order: the eleven
     automated options by key, then (optionally) the two human seats.
 
-    17 without humans, 19 with them. The deferred "random AI" is not here,
+    11 without humans, 13 with them. The deferred "random AI" is not here,
     because it is not something a seat stays set to - `seat_menu_options` is
     what the picker offers, and it is this plus that one.
     """
@@ -335,17 +335,17 @@ def seat_options(include_humans=True):
 
 
 def seat_menu_options():
-    """What the seat screen offers: the nineteen, plus "random AI" at the end.
+    """What the seat screen offers: the thirteen, plus "random AI" at the end.
 
-    Twenty entries, because the deferred choice is a fourth thing a seat can
-    say, sitting alongside the seventeen automated options and the two human
+    Fourteen entries, because the deferred choice is a fourth thing a seat can
+    say, sitting alongside the eleven automated options and the two human
     ones.
     """
     return seat_options(True) + (RANDOM_AI_KEY,)
 
 
 def resolve_random_ai(keys, rng):
-    """Deal any `RANDOM_AI_KEY` seat one of the seventeen, one draw per seat.
+    """Deal any `RANDOM_AI_KEY` seat one of the eleven, one draw per seat.
 
     Each draw is independent, so two "random AI" seats may land on the same
     option - which is the same rule the colours follow. The result is a concrete
