@@ -438,7 +438,6 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
                 row["milestone"] = _milestone_row(step, cfg, out_dir, log)
                 rt.append_jsonl(run_paths(out_dir)["milestones"],
                                 row["milestone"])
-                _snapshot_evidence(cfg, out_dir, step, log)
             rt.append_jsonl(run_paths(out_dir)["log"], row)
             _summary(row, log)
             last = row
@@ -449,6 +448,16 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
                 ev["step"] = step
                 ev["seconds"] = round(time.perf_counter() - t0, 3)
                 rt.append_jsonl(run_paths(out_dir)["eval"], ev)
+
+            if numbered:
+                # **After** this step's round row and (if it is one) its eval
+                # row. Taken earlier - as the 50k run's snapshots were - a
+                # milestone's own numbers lived only in `data/`, which is
+                # gitignored: step_000100's rounds stopped at 99 and its eval
+                # at 90, so the snapshot for the milestone did not contain the
+                # milestone's result. The snapshot is the evidence for *this*
+                # step, so it has to be taken once this step is on disk.
+                _snapshot_evidence(cfg, out_dir, step, log)
 
             fired = [g for learner in multi.LEARNERS
                      for g in row["guardrails"][learner] if g["fired"]]

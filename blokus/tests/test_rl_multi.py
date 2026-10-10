@@ -329,10 +329,11 @@ def test_the_frozen_weights_are_untouched_by_a_training_step(tmp_path):
         assert entry["path"].endswith(".pt")
         assert entry["key"] in multi.LEARNER_KEYS
     # ...and the milestone snapshot went to the tmp directory, not beside the
-    # published evidence. `milestones.jsonl` is the file that is guaranteed to
-    # be there: the snapshot runs *before* this step's own round row is
-    # appended, so on the very first step `rounds.jsonl` and `eval.jsonl` do
-    # not exist yet. That ordering is a separate (minor) evidence-quality
-    # issue, not this test's subject.
+    # published evidence - and it contains *this* step's own round row. Taking
+    # the snapshot before the row was appended is how the 50k run's
+    # step_000100 ended up recording rounds only through 99.
     snap = os.path.join(str(tmp_path), "step_000041")
+    snap_rows = [json.loads(line) for line in
+                 open(os.path.join(snap, "rounds.jsonl"), encoding="utf-8")]
+    assert [r["step"] for r in snap_rows] == [41]
     assert os.path.exists(os.path.join(snap, "milestones.jsonl"))
