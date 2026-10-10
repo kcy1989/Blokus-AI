@@ -34,6 +34,26 @@ def test_the_fixed_pool_is_the_eleven_plan10_names():
         seats.kind_of(key)
 
 
+def test_the_training_pool_does_not_follow_the_roster():
+    """plan10 §6b step 3: the pool a run is measured against must not grow.
+
+    The roster is at fifteen since milestone 1 (the four 50k policies), while
+    `FIXED_POOL` stays the eleven the 50k run trained against - otherwise the
+    fixed-pool curve stops being comparable across milestones, which is the
+    only curve plan10 risk 1 says can be read as progress. The pool is a
+    written-down constant for exactly this reason; this test is what makes a
+    later "add the new seats to the pool" edit fail rather than quietly
+    invalidate the next milestone's numbers.
+    """
+    assert len(multi.FIXED_POOL) == 11
+    assert not any("_50k" in key for key in multi.FIXED_POOL), multi.FIXED_POOL
+    # and it is still a subset of the roster, so the run can seat every one
+    for key in multi.FIXED_POOL:
+        seats.kind_of(key)
+    # a roster that grew did not drag the pool with it
+    assert len(seats.automated_options()) > len(multi.FIXED_POOL)
+
+
 def test_the_four_learners_are_registered_and_their_20k_files_exist():
     """Each learner continues from its own frozen 20k, which has to be a seat
     the roster knows - `seat_for` stands a training checkpoint in under its own
