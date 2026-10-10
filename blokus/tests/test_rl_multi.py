@@ -291,9 +291,14 @@ def test_the_frozen_weights_are_untouched_by_a_training_step(tmp_path):
     """The trainer re-hashes all four every step and stops if one moves. This
     is the same assertion from the outside."""
     before = mt.frozen_hashes()
+    # `evidence_dir` has to be pointed away from `eval/rl-multiple-train/`
+    # explicitly. Its default is the *real* evidence directory, so a milestone
+    # written by a test would land beside the published snapshots - which is
+    # exactly how `step_000041` came to be a pytest tmp path committed as
+    # evidence. A test gets a tmp directory, never the repository's.
     cfg = mt.MultiConfig(start_step=40, end_step=41, table_games=24,
                          fixed_games=4, n_procs=2, eval_every=0, eval_games=2,
-                         milestone_every=1)
+                         milestone_every=1, evidence_dir=str(tmp_path))
     result = mt.train(cfg, out_dir=str(tmp_path))
     assert result.steps_done == 41 and not result.stopped_by
     assert mt.frozen_hashes() == before
@@ -323,3 +328,11 @@ def test_the_frozen_weights_are_untouched_by_a_training_step(tmp_path):
         assert len(entry["sha256"]) == 64
         assert entry["path"].endswith(".pt")
         assert entry["key"] in multi.LEARNER_KEYS
+    # ...and the milestone snapshot went to the tmp directory, not beside the
+    # published evidence. `milestones.jsonl` is the file that is guaranteed to
+    # be there: the snapshot runs *before* this step's own round row is
+    # appended, so on the very first step `rounds.jsonl` and `eval.jsonl` do
+    # not exist yet. That ordering is a separate (minor) evidence-quality
+    # issue, not this test's subject.
+    snap = os.path.join(str(tmp_path), "step_000041")
+    assert os.path.exists(os.path.join(snap, "milestones.jsonl"))
