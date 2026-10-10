@@ -127,6 +127,16 @@ RL_SEATS = (
     ("rl_o1000_20k", "data/rl_o1000/step_000040.pt"),
     ("rl_b1000_20k", "data/rl_b1000/step_000040.pt"),
     ("rl_i1000_20k", "data/rl_i1000/step_000040.pt"),
+    # plan10 milestone 1 (2026-10-10): the four learners after 60 more rounds
+    # of 500 games each, trained at once under eval/rl-multiple-train/. The
+    # path is where the policy was *trained*; `ai/registry.json`'s `checkpoint`
+    # is where it is *published* and what `rl_checkpoint` reads. The 20k rows
+    # above stay: each 50k policy continues from its own frozen 20k, and both
+    # are separate seats so a league can put them against each other.
+    ("rl_h1000_50k", "data/multi/h/step_000100.pt"),
+    ("rl_o1000_50k", "data/multi/o/step_000100.pt"),
+    ("rl_b1000_50k", "data/multi/b/step_000100.pt"),
+    ("rl_i1000_50k", "data/multi/i/step_000100.pt"),
 )
 
 # Every alias, the imitation ones and the trained-policy ones alike. This is

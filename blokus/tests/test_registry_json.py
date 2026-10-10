@@ -261,7 +261,14 @@ def test_the_label_and_description_keys_exist_in_config():
                                      "rl_desc_fmt",
                                      "rl_optimizer_desc_fmt",
                                      "rl_builder_desc_fmt",
-                                     "rl_intruder_desc_fmt")
+                                     "rl_intruder_desc_fmt",
+                                     # plan10 milestone 1: the same four
+                                     # continued, so the round count is what
+                                     # separates them from the rows above.
+                                     "rl_desc50_fmt",
+                                     "rl_optimizer_desc50_fmt",
+                                     "rl_builder_desc50_fmt",
+                                     "rl_intruder_desc50_fmt")
 
 
 # --------------------------------------------------------------------------
@@ -588,10 +595,14 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
     # somebody wrote.
     assert keys == ["wolf", "chess", "fox", "intruder", "optimizer",
                     "builder", "hunter", "rl_h1000_20k", "rl_o1000_20k",
-                    "rl_b1000_20k", "rl_i1000_20k"]
-    # The pin above already fixes the length at eleven - a row added or removed
-    # shows up there - so what is left for the count to say is that no key
-    # appears twice.
+                    "rl_b1000_20k", "rl_i1000_20k",
+                    # plan10 milestone 1 (2026-10-10): the four learners after
+                    # 60 more rounds each, appended at the end so the eleven
+                    # rows above keep the order plan9 task 4 left them in.
+                    "rl_h1000_50k", "rl_o1000_50k", "rl_b1000_50k",
+                    "rl_i1000_50k"]
+    # The pin above already fixes the length - a row added or removed shows up
+    # there - so what is left for the count to say is that no key appears twice.
     assert len(keys) == len(set(keys))
     assert sorted(keys) == list(S.automated_options())
     # `kind` and `family` are pinned too (user decision 10, 2026-10-08). The
@@ -613,6 +624,10 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
         ("rl_o1000_20k", "network", "rl"),
         ("rl_b1000_20k", "network", "rl"),
         ("rl_i1000_20k", "network", "rl"),
+        ("rl_h1000_50k", "network", "rl"),
+        ("rl_o1000_50k", "network", "rl"),
+        ("rl_b1000_50k", "network", "rl"),
+        ("rl_i1000_50k", "network", "rl"),
     }
 
 

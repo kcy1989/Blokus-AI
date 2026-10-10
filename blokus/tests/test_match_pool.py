@@ -397,22 +397,27 @@ def test_no_pool_at_all_means_all():
 # are allowed to meet, and it is what turns a roster edit into a loud failure
 # here rather than a silent drift.
 GOLDEN_POOL = ["builder", "chess", "fox", "hunter", "intruder", "optimizer",
-               "rl_b1000_20k", "rl_h1000_20k", "rl_i1000_20k", "rl_o1000_20k",
+               "rl_b1000_20k", "rl_b1000_50k", "rl_h1000_20k", "rl_h1000_50k",
+               "rl_i1000_20k", "rl_i1000_50k", "rl_o1000_20k", "rl_o1000_50k",
                "wolf"]
 
+# plan10 milestone 1 (2026-10-10): the roster gained the four 50k policies, so
+# `all` went 11 -> 15 and every draw index moved. Recomputed with the command
+# in README's "GOLDEN 重採（plan10 里程碑 1）" on this commit's tree; the old
+# values are the ones the previous commit pinned, from the 11-key pool.
 GOLDEN = {
-    20260928: [('wolf', 'red', 24), ('rl_i1000_20k', 'yellow', 8),
-               ('intruder', 'blue', 17), ('builder', 'green', 8),
-               ('chess', 'red', 20), ('fox', 'green', 37),
-               ('rl_i1000_20k', 'yellow', 4), ('rl_o1000_20k', 'blue', 18)],
-    7: [('optimizer', 'green', 21), ('fox', 'red', 18),
-        ('rl_b1000_20k', 'yellow', 12), ('wolf', 'blue', 36),
-        ('rl_b1000_20k', 'red', 8), ('wolf', 'blue', 18),
-        ('optimizer', 'green', 9), ('builder', 'yellow', 22)],
-    99: [('rl_b1000_20k', 'yellow', 8), ('rl_b1000_20k', 'red', 4),
-         ('hunter', 'blue', 18), ('rl_o1000_20k', 'green', 20),
-         ('rl_i1000_20k', 'yellow', 9), ('wolf', 'blue', 33),
-         ('chess', 'green', 41), ('rl_h1000_20k', 'red', 0)],
+    20260928: [('rl_i1000_20k', 'green', 12), ('rl_h1000_20k', 'red', 4),
+               ('wolf', 'yellow', 36), ('intruder', 'blue', 7),
+               ('rl_h1000_50k', 'yellow', 9), ('rl_b1000_20k', 'red', 11),
+               ('rl_b1000_20k', 'green', 16), ('builder', 'blue', 15)],
+    7: [('optimizer', 'green', 20), ('fox', 'red', 33),
+        ('rl_b1000_20k', 'yellow', 8), ('rl_i1000_20k', 'blue', 5),
+        ('chess', 'red', 33), ('chess', 'blue', 38),
+        ('rl_h1000_20k', 'yellow', 8), ('rl_b1000_20k', 'green', 0)],
+    99: [('rl_b1000_20k', 'yellow', 22), ('rl_b1000_20k', 'red', 12),
+         ('hunter', 'blue', 7), ('rl_h1000_50k', 'green', 6),
+         ('rl_b1000_50k', 'green', 0), ('optimizer', 'blue', 12),
+         ('rl_b1000_20k', 'yellow', 28), ('builder', 'red', 21)],
 }
 
 
