@@ -1055,6 +1055,169 @@ EOF
 測試都是從**真實對局位置**出發（用 `Game.act` 走出來），不是把棋塊硬放上去：
 角對角規則意味著 owner 0 必須先開在自己的角上，否則 `reach` 對所有候選都是錯的。
 
+### GOLDEN 重採（plan10 里程碑 1：四個 50k 入池，2026-10-10）
+
+plan10 里程碑 1 把 `rl_{h,o,b,i}1000_50k` 四列加進 `ai/registry.json`，
+`all` 池從 **11 列變 15 列**，`rl_only` 從 **4 變 8**，`no_imitation` **7 不變**
+（新列的 `pools` 只有 `["all", "rl_only"]`）。這是**組成變更**：`rng.choice`
+抽的是 index，15 個排序位置全部重排，三個種子全部改變。
+
+| 池 | 里程碑 1 前 | 里程碑 1 後 |
+|---|---|---|
+| `all` | 11 | **15** |
+| `rl_only` | 4 | **8** |
+| `no_imitation` | 7 | 7 |
+
+`seat_options()` 13 → 17（15 自動 + 2 人類），`automated_options()` 與
+`league_options()` 11 → **15**。
+
+**訓練固定池不動**：`rl/multi.py::FIXED_POOL` 仍是原來的 11 席，已由
+`tests/test_rl_multi.py::test_the_training_pool_does_not_follow_the_roster`
+釘住（含「不含任何 `_50k`」）。否則固定池曲線不可跨里程比較，而 plan10
+風險 1 說那是唯一能當進步證據的一條。
+
+**重算命令**（新值由這支命令在本提交的樹上產出；舊值即上一節的「新值」，
+由同一支命令在前一個 commit `9b012c0` 上產出）：
+
+```bash
+.venv-rl/bin/python - <<'EOF'
+from match import expand_pool, run_league
+
+def flat(rows):
+    return [r for game in rows for r in game]
+
+def seats_of(rows):
+    return [(k, c, r) for k, c, r, _rk, _p in flat(rows)]
+
+print(expand_pool("all"))
+for seed in (20260928, 7, 99):
+    print(seed, seats_of(run_league(2, seed=seed, options=expand_pool("all"))))
+EOF
+```
+
+舊值（十一 key 池）：
+
+```
+20260928  [('wolf','red',24), ('rl_i1000_20k','yellow',8), ('intruder','blue',17),
+           ('builder','green',8), ('chess','red',20), ('fox','green',37),
+           ('rl_i1000_20k','yellow',4), ('rl_o1000_20k','blue',18)]
+7         [('optimizer','green',21), ('fox','red',18), ('rl_b1000_20k','yellow',12),
+           ('wolf','blue',36), ('rl_b1000_20k','red',8), ('wolf','blue',18),
+           ('optimizer','green',9), ('builder','yellow',22)]
+99        [('rl_b1000_20k','yellow',8), ('rl_b1000_20k','red',4),
+           ('hunter','blue',18), ('rl_o1000_20k','green',20),
+           ('rl_i1000_20k','yellow',9), ('wolf','blue',33),
+           ('chess','green',41), ('rl_h1000_20k','red',0)]
+```
+
+新值（十五 key 池）：
+
+```
+20260928  [('rl_i1000_20k','green',12), ('rl_h1000_20k','red',4),
+           ('wolf','yellow',36), ('intruder','blue',7),
+           ('rl_h1000_50k','yellow',9), ('rl_b1000_20k','red',11),
+           ('rl_b1000_20k','green',16), ('builder','blue',15)]
+7         [('optimizer','green',20), ('fox','red',33),
+           ('rl_b1000_20k','yellow',8), ('rl_i1000_20k','blue',5),
+           ('chess','red',33), ('chess','blue',38),
+           ('rl_h1000_20k','yellow',8), ('rl_b1000_20k','green',0)]
+99        [('rl_b1000_20k','yellow',22), ('rl_b1000_20k','red',12),
+           ('hunter','blue',7), ('rl_h1000_50k','green',6),
+           ('rl_b1000_50k','green',0), ('optimizer','blue',12),
+           ('rl_b1000_20k','yellow',28), ('builder','red',21)]
+```
+
+`GOLDEN_POOL` 同步改成 15 個 key 的字面清單。**因名册變動而重採的斷言，
+逐條說明 —— 這一輪沒有任何斷言被放寬**：
+
+| 測試 | 原本釘住 | 改法與理由 |
+|---|---|---|
+| `test_registry_json::test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted` | 11 列的字面列序、11 個 `(key,kind,family)` 三元組 | 兩者各**加四列**。加在清單尾端，正好是四列在 JSON 裡的位置，所以「其餘十一列不動」這件事仍然看得見。釘的力道未變：仍是人手打的清單 |
+| `test_registry_json::test_the_label_and_description_keys_exist_in_config` | 非人格列的 `desc_key` 必須在一份**字面白名單**裡 | 白名單**加四個**新格式鍵（`rl_*_desc50_fmt`）。這不是放寬：白名單上面那一行「`desc_key` 必須存在於 `config.I`」原封不動，而且更強 —— 鍵不存在就先炸 |
+| `test_match_pool::test_the_pinned_pool_is_still_the_registry_s_pool` | `GOLDEN_POOL`（字面）== `expand_pool("all")` | **證據，未改**。名册改了就必須紅，這正是它存在的理由 |
+| `test_match_pool` 的三個 `GOLDEN` 種子 | 11 key 池下各兩局的 `(席位, 顏色, 餘格)` | **GOLDEN 重採**，舊→新見上表 |
+
+同次新增：`tests/test_rl_multi.py::test_the_training_pool_does_not_follow_the_roster`
+（plan10 §6b 第 3 點：訓練池凍結為 11 席、不含 `_50k`、且名册已比它大）。
+
+---
+
+## 50k 席位的用法
+
+入池後 `rl_{h,o,b,i}1000_50k` 是普通席位，`match.py` 與遊戲介面都能直接選。
+
+### 用 `match.py` 對局
+
+四條常用配方。`--paired-rng` 讓同一個種子的每一局都照同一套設定排，
+兩個 `--subject` 之間才可比；`--dry` 只跑對局、不寫排行榜。
+
+```bash
+# (甲) 50k 對四個 20k（同一批學生的上一代）
+.venv-rl/bin/python match.py --games 3000 --seed 4242 --paired-rng \
+    --subject rl_h1000_50k --mode argmax --gzip --dry \
+    --pool rl_h1000_20k,rl_o1000_20k,rl_b1000_20k,rl_i1000_20k \
+    --out /tmp/h50k-vs-20k.json.gz
+
+# (乙) 50k 對七個人格（`no_imitation` 池）
+.venv-rl/bin/python match.py --games 3000 --seed 4243 --paired-rng \
+    --subject rl_h1000_50k --mode argmax --gzip --dry \
+    --pool no_imitation --out /tmp/h50k-vs-personalities.json.gz
+
+# (丙) 四個 50k 互打
+.venv-rl/bin/python match.py --games 3000 --seed 4244 --paired-rng \
+    --subject rl_h1000_50k --mode argmax --gzip --dry \
+    --pool rl_h1000_50k,rl_o1000_50k,rl_b1000_50k,rl_i1000_50k \
+    --out /tmp/four50k.json.gz
+
+# (丁) 全池 15 席
+.venv-rl/bin/python match.py --games 3000 --seed 4245 --paired-rng \
+    --subject rl_h1000_50k --mode argmax --gzip --dry \
+    --pool all --out /tmp/h50k-vs-all.json.gz
+```
+
+同一個 `--subject` 換成 `rl_o1000_50k` / `rl_b1000_50k` / `rl_i1000_50k` 就是
+另外三個學生。要和別的候選比較就把 `--subject` 換掉，`--pool` 與種子保持不變。
+
+**種子建議：4242–4299。** 這一段在 `rl.paired3.RESERVED_RANGES` 裡完全空著
+（實測 `4242`/`4243` 皆 FREE），而 `20261011` 這類日期式種子**落在
+`tools/benchmark.py` 保留區 20240101–20336965 之內**，已知衝突。
+`match.py` 本身不跑那道 guard（只有 RL rollout 的 spec 生成會），所以用
+衝突的種子不會報錯；但同一組數字日後想拿去做 RL rollout 就會被擋，乾脆一開始就避開。
+
+### 在遊戲介面選到 50k 席位
+
+座位選單（`seats.seat_menu_options()`）現在是 **18 項**：15 個自動席位 +
+2 個人類席位 + 「隨機 AI」。四個 50k 排在四個 20k 之後，中文名是
+「強化學習 rl_h1000_50k」，說明分別是「PPO 訓練 100 輪、共 50,000 局
+（自 20k 續練）」，再依老師加上「老師：優化者／築城者／入侵者」（h 版沿用
+通用說明，不加老師）。選到之後與其他席位完全同權，可存排行榜。
+
+`--pool random_ai` 或選單上的「隨機 AI」仍然是從 `automated_options()`
+的 **15** 個裡抽，所以 50k 也會被抽中。
+
+### 如何移除
+
+使用者若不喜歡這四個席位，照下面做，**順序不能反**：
+
+```bash
+# 1. 先退固定池測試（它斷言「名册 > 訓練池」，名册退回 11 之後這條會紅）
+git revert --no-commit 6e788f2
+# 2. 再退註冊與權重（含 GOLDEN、registry 列序、config 說明鍵、四個權重檔）
+git revert --no-commit fe9cb59
+git commit -m "Remove the four 50k seats"
+```
+
+反向順序會讓中間那一個提交的樹是紅的（`6e788f2` 單獨存在時要求名册大於
+11）。退掉 `fe9cb59` 之後：
+
+- `ai/checkpoints/rl_*_50k/` 四個目錄與 `ai/registry.json` 的四列一起消失，
+  `automated_options()` 回到 11。
+- **GOLDEN 會自動回到十一 key 池的那份**，因為舊值就寫在 `fe9cb59` 裡，
+  revert 即還原，**不需要再重採**。
+- `eval/rl-multiple-train/` 的三個快照**不退**：它們是訓練本身的證據，
+  與席位在不在名册無關。要重現就照快照裡的 sha256 找 `data/multi/` 的檔。
+- `data/multi/` 本來就 gitignored，不受影響。
+
 ---
 
 ## 新增一種 AI

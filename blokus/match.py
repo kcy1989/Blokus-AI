@@ -1,4 +1,4 @@
-"""All-AI league: each game draws four seats from the eleven automated options,
+"""All-AI league: each game draws four seats from the automated options,
 and the results feed the leaderboard.
 
 This is a tool for answering "which option is actually strongest"; it does not
