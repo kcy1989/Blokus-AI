@@ -202,6 +202,83 @@ def test_an_eval_schedule_is_the_same_whatever_the_step():
     assert multi.make_eval_specs(20)[0].seed == multi.EVAL_SEED_BASE
 
 
+def test_the_default_eval_schedule_is_the_one_the_50k_curve_recorded_on():
+    """A golden of the generator **before** `seed_base` / `block` existed,
+    written out independently here. If parameterising `make_eval_specs` ever
+    moved the default schedule, every paired_diff already published would stop
+    describing the numbers next to it."""
+    import random
+    rng = random.Random(multi.EVAL_SEED_BASE)
+    expect = []
+    for g in range(20):
+        names = tuple(rng.choice(multi.FIXED_POOL) for _ in range(3))
+        expect.append(rr.Spec(multi.EVAL_SEED_BASE + g, g % 4, names))
+    assert multi.make_eval_specs(20) == expect
+
+
+def test_a_big_eval_schedule_sits_on_its_own_row():
+    specs = multi.make_eval_specs(
+        400, seed_base=multi.BIG_EVAL_SEED_BASE, block=multi.BIG_EVAL_BLOCK)
+    assert len(specs) == 400
+    assert specs[0].seed == 7_410_000
+    assert specs[-1].seed == 7_410_399
+    small = set(s.seed for s in multi.make_eval_specs(100))
+    big = set(s.seed for s in specs)
+    assert not (small & big), "the 100-game curve shares a seed with the big one"
+
+
+def test_an_eval_base_that_would_run_past_its_row_is_refused():
+    with pytest.raises(ValueError):
+        multi.make_eval_specs(1_001, seed_base=multi.EVAL_SEED_BASE,
+                              block=multi.EVAL_BLOCK)
+    with pytest.raises(ValueError):
+        multi.make_eval_specs(2_001, seed_base=multi.BIG_EVAL_SEED_BASE,
+                              block=multi.BIG_EVAL_BLOCK)
+    with pytest.raises(ValueError):
+        multi.make_eval_specs(2, seed_base=7_411_999,
+                              block=multi.BIG_EVAL_BLOCK)
+
+
+def test_the_eval_defaults_are_the_behaviour_the_50k_curve_recorded():
+    """The contract, pinned without playing a game: a default `evaluate` call
+    must still be argmax on the validation row against the frozen 20k."""
+    import inspect
+    fn = inspect.signature(mt.evaluate)
+    assert fn.parameters["mode"].default == "argmax"
+    assert fn.parameters["seed_base"].default is None
+    assert fn.parameters["block"].default is None
+    assert fn.parameters["against"].default == ("20k",)
+    assert fn.parameters["out_path"].default is None
+
+
+def test_both_frozen_milestones_resolve_through_the_registry():
+    """The 50k side has never been loaded outside training, so its file is
+    checked against the sha256 the registry records before a game is played."""
+    for ref, keys in (("20k", multi.LEARNER_KEYS),
+                      ("50k", multi.LEARNER_KEYS_50K)):
+        paths, got_keys, hashes = mt.ref_paths(mt.DEFAULT_OUT_DIR, ref)
+        assert tuple(got_keys) == keys
+        assert len(paths) == len(hashes) == 4
+        for path, want in zip(paths, hashes):
+            assert os.path.isfile(path), path
+            assert mt.sha256_of(path) == want
+
+
+def test_an_evaluation_writes_into_big_eval_and_not_over_a_snapshot(tmp_path):
+    """`big_eval/` is a sibling of the `step_<n>/` snapshots, not inside one:
+    a 400-game result must not land where a milestone snapshot lives."""
+    d = mt.BIG_EVAL_DIR
+    assert os.path.basename(d) == "big_eval"
+    assert os.path.dirname(d) == mt.DEFAULT_EVIDENCE_DIR
+    assert not d.startswith(mt.DEFAULT_EVIDENCE_DIR + os.sep + "step_")
+
+
+def test_an_unknown_eval_ref_is_refused(tmp_path):
+    with pytest.raises(ValueError):
+        mt.evaluate(mt.MultiConfig(eval_games=1), str(tmp_path),
+                    against=("150k",))
+
+
 # --------------------------------------------------------------------------
 # one table, four episodes
 # --------------------------------------------------------------------------

@@ -44,10 +44,14 @@ nothing at all for the published save points.
 
 **The progress curve is a fixed-seed evaluation, not the training curve.**
 `evaluate` replays one immutable opponent schedule from the validation block
-against each learner's current weights and against that learner's own frozen
-20k, on the same seeds - a paired difference, so its standard error is the
-noise in the comparison rather than in either policy. plan10 risk 1 says the
-on-policy curves cannot be read as progress; this one can.
+against each learner's current weights and against a frozen ref - the 20k the
+learner started this run from by default, and optionally the published 50k -
+on the same seeds, in the same mode. That is a paired difference, so its
+standard error is the noise in the comparison rather than in either policy.
+plan10 risk 1 says the on-policy curves cannot be read as progress; this one
+can. The 50k milestone's larger evaluation uses its own seed row
+(`BIG_EVAL_BLOCK`) so a 400-game schedule cannot be mistaken for the 100-game
+curve.
 """
 import argparse
 import hashlib
@@ -64,6 +68,10 @@ from rl import rollout as rollout_mod
 PROJECT_DIR = rt.PROJECT_DIR
 DEFAULT_OUT_DIR = os.path.join(PROJECT_DIR, "data", "multi")
 DEFAULT_EVIDENCE_DIR = os.path.join(PROJECT_DIR, "eval", "rl-multiple-train")
+# The large-sample evaluations live beside the milestone snapshots and inside
+# a directory of their own, so a 400-game result can never be mistaken for -
+# or written over - a `step_<n>/` snapshot.
+BIG_EVAL_DIR = os.path.join(DEFAULT_EVIDENCE_DIR, "big_eval")
 NAME = "rl_multiple"
 
 NICE = 19
@@ -207,53 +215,158 @@ def _curve(table_eps, fixed_eps):
     return {"table": t, "fixed": f, "merged": merged}
 
 
-def evaluate(cfg, out_dir, n_procs=None):
-    """`(step-independent) paired evaluation of every learner on one schedule.
+# Which frozen checkpoint a paired evaluation may compare the current weights
+# against, by name. "20k" is the run's own starting weights; "50k" is the
+# milestone the 50k run published. Both resolve through `ai/registry.json`, so
+# no path is spelled out here.
+REFS = ("20k", "50k")
 
-    Both rows are `argmax` on the same specs from the validation block: the
-    current weights, and the frozen 20k the learner started this run from. The
-    paired difference is what the curve reports, with its standard error - the
-    two rows share every draw, so the noise left is the policies'.
+
+def ref_paths(out_dir, ref):
+    """`(paths, keys, sha256s)` for one named ref, in learner order.
+
+    Every ref is resolved through the registry and its recorded sha256 is
+    checked against the file on disk before a single game is played. A paired
+    difference is meaningless if either side is not the policy it claims to be,
+    and the 50k side has never been loaded outside a training run - so the
+    check is not optional, it raises.
     """
-    specs = multi.make_eval_specs(cfg.eval_games)
+    import seats
+    from ai import registry
+    keys = multi.LEARNER_KEYS if ref == "20k" else multi.LEARNER_KEYS_50K
+    paths, hashes = [], []
+    for i, key in enumerate(keys):
+        if ref == "20k":
+            path = frozen_paths()[i]
+        else:
+            path = seats.rl_checkpoint(key)
+        want = (registry.entry(key) or {}).get("sha256")
+        got = sha256_of(path)
+        if want and got != want:
+            raise RuntimeError("%s: %s is %s, registry records %s"
+                               % (ref, path, got, want))
+        paths.append(path)
+        hashes.append(got)
+    return paths, keys, hashes
+
+
+def evaluate(cfg, out_dir, n_procs=None, *, mode="argmax", seed_base=None,
+             block=None, against=("20k",), out_path=None, log=print):
+    """Paired evaluation of every learner on one schedule.
+
+    Both rows of a pairing are the **same** mode on the **same** specs: the
+    current weights, and one frozen ref. The paired difference is what gets
+    reported, with its standard error - the two rows share every draw, so the
+    noise left is the policies'.
+
+    Every argument defaults to the behaviour the 50k curve was recorded with:
+    `argmax`, the validation block's seeds, and the run's own frozen 20k as the
+    only ref. Adding a ref (`against=("20k", "50k")`) does not disturb the
+    first pairing - the legacy top-level keys always mirror `against[0]` - so a
+    later milestone can be measured on the same schedule without the earlier
+    numbers moving.
+    """
+    for ref in against:
+        if ref not in REFS:
+            raise ValueError("unknown evaluation ref %r (known: %r)"
+                             % (ref, REFS))
+    specs = multi.make_eval_specs(cfg.eval_games, seed_base=seed_base,
+                                  block=block)
     n = cfg.n_procs if n_procs is None else n_procs
-    # Each learner's current weights have to be handed to a worker through a
-    # file, exactly as the rollout does; `current.pt` is that file.
+    refdata = {ref: ref_paths(out_dir, ref) for ref in against}
+    base = multi.EVAL_SEED_BASE if seed_base is None else int(seed_base)
     rows = {}
     for i, learner in enumerate(multi.LEARNERS):
+        # Each learner's current weights have to be handed to a worker through
+        # a file, exactly as the rollout does; `current.pt` is that file.
         cur = rollout_mod.play_batch(
             specs, checkpoint_paths(out_dir, learner)["current"],
-            n_procs=min(n, 4), device=cfg.rollout_device, mode="argmax",
-            opponent_pool=multi.FIXED_POOL, learner_key=multi.LEARNER_KEYS[i])
-        fro = rollout_mod.play_batch(
-            specs, frozen_paths()[i], n_procs=min(n, 4),
-            device=cfg.rollout_device, mode="argmax",
+            n_procs=min(n, 4), device=cfg.rollout_device, mode=mode,
             opponent_pool=multi.FIXED_POOL, learner_key=multi.LEARNER_KEYS[i])
         c = _episode_rewards(cur)
-        f = _episode_rewards(fro)
-        diffs = [a - b for a, b in zip(c, f)]
-        mean = _mean(diffs)
-        if len(diffs) > 1:
-            var = sum((d - mean) ** 2 for d in diffs) / (len(diffs) - 1)
-            se = (var / len(diffs)) ** 0.5
-        else:
-            se = None
-        rows[learner] = {
-            "games": len(diffs),
-            "current_reward": _mean(c),
-            "frozen_reward": _mean(f),
-            "paired_diff": mean,
-            "paired_se": se,
-            "current_remaining": _mean([e.remaining[e.learner_seat]
-                                        for e in cur]),
-            "frozen_remaining": _mean([e.remaining[e.learner_seat]
-                                       for e in fro]),
-            "current_rank": _mean([e.ranks[e.learner_seat] for e in cur]),
-            "frozen_rank": _mean([e.ranks[e.learner_seat] for e in fro]),
+        current = {
+            "reward": _mean(c),
+            "remaining": _mean([e.remaining[e.learner_seat] for e in cur]),
+            "rank": _mean([e.ranks[e.learner_seat] for e in cur]),
         }
-    return {"eval_games": cfg.eval_games, "seed_base": multi.EVAL_SEED_BASE,
-            "pool": list(multi.FIXED_POOL), "mode": "argmax",
-            "learners": rows}
+        refs = {}
+        for ref in against:
+            paths, keys, _hashes = refdata[ref]
+            oth = rollout_mod.play_batch(
+                specs, paths[i], n_procs=min(n, 4),
+                device=cfg.rollout_device, mode=mode,
+                opponent_pool=multi.FIXED_POOL, learner_key=keys[i])
+            f = _episode_rewards(oth)
+            diffs = [a - b for a, b in zip(c, f)]
+            mean = _mean(diffs)
+            if len(diffs) > 1:
+                var = sum((d - mean) ** 2 for d in diffs) / (len(diffs) - 1)
+                se = (var / len(diffs)) ** 0.5
+            else:
+                se = None
+            refs[ref] = {
+                "games": len(diffs),
+                "key": keys[i],
+                "reward": _mean(f),
+                "remaining": _mean([e.remaining[e.learner_seat]
+                                    for e in oth]),
+                "rank": _mean([e.ranks[e.learner_seat] for e in oth]),
+                "paired_diff": mean,
+                "paired_se": se,
+            }
+        first = refs[against[0]]
+        rows[learner] = {
+            "games": first["games"],
+            "current_reward": current["reward"],
+            "frozen_reward": first["reward"],
+            "paired_diff": first["paired_diff"],
+            "paired_se": first["paired_se"],
+            "current_remaining": current["remaining"],
+            "frozen_remaining": first["remaining"],
+            "current_rank": current["rank"],
+            "frozen_rank": first["rank"],
+            "refs": refs,
+        }
+    result = {
+        "eval_games": cfg.eval_games, "seed_base": base,
+        "pool": list(multi.FIXED_POOL), "mode": mode,
+        "refs": {ref: {"keys": list(refdata[ref][1]),
+                       "paths": list(refdata[ref][0]),
+                       "sha256": list(refdata[ref][2])}
+                 for ref in against},
+        "learners": rows,
+    }
+    if out_path is not None:
+        import json
+        d = os.path.dirname(out_path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, ensure_ascii=False, indent=2, sort_keys=True)
+            fh.write("\n")
+        log("evaluation written to %s" % out_path)
+    return result
+
+
+def big_eval(cfg, out_dir, n_procs, games, modes, label, log=print):
+    """The large-sample paired evaluation of whatever `current.pt` holds.
+
+    One file per mode in `big_eval/`, named after the step those weights are
+    at. Each file pairs the current weights against **both** frozen milestones
+    on one schedule, so within a file the two pairings share every draw, and
+    across files the schedules differ only by row - a 75k or 100k evaluation
+    written later cannot disturb the 50k baseline, because neither writes over
+    the other's file.
+    """
+    cfg = cfg._replace(eval_games=int(games))
+    out = {}
+    for mode in modes:
+        path = os.path.join(BIG_EVAL_DIR, "%s_%s.json" % (label, mode))
+        out[mode] = evaluate(
+            cfg, out_dir, n_procs=n_procs, mode=mode,
+            seed_base=multi.BIG_EVAL_SEED_BASE, block=multi.BIG_EVAL_BLOCK,
+            against=REFS, out_path=path, log=log)
+    return out
 
 
 def _is_milestone(step, cfg):
@@ -644,6 +757,15 @@ def build_parser():
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--minibatch", type=int, default=None)
     ap.add_argument("--entropy-coef", type=float, default=None)
+    ap.add_argument("--big-eval", action="store_true",
+                    help="evaluate `current.pt` on the large schedule and "
+                         "exit; writes one file per mode into big_eval/")
+    ap.add_argument("--big-games", type=int, default=400)
+    ap.add_argument("--big-modes", default="argmax,softmax",
+                    help="comma-separated; every mode gets its own file")
+    ap.add_argument("--big-label", default=None,
+                    help="name for the output files; default is the step "
+                         "`current.pt` is at")
     return ap
 
 
@@ -677,6 +799,23 @@ def main(argv=None):
     if args.resume and args.start_step is not None:
         raise SystemExit("--resume and --start-step are two ways of saying "
                          "where to begin; pass one")
+    if args.big_eval:
+        if args.resume or args.dry or args.start_step is not None:
+            raise SystemExit("--big-eval evaluates and exits; it does not "
+                             "train, so --resume/--dry/--start-step do not "
+                             "apply")
+        rt._install_signal_handlers()
+        rounds = [rt.find_resume_point(learner_dir(args.out, l))[0]
+                  for l in multi.LEARNERS]
+        if len(set(rounds)) > 1:
+            raise SystemExit("the four learners are at different steps: %r"
+                             % dict(zip(multi.LEARNERS, rounds)))
+        label = args.big_label or ("step_%06d" % rounds[0])
+        modes = tuple(m.strip() for m in args.big_modes.split(",") if m.strip())
+        if not modes:
+            raise SystemExit("--big-modes named no mode")
+        big_eval(cfg, args.out, args.n_procs, args.big_games, modes, label)
+        return 0
     rt._install_signal_handlers()
     result = train(cfg, out_dir=args.out, ppo_cfg=ppo_cfg,
                    resume=args.resume, max_steps=args.max_steps,

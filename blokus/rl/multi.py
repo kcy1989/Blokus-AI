@@ -38,6 +38,11 @@ from rl.rollout import Spec
 LEARNERS = ("h", "o", "b", "i")
 LEARNER_KEYS = ("rl_h1000_20k", "rl_o1000_20k", "rl_b1000_20k",
                 "rl_i1000_20k")
+# The same four learners' published 50k, in the same order. Not the learners'
+# weights during training - this is the milestone a later run is compared
+# against, and the name it is registered under.
+LEARNER_KEYS_50K = ("rl_h1000_50k", "rl_o1000_50k", "rl_b1000_50k",
+                    "rl_i1000_50k")
 
 # The fixed pool: the seven personalities plus the four frozen 20k. Written out
 # rather than derived from `seats.automated_options()`, because the pool is a
@@ -240,24 +245,35 @@ def make_fixed_specs(step, games=GAMES_PER_STEP, rng_seed=None):
     return specs, manifest
 
 
-def make_eval_specs(games, rng_seed=None):
-    """The **fixed** opponent schedule the progress curve is measured on.
+def make_eval_specs(games, rng_seed=None, seed_base=None, block=None):
+    """The **fixed** opponent schedule a progress curve is measured on.
 
-    Same generator shape as `make_fixed_specs` but anchored to the validation
+    Same generator shape as `make_fixed_specs` but anchored to a validation
     block and independent of the step, so every evaluation in a run sees the
     same opponents, the same seats and the same opening player. That is the
     whole point: plan10's risk 1 says the on-policy curves cannot be compared
     across time, and §6 asks for a fixed seed set and a fixed pool.
+
+    `seed_base` / `block` move the whole schedule somewhere else - the 50k
+    milestone's large-sample evaluation uses `BIG_EVAL_BLOCK`, so its 400-game
+    schedule cannot be confused with the 100-game curve's. Both default to the
+    validation row, which is exactly the schedule the existing evidence was
+    recorded on; the specs a default call returns are unchanged.
     """
     import random
     games = int(games)
-    if not 1 <= games <= EVAL_SEED_SPAN:
-        raise ValueError("games must be within 1..%d, got %d"
-                         % (EVAL_SEED_SPAN, games))
-    _claim(EVAL_BLOCK, EVAL_SEED_BASE, EVAL_SEED_BASE + games - 1)
-    rng = random.Random(EVAL_SEED_BASE if rng_seed is None else int(rng_seed))
+    base = EVAL_SEED_BASE if seed_base is None else int(seed_base)
+    block = EVAL_BLOCK if block is None else tuple(block)
+    span = block[2] - block[1] + 1
+    if not 1 <= games <= span:
+        raise ValueError("games must be within 1..%d, got %d" % (span, games))
+    if not block[1] <= base <= block[2] - games + 1:
+        raise ValueError("seed_base %d with %d games runs past block %r"
+                         % (base, games, block))
+    _claim(block, base, base + games - 1)
+    rng = random.Random(base if rng_seed is None else int(rng_seed))
     specs = []
     for g in range(games):
         names = tuple(rng.choice(FIXED_POOL) for _ in range(3))
-        specs.append(Spec(EVAL_SEED_BASE + g, g % 4, names))
+        specs.append(Spec(base + g, g % 4, names))
     return specs
