@@ -1,0 +1,186 @@
+{
+  "eval_games": 400,
+  "learners": {
+    "b": {
+      "current_rank": 2.1975,
+      "current_remaining": 13.015,
+      "current_reward": 2.6723500000000002,
+      "frozen_rank": 2.2925,
+      "frozen_remaining": 13.4275,
+      "frozen_reward": 2.573225,
+      "games": 400,
+      "paired_diff": 0.09912499999999999,
+      "paired_se": 0.07764551355600618,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_b1000_20k",
+          "paired_diff": 0.09912499999999999,
+          "paired_se": 0.07764551355600618,
+          "rank": 2.2925,
+          "remaining": 13.4275,
+          "reward": 2.573225
+        },
+        "50k": {
+          "games": 400,
+          "key": "rl_b1000_50k",
+          "paired_diff": 0.0,
+          "paired_se": 0.0,
+          "rank": 2.1975,
+          "remaining": 13.015,
+          "reward": 2.6723500000000002
+        }
+      }
+    },
+    "h": {
+      "current_rank": 2.42,
+      "current_remaining": 14.69,
+      "current_reward": 2.4331,
+      "frozen_rank": 2.4125,
+      "frozen_remaining": 14.93,
+      "frozen_reward": 2.4382,
+      "games": 400,
+      "paired_diff": -0.005100000000000005,
+      "paired_se": 0.07472031375884707,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_h1000_20k",
+          "paired_diff": -0.005100000000000005,
+          "paired_se": 0.07472031375884707,
+          "rank": 2.4125,
+          "remaining": 14.93,
+          "reward": 2.4382
+        },
+        "50k": {
+          "games": 400,
+          "key": "rl_h1000_50k",
+          "paired_diff": 0.0,
+          "paired_se": 0.0,
+          "rank": 2.42,
+          "remaining": 14.69,
+          "reward": 2.4331
+        }
+      }
+    },
+    "i": {
+      "current_rank": 2.4925,
+      "current_remaining": 14.87,
+      "current_reward": 2.3588,
+      "frozen_rank": 2.5675,
+      "frozen_remaining": 15.4775,
+      "frozen_reward": 2.277725,
+      "games": 400,
+      "paired_diff": 0.08107500000000002,
+      "paired_se": 0.07516208207862182,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_i1000_20k",
+          "paired_diff": 0.08107500000000002,
+          "paired_se": 0.07516208207862182,
+          "rank": 2.5675,
+          "remaining": 15.4775,
+          "reward": 2.277725
+        },
+        "50k": {
+          "games": 400,
+          "key": "rl_i1000_50k",
+          "paired_diff": 0.0,
+          "paired_se": 0.0,
+          "rank": 2.4925,
+          "remaining": 14.87,
+          "reward": 2.3588
+        }
+      }
+    },
+    "o": {
+      "current_rank": 2.3425,
+      "current_remaining": 13.7775,
+      "current_reward": 2.5197249999999998,
+      "frozen_rank": 2.2975,
+      "frozen_remaining": 13.225,
+      "frozen_reward": 2.5702499999999997,
+      "games": 400,
+      "paired_diff": -0.050524999999999994,
+      "paired_se": 0.07610381503311109,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_o1000_20k",
+          "paired_diff": -0.050524999999999994,
+          "paired_se": 0.07610381503311109,
+          "rank": 2.2975,
+          "remaining": 13.225,
+          "reward": 2.5702499999999997
+        },
+        "50k": {
+          "games": 400,
+          "key": "rl_o1000_50k",
+          "paired_diff": 0.0,
+          "paired_se": 0.0,
+          "rank": 2.3425,
+          "remaining": 13.7775,
+          "reward": 2.5197249999999998
+        }
+      }
+    }
+  },
+  "mode": "softmax",
+  "pool": [
+    "builder",
+    "chess",
+    "fox",
+    "hunter",
+    "intruder",
+    "optimizer",
+    "rl_b1000_20k",
+    "rl_h1000_20k",
+    "rl_i1000_20k",
+    "rl_o1000_20k",
+    "wolf"
+  ],
+  "refs": {
+    "20k": {
+      "keys": [
+        "rl_h1000_20k",
+        "rl_o1000_20k",
+        "rl_b1000_20k",
+        "rl_i1000_20k"
+      ],
+      "paths": [
+        "ai/checkpoints/rl_h1000_20k/step_000040.pt",
+        "ai/checkpoints/rl_o1000_20k/step_000040.pt",
+        "ai/checkpoints/rl_b1000_20k/step_000040.pt",
+        "ai/checkpoints/rl_i1000_20k/step_000040.pt"
+      ],
+      "sha256": [
+        "e1dc6230a70d205a89287468c47db6126717f0e9d42369bc1beca31404801636",
+        "272b2edf35e9157ed137a33787ceb5fc736c62f785c304cb6abfa2a273c1ad90",
+        "63aeb6000623cdaec7f1568f99c65135dbcb8eb862b9c637d1f43be6e01daa6a",
+        "3db862d34fbe48943621e373d29adc456016c12675daf86133abf0460518c9d0"
+      ]
+    },
+    "50k": {
+      "keys": [
+        "rl_h1000_50k",
+        "rl_o1000_50k",
+        "rl_b1000_50k",
+        "rl_i1000_50k"
+      ],
+      "paths": [
+        "ai/checkpoints/rl_h1000_50k/step_000100.pt",
+        "ai/checkpoints/rl_o1000_50k/step_000100.pt",
+        "ai/checkpoints/rl_b1000_50k/step_000100.pt",
+        "ai/checkpoints/rl_i1000_50k/step_000100.pt"
+      ],
+      "sha256": [
+        "eaf6a2ff3b30ffa4e16e9cda1fa885e5d62e17432c03861e7d6f428e92907b49",
+        "9fa7c6781c632705fe9015846a209d891eecab6398c239bf3ad8bafbdfdc00cd",
+        "ab6ec0a120667bd98a8f0352c7e35b5c6ac1ec17126a433050fdb93be92d09e3",
+        "ef6ab92bbc11c3ec0c2f02945257a2ba435bfe9b295cb54bf5cb69ea847484a6"
+      ]
+    }
+  },
+  "seed_base": 7410000
+}
