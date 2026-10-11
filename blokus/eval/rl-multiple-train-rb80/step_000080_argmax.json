@@ -1,0 +1,130 @@
+{
+  "eval_games": 400,
+  "learners": {
+    "b": {
+      "current_rank": 1.91,
+      "current_remaining": 9.7075,
+      "current_reward": 2.992925,
+      "frozen_rank": 1.97,
+      "frozen_remaining": 10.34,
+      "frozen_reward": 2.9266,
+      "games": 400,
+      "paired_diff": 0.06632500000000001,
+      "paired_se": 0.06917296515770648,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_b1000_20k",
+          "paired_diff": 0.06632500000000001,
+          "paired_se": 0.06917296515770648,
+          "rank": 1.97,
+          "remaining": 10.34,
+          "reward": 2.9266
+        }
+      }
+    },
+    "h": {
+      "current_rank": 1.825,
+      "current_remaining": 9.5025,
+      "current_reward": 3.079975,
+      "frozen_rank": 1.935,
+      "frozen_remaining": 10.21,
+      "frozen_reward": 2.9629000000000003,
+      "games": 400,
+      "paired_diff": 0.11707500000000001,
+      "paired_se": 0.06013509632871356,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_h1000_20k",
+          "paired_diff": 0.11707500000000001,
+          "paired_se": 0.06013509632871356,
+          "rank": 1.935,
+          "remaining": 10.21,
+          "reward": 2.9629000000000003
+        }
+      }
+    },
+    "i": {
+      "current_rank": 2.205,
+      "current_remaining": 12.0225,
+      "current_reward": 2.6747750000000003,
+      "frozen_rank": 2.28,
+      "frozen_remaining": 12.2075,
+      "frozen_reward": 2.597925,
+      "games": 400,
+      "paired_diff": 0.07685,
+      "paired_se": 0.07190603338972754,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_i1000_20k",
+          "paired_diff": 0.07685,
+          "paired_se": 0.07190603338972754,
+          "rank": 2.28,
+          "remaining": 12.2075,
+          "reward": 2.597925
+        }
+      }
+    },
+    "o": {
+      "current_rank": 1.9975,
+      "current_remaining": 10.7825,
+      "current_reward": 2.8946750000000003,
+      "frozen_rank": 2.09,
+      "frozen_remaining": 11.555,
+      "frozen_reward": 2.79445,
+      "games": 400,
+      "paired_diff": 0.100225,
+      "paired_se": 0.07345492368092098,
+      "refs": {
+        "20k": {
+          "games": 400,
+          "key": "rl_o1000_20k",
+          "paired_diff": 0.100225,
+          "paired_se": 0.07345492368092098,
+          "rank": 2.09,
+          "remaining": 11.555,
+          "reward": 2.79445
+        }
+      }
+    }
+  },
+  "mode": "argmax",
+  "pool": [
+    "builder",
+    "chess",
+    "fox",
+    "hunter",
+    "intruder",
+    "optimizer",
+    "rl_b1000_20k",
+    "rl_h1000_20k",
+    "rl_i1000_20k",
+    "rl_o1000_20k",
+    "wolf"
+  ],
+  "refs": {
+    "20k": {
+      "keys": [
+        "rl_h1000_20k",
+        "rl_o1000_20k",
+        "rl_b1000_20k",
+        "rl_i1000_20k"
+      ],
+      "paths": [
+        "ai/checkpoints/rl_h1000_20k/step_000040.pt",
+        "ai/checkpoints/rl_o1000_20k/step_000040.pt",
+        "ai/checkpoints/rl_b1000_20k/step_000040.pt",
+        "ai/checkpoints/rl_i1000_20k/step_000040.pt"
+      ],
+      "sha256": [
+        "e1dc6230a70d205a89287468c47db6126717f0e9d42369bc1beca31404801636",
+        "272b2edf35e9157ed137a33787ceb5fc736c62f785c304cb6abfa2a273c1ad90",
+        "63aeb6000623cdaec7f1568f99c65135dbcb8eb862b9c637d1f43be6e01daa6a",
+        "3db862d34fbe48943621e373d29adc456016c12675daf86133abf0460518c9d0"
+      ]
+    }
+  },
+  "seed_base": 7369000
+}
