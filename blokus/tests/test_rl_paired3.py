@@ -224,7 +224,9 @@ def test_every_registered_range_is_pairwise_disjoint():
 def test_the_rl_blocks_clear_every_block_already_registered():
     for label, lo, hi in (("stage RL train", 7_000_000, 7_019_999),
                           ("stage RL validation", 7_100_000, 7_100_999),
-                          ("stage RL students", 7_200_000, 7_219_999)):
+                          ("stage RL students", 7_200_000, 7_219_999),
+                          ("stage RL v2 h train", 7_500_000, 7_509_999),
+                          ("stage RL v2 h eval", 7_520_000, 7_520_999)):
         for other, olo, ohi in list(P.RESERVED_RANGES) + list(P.OWN_RANGES):
             if other == label:
                 continue
@@ -252,6 +254,30 @@ def test_the_rl_blocks_are_accepted_by_the_block_guard_when_claimed():
     with pytest.raises(ValueError) as exc:
         P.reject_reserved_seeds(7_200_000, 7_200_499, own=train)
     assert "stage RL students" in str(exc.value)
+
+
+def test_the_v2_h_rows_are_registered_exactly_and_claimable():
+    """The v2 rerun's two rows, spelled out as literals.
+
+    The training row covers only the 10,000 seeds rounds 81..100 draw, not the
+    40,000 anchor-side seeds no round ever uses; the evaluation row is its own
+    entry so a bigger schedule cannot grow into the next stage's.
+    """
+    got = {label: (lo, hi) for label, lo, hi in P.RESERVED_RANGES}
+    assert got["stage RL v2 h train"] == (7_500_000, 7_509_999)
+    assert got["stage RL v2 h eval"] == (7_520_000, 7_520_999)
+
+    train = ("stage RL v2 h train", 7_500_000, 7_509_999)
+    ev = ("stage RL v2 h eval", 7_520_000, 7_520_999)
+    assert P.reject_reserved_seeds(7_500_000, 7_509_999, own=train) == []
+    assert P.reject_reserved_seeds(7_520_000, 7_520_999, own=ev) == []
+    # nobody else may, including the row next door
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_500_000, 7_509_999, own=ev)
+    assert "stage RL v2 h train" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_500_000, 7_509_999)
+    assert "stage RL v2 h train" in str(exc.value)
 
 
 def test_claiming_your_own_block_does_not_excuse_overlapping_someone_elses():

@@ -446,7 +446,17 @@ def _claimed_train_block(seed_base):
     reserved, claiming the h-version block would overlap the students' own row
     and refuse to start. Only RL's own train blocks are candidates - an
     imitation base must keep landing in the guard instead of exempting itself.
+
+    An anchor base is matched before the containment scan because it is
+    *outside* the row it may claim: a run that resumes at round 81 derives
+    `seed_base` from where round 1 would have started, and that number is
+    arithmetic, not a reserved seed. Matching it by containment would find
+    nothing and fall through to `RL_TRAIN_BLOCK`, which does not exempt the
+    range the run actually draws - so the run would refuse its own row.
     """
+    for anchor, block in rollout_mod.RL_V2_H_ANCHOR_BLOCKS:
+        if seed_base == anchor:
+            return block
     for block in (rollout_mod.RL_TRAIN_BLOCK, rollout_mod.RL_STUDENTS_BLOCK):
         if block[1] <= seed_base <= block[2]:
             return block

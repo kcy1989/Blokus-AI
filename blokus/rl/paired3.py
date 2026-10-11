@@ -154,6 +154,15 @@ RESERVED_RANGES = (
     ("stage RL rb80 table", 7_362_000, 7_362_199),
     ("stage RL rb80 fixed", 7_363_000, 7_368_199),
     ("stage RL rb80 big eval", 7_369_000, 7_369_399),
+    # plan10 extension, h-only rerun (v2): the h learner walks steps 81..100
+    # again from the 40k checkpoint, this time under `rl_train`'s single
+    # seven-personality environment rather than `rl.multi`'s two. The training
+    # row covers only the seeds those 20 rounds actually draw, and the fixed
+    # evaluation set gets its own row - the same split as the rb80 rerun
+    # above, for the same reason. Labels and ranges must stay in step with
+    # `rl.rollout.RL_V2_H_BLOCK` / `RL_V2_H_EVAL_BLOCK`.
+    ("stage RL v2 h train", 7_500_000, 7_509_999),
+    ("stage RL v2 h eval", 7_520_000, 7_520_999),
 )
 
 PAIRS_A = 2_000

@@ -89,6 +89,35 @@ RL_STUDENTS_SEED_BASE = 7_200_000
 RL_STUDENTS_BLOCK = ("stage RL students", RL_STUDENTS_SEED_BASE,
                      RL_STUDENTS_SEED_BASE + RL_SEED_SPAN - 1)
 
+# plan10 extension, h-only rerun (v2): `rl_h1000_50k` fell behind its own 20k
+# on argmax, so the h learner walks steps 81..100 again from the 40k checkpoint
+# under *this* pipeline instead of `rl.multi`'s two environments - the same
+# seven-personality pool the 0k->20k walk used.
+#
+# `seed_base` is the anchor where round 1 *would* have started and is
+# deliberately outside the row: `rl_train` derives a round's seeds as
+# `seed_base + (round - 1) * per_round`, so rounds 81..100 on a 7,460,000 base
+# draw exactly 7,500,000..7,509,999 and nothing else. The row covers that used
+# range, not the 40,000 anchor-side seeds no round ever draws - a wider row
+# would lock away seeds that were never used and describe a history that never
+# happened. Written as literals because the bounds are the evidence.
+RL_V2_H_SEED_BASE = 7_460_000
+RL_V2_H_BLOCK = ("stage RL v2 h train", 7_500_000, 7_509_999)
+
+# The fixed evaluation set the acceptance measurement is scored on, kept in its
+# own row so a bigger schedule cannot silently grow into the next stage's, and
+# so it cannot be confused with the in-training 100-game curve's seeds
+# (`RL_VALID_BLOCK`) or with the rb80 rerun's (`rl.multi.RB80_EVAL_BLOCK`).
+RL_V2_H_EVAL_SEED_BASE = 7_520_000
+RL_V2_H_EVAL_SPAN = 1_000
+RL_V2_H_EVAL_BLOCK = ("stage RL v2 h eval", RL_V2_H_EVAL_SEED_BASE,
+                      RL_V2_H_EVAL_SEED_BASE + RL_V2_H_EVAL_SPAN - 1)
+
+# The anchors `_claimed_train_block` matches on when the run's `seed_base` is
+# not inside the row it is entitled to claim. The v2 run is the only one of
+# these so far: its base is an arithmetic anchor, not a reserved seed.
+RL_V2_H_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),)
+
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
 

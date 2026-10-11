@@ -430,7 +430,8 @@ def test_every_rollout_block_is_registered_to_the_tuple():
     files - drift would refuse every run of the stage the row belongs to."""
     from rl import paired3
     registered = set(paired3.RESERVED_RANGES)
-    for block in (Rr.RL_TRAIN_BLOCK, Rr.RL_VALID_BLOCK, Rr.RL_STUDENTS_BLOCK):
+    for block in (Rr.RL_TRAIN_BLOCK, Rr.RL_VALID_BLOCK, Rr.RL_STUDENTS_BLOCK,
+                  Rr.RL_V2_H_BLOCK, Rr.RL_V2_H_EVAL_BLOCK):
         assert block in registered, block
 
 

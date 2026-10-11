@@ -163,6 +163,63 @@ def test_the_seed_claim_follows_the_registered_block_for_this_base():
     assert T._claimed_train_block(6_000_000) is rollout_mod.RL_TRAIN_BLOCK
 
 
+def test_the_default_base_claim_is_the_pre_v2_one():
+    """The v2 registration must not move a default-base run by a single seed.
+
+    `_claimed_train_block` gained an anchor match ahead of the containment
+    scan. A default base is not an anchor, so its claim has to stay
+    bit-identical - asserted as literals rather than against the constant,
+    because a constant that drifted would carry the expectation with it.
+    """
+    assert T._claimed_train_block(7_000_000) \
+        == ("stage RL train", 7_000_000, 7_019_999)
+    assert T._claimed_train_block(7_200_000) \
+        == ("stage RL students", 7_200_000, 7_219_999)
+    assert T._claimed_train_block(7_150_000) \
+        == ("stage RL train", 7_000_000, 7_019_999)
+
+    # and the round-1 draw itself, opponents included
+    specs, man = rollout_mod.make_specs(
+        7_000_000, 3, rng_seed=7_000_000,
+        own=T._claimed_train_block(7_000_000))
+    assert man["reserved_range_checked"] \
+        == ["stage RL train", 7_000_000, 7_019_999]
+    assert [(s.seed, s.learner_seat, s.opponent_names) for s in specs] == [
+        (7_000_000, 3, ("optimizer", "intruder", "fox")),
+        (7_000_001, 3, ("chess", "hunter", "intruder")),
+        (7_000_002, 0, ("optimizer", "fox", "builder")),
+    ]
+
+
+def test_the_v2_anchor_claims_the_row_its_rounds_81_to_100_draw():
+    """The whole point of the anchor match: the base is outside the row.
+
+    `rl_train` derives a round's seeds as `seed_base + (round - 1) * per_round`,
+    so a 7,460,000 base resuming at round 81 draws 7,500,000..7,509,999 - a
+    range that a containment scan on the base would never find, and that the
+    fallback `RL_TRAIN_BLOCK` would not exempt.
+    """
+    base = rollout_mod.RL_V2_H_SEED_BASE
+    assert T._claimed_train_block(base) is rollout_mod.RL_V2_H_BLOCK
+
+    lo = base + (81 - 1) * 500
+    hi = base + (100 - 1) * 500 + 499
+    assert (lo, hi) == rollout_mod.RL_V2_H_BLOCK[1:]
+
+    # the claim the run will actually make, and the row it is exempted against
+    specs, man = rollout_mod.make_specs(
+        lo, hi - lo + 1, rng_seed=base, own=T._claimed_train_block(base))
+    assert man["reserved_range_checked"] == list(rollout_mod.RL_V2_H_BLOCK)
+    assert [s.seed for s in specs][0] == 7_500_000
+    assert [s.seed for s in specs][-1] == 7_509_999
+
+    # every other base keeps falling through, so an anchor cannot be a way to
+    # exempt an arbitrary range
+    assert T._claimed_train_block(base + 1) is rollout_mod.RL_TRAIN_BLOCK
+    with pytest.raises(ValueError):
+        rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
+
+
 @needs_checkpoint
 def test_a_student_seed_base_starts_and_runs_a_round(tmp_path):
     """The registration, end to end: with the students' row in the guard's
