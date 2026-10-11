@@ -90,16 +90,44 @@ EVAL_BLOCK = ("stage RL multiple validation", 7_400_000, 7_400_999)
 BIG_EVAL_BLOCK = ("stage RL multiple big eval", 7_410_000, 7_411_999)
 BIG_EVAL_SEED_BASE = 7_410_000
 
+# The rollback rerun: steps 81..100 re-walked from the 40k checkpoint on seeds
+# the original run never touched, to tell a one-off bad update apart from
+# something the 80 -> 100 dynamics do every time.
+#
+# `*_SEED_BASE` here is the seed **step 1** would have had, so the existing
+# `(step - 1) * stride` formula is reused untouched and only the anchor moves.
+# It is arithmetic, never a claimed seed - what the guard sees is the range
+# steps 81..100 actually produce, registered verbatim in `rl.paired3`. Both
+# anchors therefore sit inside `stage RL multiple fixed 2`, which is harmless
+# and deliberate: nothing ever asks the guard about them.
+#
+#   table  base 7_361_200  ->  steps 81..100 claim 7_362_000..7_362_199
+#   fixed  base 7_342_200  ->  steps 81..100 claim 7_363_000..7_368_199
+#   eval   base 7_369_000  ->  400 games claim     7_369_000..7_369_399
+RB80_TABLE_SEED_BASE = 7_361_200
+RB80_FIXED_SEED_BASE = 7_342_200
+RB80_EVAL_SEED_BASE = 7_369_000
+
+RB80_TABLE_BLOCK = ("stage RL rb80 table", 7_362_000, 7_362_199)
+RB80_FIXED_BLOCK = ("stage RL rb80 fixed", 7_363_000, 7_368_199)
+RB80_EVAL_BLOCK = ("stage RL rb80 big eval", 7_369_000, 7_369_399)
+
 MULTI_BLOCKS = (TABLE_BLOCK, TABLE2_BLOCK, FIXED_BLOCK, FIXED2_BLOCK,
-                EVAL_BLOCK, BIG_EVAL_BLOCK)
+                EVAL_BLOCK, BIG_EVAL_BLOCK,
+                RB80_TABLE_BLOCK, RB80_FIXED_BLOCK, RB80_EVAL_BLOCK)
 
 
-def _table_block(step):
-    """Which of the two table rows this step claims, by seed, not by step."""
+def _table_block(step, base=None):
+    """Which table row this step claims: by seed when a base is given, else by
+    step, because the plan's first hundred and second hundred have their own."""
+    if base is not None:
+        return RB80_TABLE_BLOCK
     return TABLE_BLOCK if step <= 100 else TABLE2_BLOCK
 
 
-def _fixed_block(step):
+def _fixed_block(step, base=None):
+    if base is not None:
+        return RB80_FIXED_BLOCK
     return FIXED_BLOCK if step <= 100 else FIXED2_BLOCK
 
 
@@ -117,36 +145,68 @@ class TableSpec(NamedTuple):
     keys: tuple
 
 
-def table_seed(step, round_no):
-    """The seed of one round of one step. A pure function, not a cursor."""
+def table_seed(step, round_no, base=None):
+    """The seed of one round of one step. A pure function, not a cursor.
+
+    `base` is the seed step 1 would have had; left alone it is the plan's own,
+    and the answer is byte-identical to before this parameter existed.
+    """
     if not 1 <= round_no <= ROUNDS_PER_STEP:
-        raise ValueError("round %r is not one of the %d per step"
+        raise ValueError("round %r is not one of %d per step"
                          % (round_no, ROUNDS_PER_STEP))
-    return TABLE_SEED_BASE + (int(step) - 1) * ROUNDS_PER_STEP + round_no - 1
+    base = TABLE_SEED_BASE if base is None else int(base)
+    return base + (int(step) - 1) * ROUNDS_PER_STEP + round_no - 1
 
 
-def fixed_seed(step, game):
-    """The seed of one fixed-pool game of one step."""
+def fixed_seed(step, game, base=None):
+    """The seed of one fixed-pool game of one step. See `table_seed`."""
     if not 0 <= game < GAMES_PER_STEP:
         raise ValueError("game %r is not one of the %d per step"
                          % (game, GAMES_PER_STEP))
-    return FIXED_SEED_BASE + (int(step) - 1) * GAMES_PER_STEP + game
+    base = FIXED_SEED_BASE if base is None else int(base)
+    return base + (int(step) - 1) * GAMES_PER_STEP + game
 
 
-def check_step(step, max_step=PLAN_STEPS):
-    """Reject a step whose seeds would fall outside the reserved blocks."""
+def check_table_step(step, max_step=PLAN_STEPS, base=None):
+    """Reject a step whose table seeds would fall outside their row.
+
+    Split from `check_fixed_step` because the two streams have their own
+    anchors: the plan's, and the rollback rerun's, which differ. One `base`
+    for both would make `make_table_specs` bound the table stream against the
+    fixed row - and that is exactly how the first draft of this failed.
+    """
     step = int(step)
     if not 1 <= step <= int(max_step):
         raise ValueError("step %r is outside 1..%d" % (step, max_step))
-    hi = fixed_seed(step, GAMES_PER_STEP - 1)
-    block = _fixed_block(step)
+    hi = table_seed(step, ROUNDS_PER_STEP, base)
+    block = _table_block(step, base)
     if hi > block[2]:
-        raise ValueError("step %d needs seeds up to %d, past the reserved "
-                         "block's %d" % (step, hi, block[2]))
+        raise ValueError("step %d needs table seeds up to %d, past the "
+                         "reserved block's %d" % (step, hi, block[2]))
     return step
 
 
-def check_range(lo_step, hi_step):
+def check_fixed_step(step, max_step=PLAN_STEPS, base=None):
+    """Reject a step whose fixed-pool seeds would fall outside their row."""
+    step = int(step)
+    if not 1 <= step <= int(max_step):
+        raise ValueError("step %r is outside 1..%d" % (step, max_step))
+    hi = fixed_seed(step, GAMES_PER_STEP - 1, base)
+    block = _fixed_block(step, base)
+    if hi > block[2]:
+        raise ValueError("step %d needs fixed seeds up to %d, past the "
+                         "reserved block's %d" % (step, hi, block[2]))
+    return step
+
+
+def check_step(step, max_step=PLAN_STEPS, base=None, table_base=None):
+    """Both streams. `base` anchors the fixed one, `table_base` the table's;
+    either may be left as the plan's own."""
+    check_table_step(step, max_step, table_base)
+    return check_fixed_step(step, max_step, base)
+
+
+def check_range(lo_step, hi_step, base=None, table_base=None):
     """`check_step` over every step a run would touch, in one call.
 
     A run validates each step as it gets there, so a range that runs past the
@@ -159,7 +219,7 @@ def check_range(lo_step, hi_step):
         raise ValueError("step range %d..%d ends before it starts"
                          % (lo_step, hi_step))
     for step in range(lo_step, hi_step + 1):
-        check_step(step)
+        check_step(step, base=base, table_base=table_base)
     return hi_step
 
 
@@ -174,30 +234,32 @@ def _claim(block, lo, hi):
     reject_reserved_seeds(lo, hi, own=block)
 
 
-def make_table_specs(step, rounds=ROUNDS_PER_STEP):
+def make_table_specs(step, rounds=ROUNDS_PER_STEP, base=None):
     """Every same-table game of one step, in `(round, seat order)` order.
 
     One seed per round, shared by all 24 orders - see the module docstring for
     why that is the design rather than an omission. The result is a function of
     `step` alone: no rng is seeded, and the permutation order is `PERMS`.
+    `base` moves the whole stream to another reserved row; left alone the
+    answer is byte-identical to before it existed.
     """
-    check_step(step)
+    check_table_step(step, base=base)
     rounds = int(rounds)
     if not 1 <= rounds <= ROUNDS_PER_STEP:
         raise ValueError("rounds must be within 1..%d, got %d"
                          % (ROUNDS_PER_STEP, rounds))
-    _claim(_table_block(step), table_seed(step, 1),
-           table_seed(step, rounds))
+    _claim(_table_block(step, base), table_seed(step, 1, base),
+           table_seed(step, rounds, base))
     specs = []
     for r in range(rounds):
-        seed = table_seed(step, r + 1)
+        seed = table_seed(step, r + 1, base)
         for order in PERMS:
             keys = tuple(LEARNER_KEYS[o] for o in order)
             specs.append(TableSpec(seed, order, keys))
     return specs
 
 
-def make_fixed_specs(step, games=GAMES_PER_STEP, rng_seed=None):
+def make_fixed_specs(step, games=GAMES_PER_STEP, rng_seed=None, base=None):
     """`(specs, manifest)` for one step's fixed-pool games.
 
     Three opponents are drawn **with replacement** from `FIXED_POOL` - plan10
@@ -209,17 +271,18 @@ def make_fixed_specs(step, games=GAMES_PER_STEP, rng_seed=None):
 
     `rng_seed` defaults to the step's first seed, following `make_specs`. Pass
     it explicitly to get a second, different opponent schedule over the same
-    board seeds.
+    board seeds. `base` moves the stream to another reserved row - see
+    `make_table_specs`.
     """
     import random
-    check_step(step)
+    check_fixed_step(step, base=base)
     games = int(games)
     if not 1 <= games <= GAMES_PER_STEP:
         raise ValueError("games must be within 1..%d, got %d"
                          % (GAMES_PER_STEP, games))
-    _claim(_fixed_block(step), fixed_seed(step, 0),
-           fixed_seed(step, games - 1))
-    rng = random.Random(fixed_seed(step, 0) if rng_seed is None
+    _claim(_fixed_block(step, base), fixed_seed(step, 0, base),
+           fixed_seed(step, games - 1, base))
+    rng = random.Random(fixed_seed(step, 0, base) if rng_seed is None
                         else int(rng_seed))
     specs = []
     coverage = {k: 0 for k in FIXED_POOL}
@@ -227,17 +290,18 @@ def make_fixed_specs(step, games=GAMES_PER_STEP, rng_seed=None):
         names = tuple(rng.choice(FIXED_POOL) for _ in range(3))
         for n in names:
             coverage[n] += 1
-        specs.append(Spec(fixed_seed(step, g), g % 4, names))
+        specs.append(Spec(fixed_seed(step, g, base), g % 4, names))
     manifest = {
         "step": int(step),
         "pool": list(FIXED_POOL),
         "opponents_per_game": 3,
         "with_replacement": True,
         "seat_rule": "game % 4",
-        "rng_seed": fixed_seed(step, 0) if rng_seed is None else int(rng_seed),
+        "rng_seed": (fixed_seed(step, 0, base) if rng_seed is None
+                     else int(rng_seed)),
         "opponent_coverage": coverage,
-        "seed_lo": fixed_seed(step, 0),
-        "seed_hi": fixed_seed(step, games - 1),
+        "seed_lo": fixed_seed(step, 0, base),
+        "seed_hi": fixed_seed(step, games - 1, base),
     }
     return specs, manifest
 

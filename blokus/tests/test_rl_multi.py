@@ -157,6 +157,77 @@ def test_the_whole_plan_fits_inside_the_reserved_blocks():
         multi.check_step(step)
     with pytest.raises(ValueError):
         multi.check_step(201)
+    # the rollback rerun's own anchors bound it the same way
+    for step in (81, 100):
+        multi.check_step(step, base=multi.RB80_FIXED_SEED_BASE)
+    with pytest.raises(ValueError):
+        multi.check_step(101, base=multi.RB80_FIXED_SEED_BASE)
+
+
+def test_the_default_seed_path_is_byte_identical_to_the_published_run():
+    """The strongest regression the rollback change can have.
+
+    `table_seed` / `fixed_seed` / `make_*_specs` grew a `base` parameter. If
+    the default answer moved at all, every number the 50k evidence rests on
+    would stop describing the games it was recorded on - so the golden here is
+    not invented, it is read back out of the published step-100 round row in
+    `data/multi/rounds.jsonl`, including the opponent schedule that row logged.
+    """
+    specs = multi.make_table_specs(100)
+    assert specs[0].seed == 7_300_990
+    assert specs[-1].seed == 7_300_999
+    assert len(specs) == 240
+
+    _specs, manifest = multi.make_fixed_specs(100)
+    assert manifest["seed_lo"] == 7_335_740
+    assert manifest["seed_hi"] == 7_335_999
+    assert manifest["rng_seed"] == 7_335_740
+    assert manifest["opponent_coverage"] == {
+        "builder": 74, "chess": 66, "fox": 67, "hunter": 66, "intruder": 83,
+        "optimizer": 67, "rl_b1000_20k": 62, "rl_h1000_20k": 74,
+        "rl_i1000_20k": 69, "rl_o1000_20k": 80, "wolf": 72}
+
+
+def test_the_rollback_anchors_claim_the_rows_that_were_registered():
+    """The anchors are arithmetic, the *used* range is what gets claimed.
+
+    `RB80_*_SEED_BASE` is the seed step 1 would have had, so the
+    `(step - 1) * stride` formula is untouched. Steps 81..100 therefore land
+    on the three rows registered in `rl.paired3`, and those are asserted
+    literally because the addresses are the evidence.
+    """
+    assert multi.table_seed(81, 1, multi.RB80_TABLE_SEED_BASE) == 7_362_000
+    assert multi.table_seed(100, 10, multi.RB80_TABLE_SEED_BASE) == 7_362_199
+    assert multi.fixed_seed(81, 0, multi.RB80_FIXED_SEED_BASE) == 7_363_000
+    assert multi.fixed_seed(100, 259, multi.RB80_FIXED_SEED_BASE) == 7_368_199
+    assert multi.RB80_EVAL_BLOCK[1] == 7_369_000
+    assert multi.RB80_EVAL_BLOCK[2] == 7_369_399
+    registered = set(paired3.RESERVED_RANGES)
+    for block in (multi.RB80_TABLE_BLOCK, multi.RB80_FIXED_BLOCK,
+                  multi.RB80_EVAL_BLOCK):
+        assert block in registered, block
+
+    specs = multi.make_table_specs(81, base=multi.RB80_TABLE_SEED_BASE)
+    assert specs[0].seed == 7_362_000 and len(specs) == 240
+    _specs, manifest = multi.make_fixed_specs(81, base=multi.RB80_FIXED_SEED_BASE)
+    assert manifest["seed_lo"] == 7_363_000
+    assert manifest["seed_hi"] == 7_363_259
+
+    # the claim is the used range, so the guard must still bound the run
+    with pytest.raises(ValueError):
+        multi.check_step(101, base=multi.RB80_FIXED_SEED_BASE)
+
+
+def test_a_rollback_base_and_the_plan_base_share_no_seed():
+    """The whole point of the rerun: it must not replay the original 81..100."""
+    old_t = set(s.seed for s in multi.make_table_specs(81))
+    new_t = set(s.seed for s in multi.make_table_specs(
+        81, base=multi.RB80_TABLE_SEED_BASE))
+    assert not (old_t & new_t)
+    old_f = set(s.seed for s in multi.make_fixed_specs(81)[0])
+    new_f = set(s.seed for s in multi.make_fixed_specs(
+        81, base=multi.RB80_FIXED_SEED_BASE)[0])
+    assert not (old_f & new_f)
 
 
 def test_steps_101_to_200_claim_the_two_new_rows():

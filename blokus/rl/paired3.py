@@ -141,6 +141,19 @@ RESERVED_RANGES = (
     # row so it cannot be confused with the 100-game progress curve's seeds,
     # and so a bigger schedule cannot silently grow into the next stage's.
     ("stage RL multiple big eval", 7_410_000, 7_411_999),
+    # plan10 extension, rollback rerun: steps 81..100 re-walked from the 40k
+    # checkpoint on **new** seeds, to tell a one-off bad update apart from
+    # something the 80->100 dynamics do every time. Three rows, sized to what
+    # the rerun actually claims - 200 table seeds, 5200 fixed, 400 for its
+    # evaluation - and they sit in the 38,000-wide gap between
+    # `stage RL multiple fixed 2`'s top and `stage RL multiple validation`'s
+    # floor. The `_SEED_BASE` constants beside them are the seed *step 1* would
+    # have had, so the `(step - 1) * stride` formula is untouched; they are
+    # arithmetic anchors and are never themselves claimed, which is why they
+    # land inside an older row without colliding with it.
+    ("stage RL rb80 table", 7_362_000, 7_362_199),
+    ("stage RL rb80 fixed", 7_363_000, 7_368_199),
+    ("stage RL rb80 big eval", 7_369_000, 7_369_399),
 )
 
 PAIRS_A = 2_000

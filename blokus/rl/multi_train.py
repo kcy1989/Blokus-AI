@@ -96,6 +96,13 @@ class MultiConfig(NamedTuple):
     eval_every: int = 10
     eval_games: int = 100
     milestone_every: int = 20
+    # Seed anchors for the two training streams: the seed *step 1* would have
+    # had. None is the plan's own, and a run that leaves them alone is
+    # byte-identical to one launched before these fields existed. Non-None
+    # moves both streams onto their own reserved rows - that is the rollback
+    # rerun, which needs seeds the original 81..100 never touched.
+    table_seed_base: int = None
+    fixed_seed_base: int = None
     # Snapshots of the three run logs, written once per milestone into a
     # directory named after the step. Never overwritten: an evidence file that
     # a later step could rewrite is not evidence.
@@ -428,7 +435,9 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
     # an unreserved seed - after every good step has already been checkpointed
     # - and `--dry` never noticed at all, because it generates no specs.
     if end_step > start_step:
-        multi.check_range(start_step + 1, end_step)
+        multi.check_range(start_step + 1, end_step,
+                          base=cfg.fixed_seed_base,
+                          table_base=cfg.table_seed_base)
 
     if dry_run:
         return _dry_run(cfg, ppo_cfg, out_dir, start_step, end_step, log)
@@ -456,7 +465,8 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
             t0 = time.perf_counter()
             for i, learner in enumerate(multi.LEARNERS):
                 rt.save_checkpoint(paths[i], nets[i], round_no=step - 1,
-                                   seed_cursor=multi.table_seed(step, 1),
+                                   seed_cursor=multi.table_seed(
+                                  step, 1, cfg.table_seed_base),
                                    entropy_reference=entropy_refs[i],
                                    optimizer=optimizers[i], train_cfg=cfg,
                                    ppo_cfg=ppo_cfg,
@@ -467,7 +477,8 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
 
             # 2a. the same-table games: one game, four episodes
             t0 = time.perf_counter()
-            table_specs = multi.make_table_specs(step, rounds=table_rounds)
+            table_specs = multi.make_table_specs(
+                step, rounds=table_rounds, base=cfg.table_seed_base)
             # `play_table_batch` keys a row by *learner index*; the rest of
             # this module reads a row by learner name.
             table_rows = [
@@ -480,7 +491,7 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
             # 2b. the fixed-pool games: one game per learner, same seed
             t0 = time.perf_counter()
             fixed_specs, fixed_manifest = multi.make_fixed_specs(
-                step, games=cfg.fixed_games)
+                step, games=cfg.fixed_games, base=cfg.fixed_seed_base)
             # One call, not one per learner: same specs, four networks, one
             # process pool. `play_paired_batch` keeps the four copies on the
             # same seed so the difference between them is the policy.
@@ -514,7 +525,8 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
             for i, learner in enumerate(multi.LEARNERS):
                 paths_i = checkpoint_paths(out_dir, learner)
                 kwargs = dict(round_no=step,
-                              seed_cursor=multi.fixed_seed(step, 0) + 1,
+                              seed_cursor=multi.fixed_seed(
+                                  step, 0, cfg.fixed_seed_base) + 1,
                               entropy_reference=entropy_refs[i],
                               optimizer=optimizers[i], train_cfg=cfg,
                               ppo_cfg=ppo_cfg,
@@ -619,10 +631,12 @@ def _step_log(step, cfg, table_rows, fixed_eps, episodes_by_learner,
         "fixed_manifest": fixed_manifest,
         "ppo_cfg": dict(ppo_cfg._asdict()),
         "rollout": rollout_mod.thread_report(),
-        "table_seed_span": [multi.table_seed(step, 1),
-                            multi.table_seed(step, multi.ROUNDS_PER_STEP)],
-        "fixed_seed_span": [multi.fixed_seed(step, 0),
-                            multi.fixed_seed(step, cfg.fixed_games - 1)],
+        "table_seed_span": [multi.table_seed(step, 1, cfg.table_seed_base),
+                            multi.table_seed(step, multi.ROUNDS_PER_STEP,
+                                             cfg.table_seed_base)],
+        "fixed_seed_span": [multi.fixed_seed(step, 0, cfg.fixed_seed_base),
+                            multi.fixed_seed(step, cfg.fixed_games - 1,
+                                             cfg.fixed_seed_base)],
     }
     for i, learner in enumerate(multi.LEARNERS):
         row["per_learner"][learner] = {
@@ -699,10 +713,12 @@ def _dry_run(cfg, ppo_cfg, out_dir, start_step, end_step, log):
         % (cfg.table_games * 4 + cfg.fixed_games * 4,
            cfg.table_games + cfg.fixed_games))
     log("  seeds           table %d..%d  fixed %d..%d  eval %d..%d"
-        % (multi.table_seed(start_step + 1, 1),
-           multi.table_seed(end_step, multi.ROUNDS_PER_STEP),
-           multi.fixed_seed(start_step + 1, 0),
-           multi.fixed_seed(end_step, cfg.fixed_games - 1),
+        % (multi.table_seed(start_step + 1, 1, cfg.table_seed_base),
+           multi.table_seed(end_step, multi.ROUNDS_PER_STEP,
+                            cfg.table_seed_base),
+           multi.fixed_seed(start_step + 1, 0, cfg.fixed_seed_base),
+           multi.fixed_seed(end_step, cfg.fixed_games - 1,
+                            cfg.fixed_seed_base),
            multi.EVAL_SEED_BASE, multi.EVAL_SEED_BASE + cfg.eval_games - 1))
     log("  rollout         device=%s n_procs=%d mode=%s T=1.0"
         % (cfg.rollout_device, cfg.n_procs, cfg.rollout_mode))
@@ -748,6 +764,10 @@ def build_parser():
     ap.add_argument("--eval-every", type=int, default=10)
     ap.add_argument("--eval-games", type=int, default=100)
     ap.add_argument("--milestone-every", type=int, default=20)
+    ap.add_argument("--table-seed-base", type=int, default=None,
+                    help="seed step 1 would have had; default is the plan's")
+    ap.add_argument("--fixed-seed-base", type=int, default=None,
+                    help="seed step 1 would have had; default is the plan's")
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--dry", action="store_true",
                     help="print the plan and write nothing")
@@ -778,7 +798,9 @@ def _config_from_args(args):
                        update_device=args.update_device,
                        rollout_mode=args.mode, eval_every=args.eval_every,
                        eval_games=args.eval_games,
-                       milestone_every=args.milestone_every)
+                       milestone_every=args.milestone_every,
+                       table_seed_base=args.table_seed_base,
+                       fixed_seed_base=args.fixed_seed_base)
     ppo_cfg = ppo_mod.Config()
     for field, value in (("actor_lr", args.actor_lr),
                          ("value_lr", args.value_lr),
