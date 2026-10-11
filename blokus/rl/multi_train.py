@@ -78,7 +78,7 @@ class MultiConfig(NamedTuple):
     """The run's shape. Step numbers are **global**: 100 steps is 50k games."""
 
     start_step: int = 40         # the 20k every learner already is
-    end_step: int = 100          # plan10's first milestone
+    end_step: int = 100          # 50k; the extension resumes to 200 (= 100k)
     table_games: int = 240
     fixed_games: int = 260
     n_procs: int = 8
@@ -309,6 +309,13 @@ def train(cfg=MultiConfig(), out_dir=None, *, ppo_cfg=None, resume=False,
         start_step = rounds[0]
     end_step = cfg.end_step if max_steps is None else min(
         cfg.end_step, start_step + int(max_steps))
+
+    # Validate the whole span before anything is written or printed. Without
+    # this a range that runs past the plan fails on the step that first needs
+    # an unreserved seed - after every good step has already been checkpointed
+    # - and `--dry` never noticed at all, because it generates no specs.
+    if end_step > start_step:
+        multi.check_range(start_step + 1, end_step)
 
     if dry_run:
         return _dry_run(cfg, ppo_cfg, out_dir, start_step, end_step, log)
@@ -617,7 +624,7 @@ def build_parser():
                     help="first step to run; default is the resume point, or "
                          "40 (= the 20k every learner already is)")
     ap.add_argument("--end-step", type=int, default=100,
-                    help="last step; 100 is plan10's first milestone (50k)")
+                    help="last step; 100 is 50k, 200 is 100k")
     ap.add_argument("--max-steps", type=int, default=None,
                     help="cap the number of steps, for a smoke test")
     ap.add_argument("--n-procs", type=int, default=8)

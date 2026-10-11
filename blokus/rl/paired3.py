@@ -129,6 +129,18 @@ RESERVED_RANGES = (
     ("stage RL multiple table", 7_300_000, 7_300_999),
     ("stage RL multiple fixed", 7_310_000, 7_335_999),
     ("stage RL multiple validation", 7_400_000, 7_400_999),
+    # plan10 extension (50k -> 100k): steps 101..200 continue the same two
+    # formulas, and those seeds land in the *gap* between the two rows above -
+    # 7_301_000..7_309_999 was never reserved and never used. A second row per
+    # stream rather than widening the first, because the guard exempts a claim
+    # by exact triple and a widened `TABLE_BLOCK` would no longer match the
+    # registered one, making steps 1..100 refuse to start.
+    ("stage RL multiple table 2", 7_301_000, 7_301_999),
+    ("stage RL multiple fixed 2", 7_336_000, 7_361_999),
+    # The large-sample evaluation of the 50k / 75k / 100k policies. Its own
+    # row so it cannot be confused with the 100-game progress curve's seeds,
+    # and so a bigger schedule cannot silently grow into the next stage's.
+    ("stage RL multiple big eval", 7_410_000, 7_411_999),
 )
 
 PAIRS_A = 2_000

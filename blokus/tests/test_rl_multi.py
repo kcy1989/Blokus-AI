@@ -134,12 +134,12 @@ def test_every_multi_block_is_registered_to_the_tuple():
     """`reject_reserved_seeds` exempts by exact triple, so the constant a run
     claims with and the row the guard polices are one fact in two files."""
     registered = set(paired3.RESERVED_RANGES)
-    for block in (multi.TABLE_BLOCK, multi.FIXED_BLOCK, multi.EVAL_BLOCK):
+    for block in multi.MULTI_BLOCKS:
         assert block in registered, block
 
 
-def test_the_three_multi_blocks_do_not_overlap_each_other_or_the_old_ones():
-    blocks = [multi.TABLE_BLOCK, multi.FIXED_BLOCK, multi.EVAL_BLOCK]
+def test_the_multi_blocks_do_not_overlap_each_other_or_the_old_ones():
+    blocks = list(multi.MULTI_BLOCKS)
     for i, (la, alo, ahi) in enumerate(blocks):
         for lb, blo, bhi in blocks[i + 1:]:
             assert ahi < blo or bhi < alo, (la, lb)
@@ -151,11 +151,50 @@ def test_the_three_multi_blocks_do_not_overlap_each_other_or_the_old_ones():
 
 
 def test_the_whole_plan_fits_inside_the_reserved_blocks():
-    """100 steps is plan10's 150k; the blocks have to cover it, not just this
-    run's 60."""
-    multi.check_step(100)
+    """200 steps is plan10's 100k; the blocks have to cover it, not just the
+    100 the 50k run used."""
+    for step in (1, 100, 101, 200):
+        multi.check_step(step)
     with pytest.raises(ValueError):
-        multi.check_step(101)
+        multi.check_step(201)
+
+
+def test_steps_101_to_200_claim_the_two_new_rows():
+    """The extension's seeds, spelled out. Steps 101..200 continue the same
+    two formulas, so they land in the gap the first rows left (7_301_000 was
+    never reserved) and then past `stage RL multiple fixed`'s top. Asserted
+    literally because the exact bounds are the evidence, and because a formula
+    that quietly shifted would silently reuse a published number."""
+    assert multi.table_seed(101, 1) == 7_301_000
+    assert multi.table_seed(200, 10) == 7_301_999
+    assert multi.fixed_seed(101, 0) == 7_336_000
+    assert multi.fixed_seed(200, 259) == 7_361_999
+    for block in (multi.TABLE2_BLOCK, multi.FIXED2_BLOCK):
+        assert block in set(paired3.RESERVED_RANGES), block
+    # both ranges sit inside the row that now polices them
+    for seed in (multi.table_seed(101, 1), multi.table_seed(200, 10)):
+        assert multi.TABLE2_BLOCK[1] <= seed <= multi.TABLE2_BLOCK[2]
+    for seed in (multi.fixed_seed(101, 0), multi.fixed_seed(200, 259)):
+        assert multi.FIXED2_BLOCK[1] <= seed <= multi.FIXED2_BLOCK[2]
+    # and the old steps still claim the old rows, unchanged
+    assert multi.table_seed(1, 1) == multi.TABLE_BLOCK[1]
+    assert multi.table_seed(100, 10) == multi.TABLE_BLOCK[2]
+    assert multi.fixed_seed(1, 0) == multi.FIXED_BLOCK[1]
+    assert multi.fixed_seed(100, 259) == multi.FIXED_BLOCK[2]
+    assert multi._table_block(100) is multi.TABLE_BLOCK
+    assert multi._table_block(101) is multi.TABLE2_BLOCK
+    assert multi._fixed_block(100) is multi.FIXED_BLOCK
+    assert multi._fixed_block(101) is multi.FIXED2_BLOCK
+
+
+def test_a_range_past_the_plan_is_refused_before_a_step_is_generated():
+    """`check_range` is what `--dry` and the real loop both call first, so a
+    bad span fails before anything is written rather than halfway through."""
+    assert multi.check_range(101, 200) == 200
+    with pytest.raises(ValueError):
+        multi.check_range(101, 201)
+    with pytest.raises(ValueError):
+        multi.check_range(5, 3)
 
 
 def test_an_eval_schedule_is_the_same_whatever_the_step():

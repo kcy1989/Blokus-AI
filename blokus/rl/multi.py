@@ -57,21 +57,48 @@ PERMS = tuple(itertools.permutations(range(4)))
 ROUNDS_PER_STEP = 10            # plan10: 24 orders x 10 rounds = 240 games
 GAMES_PER_STEP = 260            # plan10: fixed-pool games, x 4 learners
 
-# The three seed blocks plan10 reserves. 100 steps is the whole plan (150k);
-# this run stops at step 100.
+# plan10's seed layout, for the whole 200-step plan (steps 41..200 is 20k ->
+# 100k; a step is 500 games a learner, so 100 steps is 50k).
+#
+# Each stream gets **two** reserved rows rather than one long one, and the
+# split is at step 100. `reject_reserved_seeds` exempts a claim by exact
+# triple, so a block constant that is widened past its registered row stops
+# matching it - and the *old* steps then overlap their own row and refuse to
+# start. Two literals are the price of keeping steps 1..100 replayable under
+# the same constants the 50k evidence was recorded on.
+#
+# `*_SEED_SPAN` is no longer how a block is derived; it is the guard's upper
+# bound for the whole plan. The blocks themselves are literals.
+PLAN_STEPS = 200               # 20k -> 100k: 200 global steps of 500 games
 TABLE_SEED_BASE = 7_300_000
-TABLE_SEED_SPAN = 1_000         # 100 steps x 10 rounds
+TABLE_SEED_SPAN = 2_000        # 200 steps x 10 rounds
 FIXED_SEED_BASE = 7_310_000
-FIXED_SEED_SPAN = 26_000        # 100 steps x 260 games
+FIXED_SEED_SPAN = 52_000       # 200 steps x 260 games
 EVAL_SEED_BASE = 7_400_000
 EVAL_SEED_SPAN = 1_000
 
-TABLE_BLOCK = ("stage RL multiple table", TABLE_SEED_BASE,
-               TABLE_SEED_BASE + TABLE_SEED_SPAN - 1)
-FIXED_BLOCK = ("stage RL multiple fixed", FIXED_SEED_BASE,
-               FIXED_SEED_BASE + FIXED_SEED_SPAN - 1)
-EVAL_BLOCK = ("stage RL multiple validation", EVAL_SEED_BASE,
-              EVAL_SEED_BASE + EVAL_SEED_SPAN - 1)
+TABLE_BLOCK = ("stage RL multiple table", 7_300_000, 7_300_999)
+TABLE2_BLOCK = ("stage RL multiple table 2", 7_301_000, 7_301_999)
+FIXED_BLOCK = ("stage RL multiple fixed", 7_310_000, 7_335_999)
+FIXED2_BLOCK = ("stage RL multiple fixed 2", 7_336_000, 7_361_999)
+EVAL_BLOCK = ("stage RL multiple validation", 7_400_000, 7_400_999)
+# The large-sample evaluation of the 50k and 75k policies, on its own schedule
+# so it cannot be confused with the 100-game progress curve's seeds.
+BIG_EVAL_BLOCK = ("stage RL multiple big eval", 7_410_000, 7_411_999)
+BIG_EVAL_SEED_BASE = 7_410_000
+BIG_EVAL_SEED_SPAN = 2_000
+
+MULTI_BLOCKS = (TABLE_BLOCK, TABLE2_BLOCK, FIXED_BLOCK, FIXED2_BLOCK,
+                EVAL_BLOCK, BIG_EVAL_BLOCK)
+
+
+def _table_block(step):
+    """Which of the two table rows this step claims, by seed, not by step."""
+    return TABLE_BLOCK if step <= 100 else TABLE2_BLOCK
+
+
+def _fixed_block(step):
+    return FIXED_BLOCK if step <= 100 else FIXED2_BLOCK
 
 
 class TableSpec(NamedTuple):
@@ -104,16 +131,34 @@ def fixed_seed(step, game):
     return FIXED_SEED_BASE + (int(step) - 1) * GAMES_PER_STEP + game
 
 
-def check_step(step, max_step=100):
+def check_step(step, max_step=PLAN_STEPS):
     """Reject a step whose seeds would fall outside the reserved blocks."""
     step = int(step)
     if not 1 <= step <= int(max_step):
         raise ValueError("step %r is outside 1..%d" % (step, max_step))
     hi = fixed_seed(step, GAMES_PER_STEP - 1)
-    if hi > FIXED_BLOCK[2]:
+    block = _fixed_block(step)
+    if hi > block[2]:
         raise ValueError("step %d needs seeds up to %d, past the reserved "
-                         "block's %d" % (step, hi, FIXED_BLOCK[2]))
+                         "block's %d" % (step, hi, block[2]))
     return step
+
+
+def check_range(lo_step, hi_step):
+    """`check_step` over every step a run would touch, in one call.
+
+    A run validates each step as it gets there, so a range that runs past the
+    plan fails *after* the good steps have already been written. Checking the
+    whole span up front turns that into a refusal before anything is touched -
+    which is also what `--dry` needs, since dry-run never generates a spec.
+    """
+    lo_step, hi_step = int(lo_step), int(hi_step)
+    if hi_step < lo_step:
+        raise ValueError("step range %d..%d ends before it starts"
+                         % (lo_step, hi_step))
+    for step in range(lo_step, hi_step + 1):
+        check_step(step)
+    return hi_step
 
 
 def _claim(block, lo, hi):
@@ -139,7 +184,7 @@ def make_table_specs(step, rounds=ROUNDS_PER_STEP):
     if not 1 <= rounds <= ROUNDS_PER_STEP:
         raise ValueError("rounds must be within 1..%d, got %d"
                          % (ROUNDS_PER_STEP, rounds))
-    _claim(TABLE_BLOCK, table_seed(step, 1),
+    _claim(_table_block(step), table_seed(step, 1),
            table_seed(step, rounds))
     specs = []
     for r in range(rounds):
@@ -170,7 +215,8 @@ def make_fixed_specs(step, games=GAMES_PER_STEP, rng_seed=None):
     if not 1 <= games <= GAMES_PER_STEP:
         raise ValueError("games must be within 1..%d, got %d"
                          % (GAMES_PER_STEP, games))
-    _claim(FIXED_BLOCK, fixed_seed(step, 0), fixed_seed(step, games - 1))
+    _claim(_fixed_block(step), fixed_seed(step, 0),
+           fixed_seed(step, games - 1))
     rng = random.Random(fixed_seed(step, 0) if rng_seed is None
                         else int(rng_seed))
     specs = []
