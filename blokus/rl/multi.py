@@ -72,15 +72,13 @@ GAMES_PER_STEP = 260            # plan10: fixed-pool games, x 4 learners
 # start. Two literals are the price of keeping steps 1..100 replayable under
 # the same constants the 50k evidence was recorded on.
 #
-# `*_SEED_SPAN` is no longer how a block is derived; it is the guard's upper
-# bound for the whole plan. The blocks themselves are literals.
+# The blocks below are therefore literals, not `base + span`, and the plan's
+# length is policed by `PLAN_STEPS` in `check_step` rather than by the size of
+# any block. `*_SEED_BASE` stays because the seed formulas read it.
 PLAN_STEPS = 200               # 20k -> 100k: 200 global steps of 500 games
 TABLE_SEED_BASE = 7_300_000
-TABLE_SEED_SPAN = 2_000        # 200 steps x 10 rounds
 FIXED_SEED_BASE = 7_310_000
-FIXED_SEED_SPAN = 52_000       # 200 steps x 260 games
 EVAL_SEED_BASE = 7_400_000
-EVAL_SEED_SPAN = 1_000
 
 TABLE_BLOCK = ("stage RL multiple table", 7_300_000, 7_300_999)
 TABLE2_BLOCK = ("stage RL multiple table 2", 7_301_000, 7_301_999)
@@ -91,7 +89,6 @@ EVAL_BLOCK = ("stage RL multiple validation", 7_400_000, 7_400_999)
 # so it cannot be confused with the 100-game progress curve's seeds.
 BIG_EVAL_BLOCK = ("stage RL multiple big eval", 7_410_000, 7_411_999)
 BIG_EVAL_SEED_BASE = 7_410_000
-BIG_EVAL_SEED_SPAN = 2_000
 
 MULTI_BLOCKS = (TABLE_BLOCK, TABLE2_BLOCK, FIXED_BLOCK, FIXED2_BLOCK,
                 EVAL_BLOCK, BIG_EVAL_BLOCK)
