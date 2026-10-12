@@ -150,6 +150,46 @@ def test_two_rounds_of_ten_games_run_and_produce_a_loadable_checkpoint(tmp_path)
         "the checkpoint's dead value head should be untouched"
 
 
+@needs_checkpoint
+def test_every_play_batch_call_names_the_learner(tmp_path, monkeypatch):
+    """The CLI must not lean on the retired 0k fallback.
+
+    A worker reloads `current.pt` itself and `load_policy` does not restore
+    `net.key` from the blob's `name`, so with no `learner_key` `seat_for` has
+    no candidate and falls back to `rl_h1000_0k` - which left the roster in
+    plan9 task 4. Every round then dies with "no seat key to stand the
+    learner in under". The suite hides that behind `bind_retired_0k`, so a
+    green run proves nothing about the CLI; this pins the call instead.
+
+    The key is checked **after** that binding is removed: the point is that
+    the fix does not depend on the retired seat still being a seat.
+    """
+    calls = []
+    real = rollout_mod.play_batch
+
+    def spy(*args, **kwargs):
+        calls.append(kwargs.get("learner_key"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(rollout_mod, "play_batch", spy)
+    out = tmp_path / "named"
+    cfg = small_cfg(str(out), rounds=1, eval_every=1, eval_games=4)
+    result = T.train(cfg, str(out), ppo_cfg=SMALL, init_path=CHECKPOINT,
+                     log=quiet, nice=0)
+    assert result.rounds_done == 1
+
+    # one rollout call plus the round's evaluation of current and anchor
+    assert len(calls) == 3, calls
+    saved = seats.ADHOC.pop("rl_h1000_0k", None)
+    try:
+        for key in calls:
+            assert key is not None, "play_batch was called without learner_key"
+            assert seats.kind_of(key) == "rl", key
+    finally:
+        if saved is not None:
+            seats.ADHOC["rl_h1000_0k"] = saved
+
+
 def test_the_seed_claim_follows_the_registered_block_for_this_base():
     """A run must exempt its own reserved row, not the h-version one.
 

@@ -496,7 +496,8 @@ def evaluate(current_path, anchor_path, cfg, device=None):
     # because renaming it would split one baseline into two columns of history.
     for label, path in (("current", current_path), ("hc_1000", anchor_path)):
         eps = rollout_mod.play_batch(specs, path, n_procs=min(cfg.n_procs, 4),
-                                     device=None, mode="argmax")
+                                     device=None, mode="argmax",
+                                     learner_key=NAME)
         rewards = [e.rewards[e.learner_seat] for e in eps]
         remaining = [e.remaining[e.learner_seat] for e in eps]
         ranks = [e.ranks[e.learner_seat] for e in eps]
@@ -587,9 +588,17 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
             specs, _man = rollout_mod.make_specs(
                 lo, cfg.per_round, rng_seed=cfg.seed_base,
                 own=_claimed_train_block(cfg.seed_base))
+            # `learner_key` is not cosmetic: a worker reloads `current.pt`
+            # itself, `load_policy` does not restore `net.key` from the blob's
+            # `name`, and `_key_for` only answers for imitation filenames - so
+            # with no key here `seat_for` has no candidate and falls back to
+            # `rl_h1000_0k`, which left the roster in plan9 task 4. Every
+            # round would then die. `rl.multi` passes `learner_key` at each of
+            # its call sites for the same reason; this module did not, and the
+            # tests hid it behind `bind_retired_0k`.
             episodes = rollout_mod.play_batch(
                 specs, paths["current"], n_procs=cfg.n_procs,
-                device=cfg.rollout_device, mode="softmax")
+                device=cfg.rollout_device, mode="softmax", learner_key=NAME)
             timings["rollout"] = time.perf_counter() - t0
 
             # 3. update
