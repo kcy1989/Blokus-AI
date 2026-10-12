@@ -27,6 +27,7 @@ import numpy as np
 import pytest
 import torch
 
+import rl.paired3 as paired3
 import rl.ppo as ppo_mod
 import rl.rl_train as T
 import rl.rollout as rollout_mod
@@ -355,6 +356,62 @@ def test_the_i50k_anchor_claims_rounds_41_to_100_and_leaves_the_students_alone()
     # an anchor is an exact key, not a prefix of one
     assert T._claimed_train_block(base + 1) is rollout_mod.RL_TRAIN_BLOCK
     assert T._claimed_train_block(base - 1) is rollout_mod.RL_TRAIN_BLOCK
+    with pytest.raises(ValueError):
+        rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
+
+
+def test_the_anchor_table_is_exactly_the_three_registered_runs():
+    """The whole table, as literals, plus the property that keeps it safe.
+
+    Anchors are matched *before* containment, so the table is the one place a
+    typo can redirect a run's seed claim or - worse - shadow a registered row
+    and break every run that claims that row by containment. Pinned as
+    literals so a fourth entry, a moved base or a changed row fails here.
+
+    The second half is the property: no anchor may sit inside any registered
+    row. `7,200,000` is the base that would break it, and it is not in the
+    table.
+    """
+    assert rollout_mod.TRAIN_ANCHOR_BLOCKS == (
+        (7_460_000, ("stage RL v2 h train", 7_500_000, 7_509_999)),
+        (7_150_000, ("stage RL i50k v2 train", 7_170_000, 7_199_999)),
+        (7_530_000, ("stage RL o50k v2 train", 7_550_000, 7_579_999)),
+    )
+    for base, block in rollout_mod.TRAIN_ANCHOR_BLOCKS:
+        assert T._claimed_train_block(base) is block
+        rows = [(label, lo, hi)
+                for label, lo, hi in paired3.RESERVED_RANGES]
+        for label, lo, hi in rows:
+            assert not (lo <= base <= hi), (base, label)
+    # the base that would shadow the students is not one of them
+    assert rollout_mod.RL_STUDENTS_SEED_BASE not in \
+        [b for b, _blk in rollout_mod.TRAIN_ANCHOR_BLOCKS]
+    # and the students still resolve to the students, by containment
+    assert T._claimed_train_block(rollout_mod.RL_STUDENTS_SEED_BASE) \
+        is rollout_mod.RL_STUDENTS_BLOCK
+
+
+def test_the_o50k_anchor_claims_rounds_41_to_100():
+    """The o rerun's anchor: arithmetic base outside its row, exact triple."""
+    base = rollout_mod.RL_O50K_V2_SEED_BASE
+    assert T._claimed_train_block(base) is rollout_mod.RL_O50K_V2_BLOCK
+
+    lo = base + (41 - 1) * 500
+    hi = base + (100 - 1) * 500 + 499
+    assert (lo, hi) == rollout_mod.RL_O50K_V2_BLOCK[1:]
+
+    specs, man = rollout_mod.make_specs(
+        lo, hi - lo + 1, rng_seed=base, own=T._claimed_train_block(base))
+    assert man["reserved_range_checked"] == list(rollout_mod.RL_O50K_V2_BLOCK)
+    assert [s.seed for s in specs][0] == 7_550_000
+    assert [s.seed for s in specs][-1] == 7_579_999
+
+    # an anchor is an exact key, and the two reruns beside it still hold
+    assert T._claimed_train_block(base + 1) is rollout_mod.RL_TRAIN_BLOCK
+    assert T._claimed_train_block(rollout_mod.RL_V2_H_SEED_BASE) \
+        is rollout_mod.RL_V2_H_BLOCK
+    assert T._claimed_train_block(rollout_mod.RL_I50K_V2_SEED_BASE) \
+        is rollout_mod.RL_I50K_V2_BLOCK
     with pytest.raises(ValueError):
         rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
 

@@ -432,7 +432,8 @@ def test_every_rollout_block_is_registered_to_the_tuple():
     registered = set(paired3.RESERVED_RANGES)
     for block in (Rr.RL_TRAIN_BLOCK, Rr.RL_VALID_BLOCK, Rr.RL_STUDENTS_BLOCK,
                   Rr.RL_V2_H_BLOCK, Rr.RL_V2_H_EVAL_BLOCK,
-                  Rr.RL_I50K_V2_BLOCK, Rr.RL_I50K_V2_EVAL_BLOCK):
+                  Rr.RL_I50K_V2_BLOCK, Rr.RL_I50K_V2_EVAL_BLOCK,
+                  Rr.RL_O50K_V2_BLOCK, Rr.RL_O50K_V2_EVAL_BLOCK):
         assert block in registered, block
 
 

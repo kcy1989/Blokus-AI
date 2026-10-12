@@ -172,6 +172,15 @@ RESERVED_RANGES = (
     # `RL_I50K_V2_EVAL_BLOCK`.
     ("stage RL i50k v2 train", 7_170_000, 7_199_999),
     ("stage RL i50k v2 eval", 7_540_000, 7_540_999),
+    # plan10, the o learner: rounds 41..100 from its own 20k under a caller's
+    # eleven-seat pool - which includes the learner's own frozen starting
+    # weights, a self-play exception the user declared - plus the acceptance
+    # evaluation. Both sit above every row registered so far rather than in
+    # the 7,1xx,xxx gap the i rerun filled, so registering them moved nothing.
+    # Labels and ranges must stay in step with
+    # `rl.rollout.RL_O50K_V2_BLOCK` / `RL_O50K_V2_EVAL_BLOCK`.
+    ("stage RL o50k v2 train", 7_550_000, 7_579_999),
+    ("stage RL o50k v2 eval", 7_590_000, 7_590_999),
 )
 
 PAIRS_A = 2_000

@@ -136,13 +136,34 @@ RL_I50K_V2_EVAL_SPAN = 1_000
 RL_I50K_V2_EVAL_BLOCK = ("stage RL i50k v2 eval", RL_I50K_V2_EVAL_SEED_BASE,
                          RL_I50K_V2_EVAL_SEED_BASE + RL_I50K_V2_EVAL_SPAN - 1)
 
+# plan10, the o learner: rounds 41..100 from its own 20k, 30,000 games under a
+# caller's frozen pool. Same anchor arithmetic as the two reruns above - a
+# 7,530,000 base resumed at round 41 draws exactly 7,550,000..7,579,999.
+# Both ranges sit above every row registered so far rather than in the crowded
+# 7,1xx,xxx gap, which is left for whatever needs it next.
+#
+# The base is again chosen so that it is inside no registered row: it is
+# matched before containment, so a base that a row also contains would shadow
+# that row. 7,530,000 is between `stage RL v2 h eval`'s top and
+# `stage RL i50k v2 eval`'s floor, and belongs to neither.
+RL_O50K_V2_SEED_BASE = 7_530_000
+RL_O50K_V2_BLOCK = ("stage RL o50k v2 train", 7_550_000, 7_579_999)
+
+# The acceptance evaluation, its own row for the reason the three above have
+# one.
+RL_O50K_V2_EVAL_SEED_BASE = 7_590_000
+RL_O50K_V2_EVAL_SPAN = 1_000
+RL_O50K_V2_EVAL_BLOCK = ("stage RL o50k v2 eval", RL_O50K_V2_EVAL_SEED_BASE,
+                         RL_O50K_V2_EVAL_SEED_BASE + RL_O50K_V2_EVAL_SPAN - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim: every entry so far is a run that
 # resumed at a round above 1, so its base is arithmetic rather than a reserved
 # seed. Matched before containment, which is why a base that is *also* inside a
 # registered row must not appear here - see `RL_I50K_V2_SEED_BASE`.
 TRAIN_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),
-                       (RL_I50K_V2_SEED_BASE, RL_I50K_V2_BLOCK))
+                       (RL_I50K_V2_SEED_BASE, RL_I50K_V2_BLOCK),
+                       (RL_O50K_V2_SEED_BASE, RL_O50K_V2_BLOCK))
 
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
