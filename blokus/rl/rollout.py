@@ -113,10 +113,36 @@ RL_V2_H_EVAL_SPAN = 1_000
 RL_V2_H_EVAL_BLOCK = ("stage RL v2 h eval", RL_V2_H_EVAL_SEED_BASE,
                       RL_V2_H_EVAL_SEED_BASE + RL_V2_H_EVAL_SPAN - 1)
 
-# The anchors `_claimed_train_block` matches on when the run's `seed_base` is
-# not inside the row it is entitled to claim. The v2 run is the only one of
-# these so far: its base is an arithmetic anchor, not a reserved seed.
-RL_V2_H_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),)
+# plan10, the i learner: rounds 41..100 from its own 20k, 30,000 games under a
+# caller's frozen pool. Same anchor arithmetic as the h rerun above - `seed_base`
+# is where round 1 *would* have started and rounds 41..100 on a 7,150,000 base
+# draw exactly 7,170,000..7,199,999. That sits in the gap between `stage RL
+# validation`'s top and `stage RL students`' floor, which was never reserved and
+# never used, so nothing had to move. Written as literals for the reason the
+# row above is.
+#
+# The base is a fresh anchor rather than the students' 7,200,000 the 20k was
+# trained on: the anchor table is matched *before* containment, so a second
+# entry for 7,200,000 would shadow `RL_STUDENTS_BLOCK` and every future student
+# run would stop being exempted against its own row.
+RL_I50K_V2_SEED_BASE = 7_150_000
+RL_I50K_V2_BLOCK = ("stage RL i50k v2 train", 7_170_000, 7_199_999)
+
+# The acceptance evaluation, its own row for the reason `RL_V2_H_EVAL_BLOCK`
+# has one: a bigger schedule must not grow into the next stage's, and these
+# seeds must not read as the in-training curve's.
+RL_I50K_V2_EVAL_SEED_BASE = 7_540_000
+RL_I50K_V2_EVAL_SPAN = 1_000
+RL_I50K_V2_EVAL_BLOCK = ("stage RL i50k v2 eval", RL_I50K_V2_EVAL_SEED_BASE,
+                         RL_I50K_V2_EVAL_SEED_BASE + RL_I50K_V2_EVAL_SPAN - 1)
+
+# Bases `_claimed_train_block` matches on when the run's `seed_base` is not
+# inside the row it is entitled to claim: every entry so far is a run that
+# resumed at a round above 1, so its base is arithmetic rather than a reserved
+# seed. Matched before containment, which is why a base that is *also* inside a
+# registered row must not appear here - see `RL_I50K_V2_SEED_BASE`.
+TRAIN_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),
+                       (RL_I50K_V2_SEED_BASE, RL_I50K_V2_BLOCK))
 
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"

@@ -163,6 +163,15 @@ RESERVED_RANGES = (
     # `rl.rollout.RL_V2_H_BLOCK` / `RL_V2_H_EVAL_BLOCK`.
     ("stage RL v2 h train", 7_500_000, 7_509_999),
     ("stage RL v2 h eval", 7_520_000, 7_520_999),
+    # plan10, the i learner: rounds 41..100 from its own 20k under a caller's
+    # eleven-seat pool, 30,000 games, plus the acceptance evaluation. Two rows
+    # for the same reason as the h rerun's two above. The training row sits in
+    # the gap `stage RL validation` and `stage RL students` left - never
+    # reserved, never used - so registering it moved nothing. Labels and ranges
+    # must stay in step with `rl.rollout.RL_I50K_V2_BLOCK` /
+    # `RL_I50K_V2_EVAL_BLOCK`.
+    ("stage RL i50k v2 train", 7_170_000, 7_199_999),
+    ("stage RL i50k v2 eval", 7_540_000, 7_540_999),
 )
 
 PAIRS_A = 2_000

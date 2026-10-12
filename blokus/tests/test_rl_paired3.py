@@ -226,7 +226,9 @@ def test_the_rl_blocks_clear_every_block_already_registered():
                           ("stage RL validation", 7_100_000, 7_100_999),
                           ("stage RL students", 7_200_000, 7_219_999),
                           ("stage RL v2 h train", 7_500_000, 7_509_999),
-                          ("stage RL v2 h eval", 7_520_000, 7_520_999)):
+                          ("stage RL v2 h eval", 7_520_000, 7_520_999),
+                          ("stage RL i50k v2 train", 7_170_000, 7_199_999),
+                          ("stage RL i50k v2 eval", 7_540_000, 7_540_999)):
         for other, olo, ohi in list(P.RESERVED_RANGES) + list(P.OWN_RANGES):
             if other == label:
                 continue
@@ -278,6 +280,35 @@ def test_the_v2_h_rows_are_registered_exactly_and_claimable():
     with pytest.raises(ValueError) as exc:
         P.reject_reserved_seeds(7_500_000, 7_509_999)
     assert "stage RL v2 h train" in str(exc.value)
+
+
+def test_the_i50k_v2_rows_are_registered_exactly_and_claimable():
+    """The i rerun's two rows, spelled out as literals.
+
+    The training row sits in the gap `stage RL validation` and `stage RL
+    students` left - never reserved and never used - so registering it had to
+    move nothing, and the test that matters is that the students' own row is
+    still theirs.
+    """
+    got = {label: (lo, hi) for label, lo, hi in P.RESERVED_RANGES}
+    assert got["stage RL i50k v2 train"] == (7_170_000, 7_199_999)
+    assert got["stage RL i50k v2 eval"] == (7_540_000, 7_540_999)
+
+    train = ("stage RL i50k v2 train", 7_170_000, 7_199_999)
+    ev = ("stage RL i50k v2 eval", 7_540_000, 7_540_999)
+    assert P.reject_reserved_seeds(7_170_000, 7_199_999, own=train) == []
+    assert P.reject_reserved_seeds(7_540_000, 7_540_999, own=ev) == []
+    # nobody else may, including the students' row that now sits next door
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_170_000, 7_199_999, own=ev)
+    assert "stage RL i50k v2 train" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_170_000, 7_199_999)
+    assert "stage RL i50k v2 train" in str(exc.value)
+    # the gap this row fills left `stage RL students` exactly where it was
+    students = ("stage RL students", 7_200_000, 7_219_999)
+    assert P.reject_reserved_seeds(7_200_000, 7_219_999, own=students) == []
+    assert P.reject_reserved_seeds(7_200_000, 7_200_499, own=students) == []
 
 
 def test_claiming_your_own_block_does_not_excuse_overlapping_someone_elses():

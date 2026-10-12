@@ -257,18 +257,26 @@ def test_the_seed_claim_follows_the_registered_block_for_this_base():
 
 
 def test_the_default_base_claim_is_the_pre_v2_one():
-    """The v2 registration must not move a default-base run by a single seed.
+    """The registrations must not move a default-base run by a single seed.
 
     `_claimed_train_block` gained an anchor match ahead of the containment
-    scan. A default base is not an anchor, so its claim has to stay
-    bit-identical - asserted as literals rather than against the constant,
-    because a constant that drifted would carry the expectation with it.
+    scan. A base that is not an anchor has to stay bit-identical, so the
+    assertions are literals rather than the constants they name - a constant
+    that drifted would carry the expectation with it.
+
+    The two anchors (7,460,000 for the h rerun, 7,150,000 for the i rerun) are
+    the deliberate exceptions and are pinned by their own tests; both are
+    outside every registered row, so nothing that claimed by containment
+    before still does.
     """
     assert T._claimed_train_block(7_000_000) \
         == ("stage RL train", 7_000_000, 7_019_999)
     assert T._claimed_train_block(7_200_000) \
         == ("stage RL students", 7_200_000, 7_219_999)
-    assert T._claimed_train_block(7_150_000) \
+    # a base next to an anchor, and one nowhere near any row
+    assert T._claimed_train_block(7_150_001) \
+        == ("stage RL train", 7_000_000, 7_019_999)
+    assert T._claimed_train_block(6_500_000) \
         == ("stage RL train", 7_000_000, 7_019_999)
 
     # and the round-1 draw itself, opponents included
@@ -309,6 +317,44 @@ def test_the_v2_anchor_claims_the_row_its_rounds_81_to_100_draw():
     # every other base keeps falling through, so an anchor cannot be a way to
     # exempt an arbitrary range
     assert T._claimed_train_block(base + 1) is rollout_mod.RL_TRAIN_BLOCK
+    with pytest.raises(ValueError):
+        rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
+
+
+def test_the_i50k_anchor_claims_rounds_41_to_100_and_leaves_the_students_alone():
+    """The i rerun's anchor, and the regression it must not cause.
+
+    The base is checked before containment, so putting 7,200,000 in the anchor
+    table would have shadowed `RL_STUDENTS_BLOCK` and broken every future
+    student run. It is not in the table, and this asserts that directly rather
+    than by absence: the students' base still resolves to the students' row,
+    and the students' seeds still claim it.
+    """
+    base = rollout_mod.RL_I50K_V2_SEED_BASE
+    assert T._claimed_train_block(base) is rollout_mod.RL_I50K_V2_BLOCK
+
+    lo = base + (41 - 1) * 500
+    hi = base + (100 - 1) * 500 + 499
+    assert (lo, hi) == rollout_mod.RL_I50K_V2_BLOCK[1:]
+
+    specs, man = rollout_mod.make_specs(
+        lo, hi - lo + 1, rng_seed=base, own=T._claimed_train_block(base))
+    assert man["reserved_range_checked"] == list(rollout_mod.RL_I50K_V2_BLOCK)
+    assert [s.seed for s in specs][0] == 7_170_000
+    assert [s.seed for s in specs][-1] == 7_199_999
+
+    # the regression: containment still owns the students' base
+    assert T._claimed_train_block(rollout_mod.RL_STUDENTS_SEED_BASE) \
+        is rollout_mod.RL_STUDENTS_BLOCK
+    _, st = rollout_mod.make_specs(
+        rollout_mod.RL_STUDENTS_SEED_BASE, 10,
+        rng_seed=rollout_mod.RL_STUDENTS_SEED_BASE,
+        own=T._claimed_train_block(rollout_mod.RL_STUDENTS_SEED_BASE))
+    assert st["reserved_range_checked"] == list(rollout_mod.RL_STUDENTS_BLOCK)
+
+    # an anchor is an exact key, not a prefix of one
+    assert T._claimed_train_block(base + 1) is rollout_mod.RL_TRAIN_BLOCK
+    assert T._claimed_train_block(base - 1) is rollout_mod.RL_TRAIN_BLOCK
     with pytest.raises(ValueError):
         rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
 

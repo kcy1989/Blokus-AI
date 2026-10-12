@@ -454,13 +454,18 @@ def _claimed_train_block(seed_base):
     imitation base must keep landing in the guard instead of exempting itself.
 
     An anchor base is matched before the containment scan because it is
-    *outside* the row it may claim: a run that resumes at round 81 derives
+    *outside* the row it may claim: a run that resumes above round 1 derives
     `seed_base` from where round 1 would have started, and that number is
     arithmetic, not a reserved seed. Matching it by containment would find
     nothing and fall through to `RL_TRAIN_BLOCK`, which does not exempt the
     range the run actually draws - so the run would refuse its own row.
+
+    Anchors come first, so a base that is *also* inside a registered row must
+    never be listed there: it would shadow that row and every run that relied
+    on containment to claim it would stop being exempt. The students' 7,200,000
+    is the one that would trip this.
     """
-    for anchor, block in rollout_mod.RL_V2_H_ANCHOR_BLOCKS:
+    for anchor, block in rollout_mod.TRAIN_ANCHOR_BLOCKS:
         if seed_base == anchor:
             return block
     for block in (rollout_mod.RL_TRAIN_BLOCK, rollout_mod.RL_STUDENTS_BLOCK):
