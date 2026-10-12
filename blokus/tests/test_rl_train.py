@@ -190,6 +190,59 @@ def test_every_play_batch_call_names_the_learner(tmp_path, monkeypatch):
             seats.ADHOC["rl_h1000_0k"] = saved
 
 
+@needs_checkpoint
+def test_a_custom_pool_reaches_both_ends_of_the_training_loop(tmp_path,
+                                                              monkeypatch):
+    """plan10 §2 end to end, and the reason it is two ends.
+
+    `make_specs` picks the opponents and `play_batch` checks that every one of
+    them is in the pool it was handed. Handing them *different* pools is the
+    failure that would actually hurt: `play_episode` would refuse a name the
+    spec legitimately drew, three seats into a round, after the seed block had
+    already been claimed. So the assertion is that both saw the same value,
+    read back from a real round rather than from the call.
+    """
+    seen = []
+    real_make, real_play = rollout_mod.make_specs, rollout_mod.play_batch
+
+    def spy_make(*args, **kwargs):
+        out = real_make(*args, **kwargs)
+        seen.append(("make", kwargs.get("opponent_pool"), out[0]))
+        return out
+
+    def spy_play(specs, *args, **kwargs):
+        seen.append(("play", kwargs.get("opponent_pool"), specs))
+        return real_play(specs, *args, **kwargs)
+
+    monkeypatch.setattr(rollout_mod, "make_specs", spy_make)
+    monkeypatch.setattr(rollout_mod, "play_batch", spy_play)
+
+    def one_round(pool):
+        del seen[:]
+        out = tmp_path / ("custom" if pool else "default")
+        cfg = small_cfg(str(out), rounds=1, opponent_pool=pool)
+        result = T.train(cfg, str(out), ppo_cfg=SMALL, init_path=CHECKPOINT,
+                         log=quiet, nice=0)
+        assert result.rounds_done == 1
+        return list(seen)
+
+    pool = ("chess", "fox", "wolf")
+    made = one_round(pool)
+    assert [(w, p) for w, p, _ in made] == [("make", pool), ("play", pool)]
+    for _where, _p, specs in made:
+        assert specs, "a round with no specs"
+        for spec in specs:
+            assert set(spec.opponent_names) <= set(pool), spec
+
+    # and the default stays None at both ends - the seven are the fallback,
+    # not a pool someone rebuilt out of the same seven keys
+    default = one_round(None)
+    assert [(w, p) for w, p, _ in default] == [("make", None), ("play", None)]
+    for _where, _p, specs in default:
+        for spec in specs:
+            assert set(spec.opponent_names) <= set(rollout_mod.PERSONALITY_POOL)
+
+
 def test_the_seed_claim_follows_the_registered_block_for_this_base():
     """A run must exempt its own reserved row, not the h-version one.
 
@@ -700,3 +753,30 @@ def test_a_resume_plan_is_reported_by_dry_run(tmp_path, capsys):
     said = capsys.readouterr().out
     assert "resuming from" not in said
     assert "rounds to run" in said
+
+
+def test_opponent_pool_is_read_from_the_command_line():
+    cfg, _ = T._config_from_args(T.build_parser().parse_args(
+        ["--games", "20000", "--per-round", "500",
+         "--opponent-pool", "chess, fox ,wolf"]))
+    assert cfg.opponent_pool == ("chess", "fox", "wolf")
+    cfg, _ = T._config_from_args(T.build_parser().parse_args(
+        ["--games", "20000", "--per-round", "500"]))
+    assert cfg.opponent_pool is None
+
+
+def test_a_bad_pool_is_refused_before_anything_is_opened(tmp_path):
+    """plan10 §2's "unknown key errors", at the earliest point that sees it.
+
+    Checked in `train()` rather than in `make_specs` because `--dry-run`
+    returns before the loop: a pool validated only there would print a full
+    plan and exit 0 for a typo, and a real run would load the resume
+    checkpoint and write `current.pt` before finding out.
+    """
+    out = str(tmp_path / "never-created")
+    cfg = small_cfg(out, opponent_pool=("chess", "no_such_seat"))
+    with pytest.raises(ValueError) as exc:
+        T.train(cfg, out, ppo_cfg=SMALL, init_path="does/not/exist.pt",
+                dry_run=True, log=quiet, nice=0)
+    assert "no_such_seat" in str(exc.value)
+    assert not os.path.exists(out), "a refused run created its output dir"

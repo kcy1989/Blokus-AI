@@ -610,14 +610,59 @@ def seat_for(net, learner_key=None):
     return key, True
 
 
-def make_specs(start_seed, n, rng_seed=None, own=None):
+def resolve_opponent_pool(opponent_pool):
+    """`(pool, distinct)` - the seat keys to draw from, and how to draw them.
+
+    `None` is the seven personalities drawn **without** replacement: that is
+    the rule every published batch was recorded under, so the default cannot be
+    expressed as a parameter default - it has to stay a separate branch whose
+    draw sequence is untouched. A caller's pool is drawn **with** replacement,
+    plan10 §1 and §4's rule, because a pool that mixes personalities with
+    frozen policies may legitimately repeat an opponent and one seat named
+    three times should appear three times.
+
+    Every key is checked against `seats.automated_options()` through
+    `canonical_key`, so an alias is accepted the way it is everywhere else, a
+    retired or misspelled key is refused here rather than three seats into a
+    round, and a human seat cannot be frozen into a training pool at all.
+    Canonicalisation is only the *check*: the caller's own spelling is what the
+    specs record, so `spec.names`, `opponent_coverage` and `play_episode`'s
+    membership test all see the same string.
+    """
+    import seats
+    if opponent_pool is None:
+        return list(PERSONALITY_POOL), True
+    pool = list(opponent_pool)
+    if not pool:
+        raise ValueError("opponent_pool must name at least one seat")
+    known = seats.automated_options()
+    canonical = []
+    for key in pool:
+        resolved = seats.canonical_key(key)
+        if resolved not in known:
+            raise ValueError(
+                "unknown seat key %r in opponent_pool; it is not an "
+                "automated option" % (key,))
+        canonical.append(resolved)
+    if len(set(canonical)) != len(canonical):
+        raise ValueError("duplicate seat key in opponent_pool: %r"
+                         % (opponent_pool,))
+    return pool, False
+
+
+def make_specs(start_seed, n, rng_seed=None, own=None, opponent_pool=None):
     """`(specs, manifest)` for `n` episodes from `start_seed` upwards.
 
-    Each seed contributes one episode. The three opponents are drawn **without
-    replacement** from `PERSONALITY_POOL` and the learner's seat is uniform over
-    the four, both from a `random.Random` seeded once by `rng_seed` - so the
-    whole assignment is a function of one integer and is reproducible without
-    replaying the draw.
+    Each seed contributes one episode. The three opponents are drawn from
+    `PERSONALITY_POOL` **without** replacement, or from `opponent_pool`
+    **with** replacement - see `resolve_opponent_pool`. The learner's seat is
+    uniform over the four, both from a `random.Random` seeded once by
+    `rng_seed` - so the whole assignment is a function of one integer and is
+    reproducible without replaying the draw.
+
+    Leaving `opponent_pool` as `None` keeps the draw sequence bit-for-bit what
+    it was before the parameter existed: the pool is resolved *before* the
+    loop and the loop still makes exactly two calls to `rng` per seed.
 
     The seed block is checked with `rl.paired3.reject_reserved_seeds` before a
     single episode is played. That guard exists because H-B1 and H-C1 used
@@ -641,17 +686,23 @@ def make_specs(start_seed, n, rng_seed=None, own=None):
     n = int(n)
     if n <= 0:
         raise ValueError("n must be positive, got %d" % n)
+    # The pool is a configuration error and the seed range is a claim, so the
+    # pool is checked first: a caller who misspelled a key should be told that
+    # and not sent off to pick a different seed block first.
+    pool, distinct = resolve_opponent_pool(opponent_pool)
     start_seed, end = int(start_seed), int(start_seed) + n - 1
     if rng_seed is None:
         rng_seed = start_seed
     own_block = RL_TRAIN_BLOCK if own is None else own
     reject_reserved_seeds(start_seed, end, own=own_block)
     rng = random.Random(int(rng_seed))
-    pool = list(PERSONALITY_POOL)
     specs = []
     seat_counts = [0, 0, 0, 0]
     for seed in range(start_seed, end + 1):
-        names = tuple(rng.sample(pool, 3))
+        if distinct:
+            names = tuple(rng.sample(pool, 3))
+        else:
+            names = tuple(rng.choice(pool) for _ in range(3))
         seat = rng.randrange(4)
         seat_counts[seat] += 1
         specs.append(Spec(seed, seat, names))
@@ -660,12 +711,15 @@ def make_specs(start_seed, n, rng_seed=None, own=None):
         "end_seed": end,
         "games": n,
         "rng_seed": int(rng_seed),
-        "personality_pool": list(PERSONALITY_POOL),
+        # The key is historical: it holds the pool the draw came from, which
+        # for the default is `PERSONALITY_POOL` and for a caller is that
+        # caller's pool. Renaming it would move the field on every published
+        # manifest, and nothing reads it by name.
+        "personality_pool": list(pool),
         "opponents_per_game": 3,
         "learner_seat_counts": seat_counts,
         "learner_seat_share": [c / float(n) for c in seat_counts],
-        "opponent_coverage": {name: _count(name, specs)
-                              for name in PERSONALITY_POOL},
+        "opponent_coverage": {name: _count(name, specs) for name in pool},
         # the block this call claimed, which is the row the guard exempted
         "reserved_range_checked": list(own_block),
     }

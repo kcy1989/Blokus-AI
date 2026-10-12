@@ -469,6 +469,101 @@ def test_make_specs_is_a_function_of_one_integer():
     assert c != a, "a different rng_seed gave the same assignment"
 
 
+def test_the_default_pool_draws_exactly_what_it_drew_before():
+    """plan10 §2's requirement, as literals read out of the old code.
+
+    `opponent_pool` was added with a branch rather than a parameter default,
+    precisely so this could hold: every batch ever published was recorded
+    under the without-replacement seven-personality draw, and a refactor that
+    merely *looks* equivalent would silently make the whole history
+    unrepeatable. Compared against `rl/rollout.py` at the commit before the
+    parameter existed, over four seed blocks including the validation and
+    students rows - specs and manifest came back identical in all four.
+
+    The literals below are from the pre-change code, not from this one: a
+    constant that drifted would take the expectation with it.
+    """
+    specs, man = Rr.make_specs(7_000_000, 5, rng_seed=7_000_000)
+    assert [(s.seed, s.learner_seat, s.opponent_names) for s in specs] == [
+        (7000000, 3, ('optimizer', 'intruder', 'fox')),
+        (7000001, 3, ('chess', 'hunter', 'intruder')),
+        (7000002, 0, ('optimizer', 'fox', 'builder')),
+        (7000003, 3, ('optimizer', 'fox', 'builder')),
+        (7000004, 0, ('wolf', 'fox', 'intruder')),
+    ]
+    assert man["reserved_range_checked"] == ["stage RL train", 7000000, 7019999]
+    assert man["personality_pool"] == ['hunter', 'optimizer', 'builder',
+                                       'intruder', 'fox', 'chess', 'wolf']
+    assert man["opponent_coverage"] == {'hunter': 1, 'optimizer': 3,
+                                        'builder': 2, 'intruder': 3,
+                                        'fox': 4, 'chess': 1, 'wolf': 1}
+
+    # the other three blocks, which the old and new code were both run over
+    _s, v = Rr.make_specs(7_100_000, 6, rng_seed=7_100_000,
+                          own=Rr.RL_VALID_BLOCK)
+    assert v["reserved_range_checked"] == list(Rr.RL_VALID_BLOCK)
+    _s, st = Rr.make_specs(7_200_000, 3, rng_seed=7_200_000,
+                           own=Rr.RL_STUDENTS_BLOCK)
+    assert st["reserved_range_checked"] == list(Rr.RL_STUDENTS_BLOCK)
+    # and an unrelated rng_seed, so the draw and not just the first row is pinned
+    a, _m = Rr.make_specs(7_000_000, 40, rng_seed=12345)
+    b, _n = Rr.make_specs(7_000_000, 40, rng_seed=12345)
+    assert a == b and len(a) == 40
+
+
+def test_a_caller_pool_is_drawn_with_replacement():
+    """plan10 §1 and §4's rule, and the only thing a two-seat pool can mean.
+
+    `rng.sample(pool, 3)` on two seats raises "Sample larger than
+    population", so a pool this small coming back at all is the proof: three
+    draws from two seats can only repeat.
+    """
+    pool = ("chess", "fox")
+    specs, man = Rr.make_specs(8_800_000, 60, rng_seed=8_800_000,
+                               opponent_pool=pool)
+    assert man["personality_pool"] == list(pool)
+    assert set(man["opponent_coverage"]) == set(pool)
+    assert man["opponent_coverage"]["chess"] + man["opponent_coverage"]["fox"] \
+        == 180
+    repeated = [s for s in specs if len(set(s.opponent_names)) < 3]
+    assert repeated, "not one of sixty draws repeated an opponent"
+    for s in specs:
+        assert len(s.opponent_names) == 3
+        assert all(name in pool for name in s.opponent_names)
+        assert 0 <= s.learner_seat < 4
+    # still a function of one integer
+    again, _ = Rr.make_specs(8_800_000, 60, rng_seed=8_800_000,
+                             opponent_pool=pool)
+    assert again == specs
+
+
+def test_a_caller_pool_names_only_seats_the_roster_knows():
+    """plan10 §2: "全部經 registry 解析,未知 key 直接報錯".
+
+    Checked through `canonical_key`, so an alias is a seat and a retired one
+    is not - `rl_h1000_0k` is the exact failure that made `rl.rl_train`
+    unrunnable, and a pool naming it would fail the same way three seats into
+    a round rather than here, before a seed is drawn.
+    """
+    def pool_of(keys):
+        with pytest.raises(ValueError) as exc:
+            Rr.make_specs(8_800_000, 5, opponent_pool=keys)
+        return str(exc.value)
+
+    assert "no_such_seat" in pool_of(("chess", "no_such_seat"))
+    assert "rl_h1000_0k" in pool_of(("rl_h1000_0k",))
+    # a human seat cannot be frozen into a training pool
+    assert "human" in pool_of(("chess", "human"))
+    # a deferred choice is not an opponent
+    assert "random_ai" in pool_of(("chess", "random_ai"))
+    # and the two shapes that would silently skew the draw
+    assert "at least one" in pool_of(())
+    assert "duplicate" in pool_of(("chess", "chess"))
+    # an alias is fine: the check is by canonical name
+    specs, _man = Rr.make_specs(8_800_000, 5, opponent_pool=("rl_1000_20k",))
+    assert all("rl_1000_20k" in s.opponent_names for s in specs)
+
+
 # --------------------------------------------- 8h recomputing the log_prob
 
 @needs_checkpoint

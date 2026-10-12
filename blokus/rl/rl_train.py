@@ -89,6 +89,12 @@ class TrainConfig(NamedTuple):
     eval_every: int = 5
     eval_games: int = 100
     eval_seed_base: int = EVAL_SEED_BASE
+    # The opponents rollout draws from. `None` is the seven personalities,
+    # which is every run before plan10 §2; a tuple is the caller's own frozen
+    # pool, drawn with replacement. Only the *training* loop reads it - the
+    # in-training evaluation stays on the seven so a curve recorded under a
+    # custom pool is still comparable to the ones recorded without one.
+    opponent_pool: tuple = None
     # guardrail thresholds, all configurable per plan8-B4 item 3
     max_kl_anchor: float = 0.05
     min_entropy_fraction: float = 0.5
@@ -534,6 +540,11 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
     ppo_cfg = ppo_cfg or ppo_mod.Config()
     init_path = init_path or INIT_CHECKPOINT
     anchor_path = anchor_path or ANCHOR_CHECKPOINT
+    # A pool is configuration, so it is rejected before anything is opened -
+    # before `--dry-run` prints its plan, and before a resume loads the
+    # checkpoint. Left to `make_specs` a typo would surface at round 1 with a
+    # directory already created and `current.pt` already written.
+    rollout_mod.resolve_opponent_pool(cfg.opponent_pool)
     paths = checkpoint_paths(out_dir)
     start_round = 0
     start_seed = cfg.seed_base
@@ -587,7 +598,8 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
             t0 = time.perf_counter()
             specs, _man = rollout_mod.make_specs(
                 lo, cfg.per_round, rng_seed=cfg.seed_base,
-                own=_claimed_train_block(cfg.seed_base))
+                own=_claimed_train_block(cfg.seed_base),
+                opponent_pool=cfg.opponent_pool)
             # `learner_key` is not cosmetic: a worker reloads `current.pt`
             # itself, `load_policy` does not restore `net.key` from the blob's
             # `name`, and `_key_for` only answers for imitation filenames - so
@@ -598,7 +610,8 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
             # tests hid it behind `bind_retired_0k`.
             episodes = rollout_mod.play_batch(
                 specs, paths["current"], n_procs=cfg.n_procs,
-                device=cfg.rollout_device, mode="softmax", learner_key=NAME)
+                device=cfg.rollout_device, mode="softmax", learner_key=NAME,
+                opponent_pool=cfg.opponent_pool)
             timings["rollout"] = time.perf_counter() - t0
 
             # 3. update
@@ -674,6 +687,9 @@ def _dry_run(cfg, ppo_cfg, out_dir, start_round, end_round, max_rounds,
         % (cfg.seed_base, cfg.seed_base + cfg.games - 1))
     log("  rollout         device=%s n_procs=%d mode=softmax T=1.0"
         % (cfg.rollout_device, cfg.n_procs))
+    log("  opponents       %s"
+        % ("7 personalities (without replacement)" if not cfg.opponent_pool
+           else ", ".join(cfg.opponent_pool) + " (with replacement)"))
     log("  update          device=%s" % cfg.update_device)
     log("  ppo             %s" % dict(ppo_cfg._asdict()))
     log("  eval            every %d rounds, %d games from seed %d"
@@ -828,6 +844,8 @@ def build_parser():
                    help="更新裝置(預設 %(default)s)")
     p.add_argument("--seed-base", type=int, default=TrainConfig().seed_base,
                    help="訓練種子起點(預設 %(default)s)")
+    p.add_argument("--opponent-pool", default=None, metavar="KEYS",
+                   help="逗號分隔的凍結對手池;省略則用七人格,有放回抽 3 個")
     p.add_argument("--eval-every", type=int, default=TrainConfig().eval_every,
                    help="每幾輪評測一次,0 為停用(預設 %(default)s)")
     p.add_argument("--eval-games", type=int, default=TrainConfig().eval_games,
@@ -862,6 +880,9 @@ def _config_from_args(args):
         rollout_device=args.rollout_device,
         update_device=args.update_device,
         seed_base=args.seed_base,
+        opponent_pool=(tuple(k.strip() for k in args.opponent_pool.split(",")
+                             if k.strip())
+                       if args.opponent_pool else None),
         eval_every=args.eval_every,
         eval_games=args.eval_games,
         max_kl_anchor=(args.max_kl_anchor if args.max_kl_anchor is not None
