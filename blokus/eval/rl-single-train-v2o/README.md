@@ -447,3 +447,33 @@ python -m rl.rl_train \
 - §2-1 的自我對戰仍在適用範圍內：本評測池不含 `rl_o1000_20k`
   （評測用預設七人格），所以**測的是對外實力，不是對自己舊版的成績**。
 
+
+---
+
+## 10. 已知測試規律與修復（結案補記）
+
+**規律（實測，非推測）**：種子註冊提交 `ff000c0` 之後、修復之前，
+全套以 `-n 8` 連跑 4 次有 **1 次**失敗於
+`tests/test_seat_alias_hc.py::test_neither_spelling_is_an_alias_of_anything`
+—— `pytest.raises(ValueError)` 拿到 `DID NOT RAISE`，即 `kind_of` 對某個
+`RETIRED` 名回了值而不是報錯。這是**既有缺陷**，不是任何一個 plan10 提交造成的。
+
+**機制（已獨立驗證）**：`seats.ADHOC` 是 process-global，而
+`bind_retired_0k` 是 **`scope="module"`** 的 autouse fixture，會把退役的
+`rl_h1000_0k` 綁成席位並在整個模組期間保持綁定；`pytest-xdist -n 8`
+預設 `--dist load` 會把不同模組的測試交錯派到同一個 worker，於是綁定還活著時
+alias 測試可能在同 worker 執行。修復（提交 `cf12520`）共堵三個獨立泄漏：
+
+1. 四個 RL 模組（`test_rl_train` / `test_ppo` / `test_rl_rollout` /
+   `test_rl_imitation`）的 `bind_retired_0k` 改為 **function-scoped**；
+2. `test_ppo` 的 module-scoped `episodes` fixture 在任何 function-scoped
+   綁定存在之前就跑 rollout —— 改為 fixture 內自行 bind / unbind；
+3. `test_match_pool` 的 literal replay 透過 `match.main --adhoc` 綁了
+   `hc_1000`（`RETIRED[0]`）且從不解除 —— 改掛該模組既有的 `adhoc` fixture。
+
+**修復後連跑 8 次全套（`-n 8`，2026-10-13）**：
+alias 測試 **0 次失敗**。其餘失敗僅 **1 次**，落在
+`tests/test_rl_train.py::test_resume_is_bit_identical_to_an_uninterrupted_run`
+（trunk 權重 bit-identity 差異）—— 與 ADHOC 無關（該測試全程用
+`learner_key=rl_1000_20k`，不經過 0k 席位），屬另一個獨立的偶發問題，
+本 run 不處理，僅照實記錄。
