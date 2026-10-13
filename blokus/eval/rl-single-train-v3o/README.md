@@ -109,7 +109,7 @@ rl_h1000_20k, optimizer, builder, intruder
 
 ## 5. 主判準（預先寫死，跑後不改）
 
-**評測對象**：`rl_o1000_50k_v3`（round 60 的 `step_000100.pt`）vs 起點
+**評測對象**：`rl_o1000_50k_v3`（round 60 的 `step_000060.pt`）vs 起點
 `rl_o1000_20k`（`ai/checkpoints/rl_o1000_20k/step_000040.pt`）。
 
 | 項 | 值 |
@@ -117,6 +117,7 @@ rl_h1000_20k, optimizer, builder, intruder
 | 模式 | **argmax**（單一模式） |
 | 局數 | **1000**，同 specs、同模式、current 對起點配對 |
 | 種子段 | `stage RL o50k v3 eval` = 7,660,000–7,660,999 |
+| 對手池 | **預設七人格**（`make_specs` 不帶 `opponent_pool`、不帶平衡排程，與 v2o 驗收評測同型） |
 | `paired_diff` | `mean(reward_current − reward_start)`（逐 seed） |
 
 ### 通過條件
