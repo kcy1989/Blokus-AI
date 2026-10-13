@@ -45,6 +45,7 @@ import multiprocessing as mp
 import os
 import random
 import sys
+from math import gcd
 from typing import NamedTuple
 
 import numpy as np
@@ -697,7 +698,177 @@ def resolve_opponent_pool(opponent_pool):
     return pool, False
 
 
-def make_specs(start_seed, n, rng_seed=None, own=None, opponent_pool=None):
+# --------------------------------------------------------------------------
+# the balanced schedule (--balanced-schedule)
+# --------------------------------------------------------------------------
+
+def balanced_cells(round_no, n_pool, games):
+    """`cells[s][p]` for one round: how often pool seat `p` sits opposite
+    learner seat `s` this round, as a closed form of the round number.
+
+    The schedule is a function of `(round_no, n_pool, games)` alone - no state,
+    no replay of earlier rounds - so a resumed run continues the same sequence
+    bit-for-bit and two runs with the same round numbers agree.
+
+    The arithmetic. Each learner seat plays `games / 4` games of three
+    opponents, so the row target is `W = 3 * games / 4`, which is why the
+    schedule demands `games % 4 == 0`. Writing `W = base * n_pool + rho`, cell
+    `(s, p)` carries +1 in round `q` when its phase steps over the `rho/n_pool`
+    threshold, i.e. when `(t + a[s][p]) % n_pool >= n_pool - rho` with
+    `t = ((q - 1) * rho) % n_pool`. Phases are
+
+        a[s][p] = (p + n_pool * s // 4) % n_pool
+
+    and the two properties the decree wants fall out of that choice:
+
+      * every row of `a` is a permutation of `0..n_pool-1`, so each learner
+        seat's row sum is exactly `W` in every round;
+      * the four shifts are Beatty points of the 4-partition, which balances
+        both the per-round column sums and the *cumulative* ones - after `q`
+        rounds a column's total is a fixed constant plus the count of its
+        phases at or above one threshold, and every threshold the schedule can
+        ask about comes out balanced to a spread of at most one.
+
+    `_check_balanced` re-verifies both gates on every call: the formulas are
+    short enough to be wrong for a pool size nobody has tried, and a schedule
+    that is merely *close* would still train - it would just quietly be the
+    uniform draw again.
+
+    Raises `ValueError` for a shape the construction cannot serve: games not
+    divisible by 4, or fewer than 3 pool seats (three *distinct* opponents per
+    game is the rule).
+    """
+    games, n_pool = int(games), int(n_pool)
+    if games % 4:
+        raise ValueError("balanced schedule needs games divisible by 4, "
+                         "got %d" % games)
+    if n_pool < 3:
+        raise ValueError("balanced schedule needs at least 3 pool seats, "
+                         "got %d" % n_pool)
+    row_target = 3 * games // 4
+    base, rho = divmod(row_target, n_pool)
+    t = ((int(round_no) - 1) * rho) % n_pool
+    phases = _balanced_phases(n_pool)
+    cells = [[base + (1 if (t + phases[s][p]) % n_pool >= n_pool - rho else 0)
+              for p in range(n_pool)] for s in range(4)]
+    _check_balanced(n_pool, games, cells, phases, row_target)
+    return cells
+
+
+def _balanced_phases(n_pool):
+    """The four phase rows, each a permutation of `0..n_pool-1`."""
+    return [[(p + (n_pool * s) // 4) % n_pool for p in range(n_pool)]
+            for s in range(4)]
+
+
+def _check_balanced(n_pool, games, cells, phases, row_target):
+    """Refuse a shape whose per-round *or* cumulative balance does not hold.
+
+    Two gates because they protect two different claims. The per-round gate is
+    the round itself: row sums exact, pool-column sums spread <= 1, cell values
+    within a column spread <= 1. The threshold gate is what keeps the
+    *cumulative* matrix inside one: after `q` rounds the total for pool seat
+    `p` is a constant plus `#{s : a[s][p] >= n_pool - t}` for some `t` the
+    round number reaches, so balancing every reachable threshold balances every
+    prefix, not merely the ones somebody happened to test.
+    """
+    for s in range(4):
+        if sorted(phases[s]) != list(range(n_pool)):
+            raise ValueError("balanced schedule does not verify: phase row %d "
+                             "is not a permutation" % s)
+        if sum(cells[s]) != row_target:
+            raise ValueError("balanced schedule does not verify: learner seat "
+                             "%d plays %d of %d opponent slots"
+                             % (s, sum(cells[s]), row_target))
+    for p in range(n_pool):
+        col = [cells[s][p] for s in range(4)]
+        if max(col) - min(col) > 1:
+            raise ValueError("balanced schedule does not verify: pool seat %d "
+                             "sits opposite seat counts %s in one round"
+                             % (p, col))
+    cols = [sum(cells[s][p] for s in range(4)) for p in range(n_pool)]
+    if max(cols) - min(cols) > 1:
+        raise ValueError("balanced schedule does not verify: pool columns %s"
+                         % cols)
+    rho = row_target % n_pool
+    period = n_pool // gcd(rho, n_pool) if rho else 1
+    for k in range(period):
+        t = (k * rho) % n_pool
+        prof = [sum(1 for s in range(4) if phases[s][p] >= n_pool - t)
+                for p in range(n_pool)]
+        if max(prof) - min(prof) > 1:
+            raise ValueError(
+                "balanced schedule does not verify for %d pool seats with %d "
+                "games: cumulative pool totals %s at threshold %d"
+                % (n_pool, games, prof, n_pool - t))
+
+
+def _seat_triples(counts, games, rng):
+    """`counts` split into `games` triples of three *distinct* pool seats.
+
+    The constructive side of Gale-Ryser: seats largest-count first, each into
+    the still-emptiest games that do not already hold it. `counts` comes from
+    `balanced_cells`, so `sum(counts) == 3 * games` and `max(counts) <= games`
+    already hold; the checks below state the contract anyway, because a triple
+    with a repeated seat is a different game and the cell matrix would be
+    lying about it.
+
+    `rng` only breaks ties between equally-counted seats. Which seats pair up
+    is the cell matrix's answer, not the rng's - but the tie-break still has to
+    move between rounds, or the constant-cell shape (pool 10, 1000 games) would
+    deal the identical 1,000 games every single round.
+    """
+    n_pool = len(counts)
+    if sum(counts) != 3 * games:
+        raise ValueError("seat needs %d opponent slots over %d games, got %s"
+                         % (3 * games, games, sum(counts)))
+    if games and max(counts) > games:
+        raise ValueError("pool seat with %d slots cannot fit in %d games "
+                         "without repeating inside one game"
+                         % (max(counts), games))
+    game_cap = [3] * games
+    members = [[] for _ in range(games)]
+    order = sorted(range(n_pool), key=lambda p: (-counts[p], rng.random()))
+    for p in order:
+        need = counts[p]
+        if not need:
+            continue
+        cands = sorted((g for g in range(games) if p not in members[g]),
+                       key=lambda g: (-game_cap[g], g))
+        if len(cands) < need:
+            raise ValueError("no room for pool seat %d in %d games"
+                             % (p, games))
+        for g in cands[:need]:
+            members[g].append(p)
+            game_cap[g] -= 1
+    if any(game_cap):
+        raise ValueError("games left unfilled: %s" % game_cap)
+    triples = [tuple(m) for m in members]
+    for t in triples:
+        if len(set(t)) != 3:
+            raise ValueError("game without three distinct opponents: %s" % (t,))
+    return triples
+
+
+def _balanced_assignments(cells, games, rng):
+    """Shuffled `(learner_seat, triple-of-pool-indices)` for every game.
+
+    The flat list is `games` long and each seat owns exactly `games / 4` of it;
+    the shuffle is what stops a seed block from being a run of seat-0 games
+    followed by seat-1 games, and it runs off the same per-round rng as the
+    tie-breaks, so `(rng_seed, round_no)` still decides everything.
+    """
+    assignments = []
+    per_seat = games // 4
+    for seat in range(4):
+        for triple in _seat_triples(cells[seat], per_seat, rng):
+            assignments.append((seat, triple))
+    rng.shuffle(assignments)
+    return assignments
+
+
+def make_specs(start_seed, n, rng_seed=None, own=None, opponent_pool=None,
+               balanced=False, round_no=None):
     """`(specs, manifest)` for `n` episodes from `start_seed` upwards.
 
     Each seed contributes one episode. The three opponents are drawn from
@@ -727,6 +898,17 @@ def make_specs(start_seed, n, rng_seed=None, own=None, opponent_pool=None):
     the validation block must say so, because `reject_reserved_seeds` cannot tell
     "this run owns these seeds" from "this run is about to walk into the
     imitation data" - it only sees a range and a claim.
+
+    `balanced=True` swaps the draw for one round of the balanced schedule (see
+    `balanced_cells`): `round_no` - 1-based, the training loop's round number -
+    selects the cell matrix, each game gets three distinct pool seats from it,
+    every learner seat plays exactly `n / 4` games, and the game order is
+    shuffled from an rng mixed from `rng_seed` and `round_no`, so the
+    assignment is still a function of integers and replays exactly. The
+    manifest then also carries `balanced`, `round_no` and `cells`. Off is the
+    default and off is the old draw, byte for byte: `eval_specs` never passes
+    the flag at all, so the in-training evaluation stays comparable across
+    both.
     """
     from rl.paired3 import reject_reserved_seeds
 
@@ -737,22 +919,42 @@ def make_specs(start_seed, n, rng_seed=None, own=None, opponent_pool=None):
     # pool is checked first: a caller who misspelled a key should be told that
     # and not sent off to pick a different seed block first.
     pool, distinct = resolve_opponent_pool(opponent_pool)
+    cells = None
+    if balanced:
+        if round_no is None:
+            raise ValueError("balanced=True needs the round number whose "
+                             "schedule to build")
+        # Deliberately before the seed guard: a shape error is configuration,
+        # and reporting it after a claim error would put the wrong fact first.
+        cells = balanced_cells(round_no, len(pool), n)
     start_seed, end = int(start_seed), int(start_seed) + n - 1
     if rng_seed is None:
         rng_seed = start_seed
     own_block = RL_TRAIN_BLOCK if own is None else own
     reject_reserved_seeds(start_seed, end, own=own_block)
-    rng = random.Random(int(rng_seed))
     specs = []
     seat_counts = [0, 0, 0, 0]
-    for seed in range(start_seed, end + 1):
-        if distinct:
-            names = tuple(rng.sample(pool, 3))
-        else:
-            names = tuple(rng.choice(pool) for _ in range(3))
-        seat = rng.randrange(4)
-        seat_counts[seat] += 1
-        specs.append(Spec(seed, seat, names))
+    if balanced:
+        # Mixed rather than seeded with rng_seed alone: two rounds of one run
+        # must differ, and the multiplier is not `_round_rng`'s (seed * 1000)
+        # so the game order never lines up with the minibatch order by
+        # construction.
+        rng = random.Random(int(rng_seed) * 1_000_003 + int(round_no))
+        assignments = _balanced_assignments(cells, n, rng)
+        for i, (seat, idxs) in enumerate(assignments):
+            seat_counts[seat] += 1
+            specs.append(Spec(start_seed + i, seat,
+                              tuple(pool[j] for j in idxs)))
+    else:
+        rng = random.Random(int(rng_seed))
+        for seed in range(start_seed, end + 1):
+            if distinct:
+                names = tuple(rng.sample(pool, 3))
+            else:
+                names = tuple(rng.choice(pool) for _ in range(3))
+            seat = rng.randrange(4)
+            seat_counts[seat] += 1
+            specs.append(Spec(seed, seat, names))
     manifest = {
         "start_seed": start_seed,
         "end_seed": end,
@@ -770,6 +972,12 @@ def make_specs(start_seed, n, rng_seed=None, own=None, opponent_pool=None):
         # the block this call claimed, which is the row the guard exempted
         "reserved_range_checked": list(own_block),
     }
+    if balanced:
+        # Only under the flag: a default manifest must stay exactly the shape
+        # every published one already has.
+        manifest["balanced"] = True
+        manifest["round_no"] = int(round_no)
+        manifest["cells"] = [list(row) for row in cells]
     return specs, manifest
 
 

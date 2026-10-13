@@ -181,6 +181,13 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
 - **`tests/test_match_pool.py` 的 `GOLDEN_POOL` 是測試內寫死的清單，不要改回從
   註冊表推導**。GOLDEN 是證據，要靠「名册改了它就紅」失敗，而不是跟著名册動。
   兩者唯一允許相遇的是 `test_the_pinned_pool_is_still_the_registry_s_pool`。
+- **平衡排程（`--balanced-schedule`）是 `rl/rollout.balanced_cells` 的閉式，不是搜尋**。
+  每輪格子 = `W = 3G/4` 除以 N 的 base + 一個進位，相位 `a[s][p] = (p + N*s//4) % N`：
+  每列是 `0..N-1` 的排列（所以列和精確），四個位移是 4-分割的 Beatty 點（所以每輪
+  **與累計**的池出場/格子差都 ≤ 1，逐前綴成立，不是收斂）。要求 `games % 4 == 0`、
+  池 ≥ 3 席；唯一狀態是 1-based 的 `round_no`，續跑直接接同一條序列。**關閉時路徑
+  逐位不變**，`eval_specs` 永不帶這個 flag；累計性質由 `tests/test_rl_schedule.py`
+  的逐前綴斷言釘住。改格子公式前先讀 `balanced_cells` 的 docstring。
 
 ### 待辦：已知矛盾，尚未處理（別當已完成）
 
