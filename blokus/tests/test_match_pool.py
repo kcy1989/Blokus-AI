@@ -715,7 +715,7 @@ def test_the_cli_turns_a_literal_violation_into_a_usage_error(tmp_path):
 # ------------------------------------------- replaying a batch from before
 
 
-def test_literal_replays_a_batch_committed_before_the_sort(tmp_path):
+def test_literal_replays_a_batch_committed_before_the_sort(tmp_path, adhoc):
     """Stage 3 check (a): an old batch still plays, game for game.
 
     `eval/imitation/argmax-hc_1000-games.json.gz` was written while the pool was
@@ -728,6 +728,12 @@ def test_literal_replays_a_batch_committed_before_the_sort(tmp_path):
     where sorted order first diverges, and cheap enough for the suite. The
     committed file remains the authority for the other 1960; this guards the
     mechanism, and it fails on the first differing seat rather than on a digest.
+
+    The `adhoc` fixture is load bearing: `main` binds the batch's `hc_1000`
+    subject through `--adhoc`, and that binding lives in the process-global
+    `seats.ADHOC` for the rest of the worker's life unless something clears it -
+    which is exactly how `test_seat_alias_hc`'s `kind_of` assertion used to
+    flake under `--dist load`.
     """
     path = os.path.join(_ROOT, "eval", "imitation", "argmax-hc_1000-games.json.gz")
     if not os.path.exists(path):

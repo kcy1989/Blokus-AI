@@ -51,14 +51,20 @@ needs_checkpoint = pytest.mark.skipif(
     not os.path.exists(CHECKPOINT), reason="no H-C2 checkpoint at %s" % CHECKPOINT)
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def bind_retired_0k():
     """Seat the retired 0k checkpoint for the duration of one test.
 
     `rl_h1000_0k` left the roster in plan9 task 4, and `--adhoc` is the
     supported way to bring it back for a run - so this makes the same call
     `match.py --adhoc KEY=PATH` makes rather than reaching into `kind_of`.
-    Scoped and undone, so the roster every other test sees is the real one.
+
+    Function-scoped, not module-scoped: `seats.ADHOC` is process-global, so a
+    module-scoped binding stays alive while xdist (`--dist load`) dispatches
+    other modules' tests to the same worker - which made
+    `test_seat_alias_hc.py::test_neither_spelling_is_an_alias_of_anything`
+    flaky (~1 failure per 4 full-suite runs under `-n 8`). The undone here
+    still happens at test end either way; the scope is what stops the leak.
     """
     if not os.path.exists(CHECKPOINT):
         yield
