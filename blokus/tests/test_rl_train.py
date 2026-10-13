@@ -1,12 +1,17 @@
-"""The training loop: does a run resume bit-identically, and do the guardrails
-stop it cleanly?
+"""The training loop: does a run resume within float range, and do the
+guardrails stop it cleanly?
 
 The property that makes a 40-round run worth starting is that round 7 means the
 same thing whether the process survived to reach it or was killed and resumed.
-So resume is tested for **bit-identical parameters on CPU**, not for "roughly the
-same loss" - a resume that drifts would quietly turn one 20,000-episode run into
-several shorter ones with overlapping seed blocks, which is the failure this
-whole seed-block machinery exists to prevent.
+So resume is tested for the same parameters within a 1e-4 float tolerance, not
+for "roughly the same loss". The tolerance is not an easing of the standard but
+an honest one: the pipeline is not bit-reproducible across processes - measured
+2026-10-13, the games come back bitwise identical while the float path diverges
+from round 1, reaching max|d| ~ 2.6e-5 in the weights after two Adam steps
+(3 failures in 60 runs under `torch.equal`). A resume that drifts *beyond* that
+noise would quietly turn one 20,000-episode run into several shorter ones with
+overlapping seed blocks, which is the failure this whole seed-block machinery
+exists to prevent.
 
 The guardrail test matters for the same reason: a run that stops should stop
 *with the round that tripped it saved*, so the numbers are recoverable.
@@ -517,14 +522,26 @@ def test_resume_is_bit_identical_to_an_uninterrupted_run(tmp_path):
     b, _ = load_policy(os.path.join(str(split), "step_000002.pt"))
     sa, sb = a.state_dict(), b.state_dict()
     assert sa.keys() == sb.keys()
-    differing = [k for k in sa if not torch.equal(sa[k], sb[k])]
-    assert not differing, differing[:6]
+    # Semantics downgraded from bit-exact to a float range: the pipeline is
+    # not bit-reproducible across processes - the games match bitwise (the
+    # rewards and ranks in `rounds.jsonl` are identical) while the float
+    # path diverges from round 1's forward pass, and two Adam steps amplify
+    # that to max|d| ~ 2.6e-5 in the weights (measured 2026-10-13, 3 of 60
+    # runs failed `torch.equal`). 1e-4 keeps headroom over that noise and
+    # still catches a resume that drifts for real: a lost optimiser state or
+    # a reshuffled batch lands orders of magnitude above it.
+    far = {k: float((sa[k].float() - sb[k].float()).abs().max()) for k in sa}
+    far = {k: d for k, d in far.items() if d >= 1e-4}
+    assert not far, sorted(far.items(), key=lambda kv: -kv[1])[:6]
 
     la, lb = read_log(str(whole)), read_log(str(split))
     assert len(la) == len(lb) == 2
     assert [r["seed_lo"] for r in la] == [r["seed_lo"] for r in lb]
+    # same float-range semantics as the weights above: the recorded loss has
+    # been seen to differ by ~2e-6 between the two runs while everything
+    # upstream of it matched, so `abs=0.0` would just move the flake here.
     assert la[1]["stats"]["policy_loss"] == pytest.approx(
-        lb[1]["stats"]["policy_loss"], abs=0.0)
+        lb[1]["stats"]["policy_loss"], abs=1e-4)
 
 
 @needs_checkpoint
