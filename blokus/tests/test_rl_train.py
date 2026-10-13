@@ -827,7 +827,9 @@ def test_the_parser_defaults_match_the_plan():
     args = T.build_parser().parse_args([])
     assert args.games == 20_000
     assert args.per_round == 500
-    assert args.rounds == 40
+    # `--rounds` is gone: it was always overwritten by games // per_round
+    # (plan9a item j), so the flag only ever pretended to matter.
+    assert not hasattr(args, "rounds")
     assert args.n_procs == 8
     assert args.rollout_device == "cpu"
     assert args.update_device == "cuda"
@@ -845,6 +847,25 @@ def test_rounds_are_derived_from_games_and_per_round():
     cfg, _ = T._config_from_args(T.build_parser().parse_args(
         ["--games", "200", "--per-round", "100"]))
     assert cfg.rounds == 2
+
+
+def test_a_games_total_that_is_not_whole_rounds_is_refused():
+    """The derivation used to floor, so `--games 12501` trained 12,500 and
+    said nothing. A dropped tail is a different experiment than the one asked
+    for, and the place that would drop it is this line, so the line refuses.
+    """
+    with pytest.raises(SystemExit) as exc:
+        T._config_from_args(T.build_parser().parse_args(
+            ["--games", "12501", "--per-round", "500"]))
+    assert "12501" in str(exc.value) and "remainder 1" in str(exc.value)
+    with pytest.raises(SystemExit) as exc:
+        T._config_from_args(T.build_parser().parse_args(
+            ["--games", "20000", "--per-round", "0"]))
+    assert "positive" in str(exc.value)
+    with pytest.raises(SystemExit) as exc:
+        T._config_from_args(T.build_parser().parse_args(
+            ["--games", "0", "--per-round", "500"]))
+    assert "--games must be positive" in str(exc.value)
 
 
 def test_the_process_renices_itself():

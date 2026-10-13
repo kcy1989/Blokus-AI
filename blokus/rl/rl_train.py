@@ -848,11 +848,9 @@ def build_parser():
         prog="rl_train.py",
         description="PPO 主迴圈:從 hc_1000 出發,每輪 rollout 後更新並存檔。")
     p.add_argument("--games", type=int, default=TrainConfig().games,
-                   help="總局數(預設 %(default)s)")
+                   help="總局數,須為 --per-round 的整倍數(預設 %(default)s)")
     p.add_argument("--per-round", type=int, default=TrainConfig().per_round,
                    help="每輪局數(預設 %(default)s)")
-    p.add_argument("--rounds", type=int, default=TrainConfig().rounds,
-                   help="輪數(預設 %(default)s)")
     p.add_argument("--out", default=None,
                    help="檢查點輸出目錄(預設 data/rl1)")
     p.add_argument("--resume", action="store_true",
@@ -900,10 +898,24 @@ def build_parser():
 
 def _config_from_args(args):
     base = TrainConfig()
+    # `rounds` is derived and nothing else: `--rounds` was a dead flag (plan9a
+    # item j - the derivation always overwrote it), and the derivation used to
+    # floor silently, so a --games that stopped mid-round quietly trained fewer
+    # games than asked for. Refusing is the whole point of this block.
+    if args.per_round <= 0:
+        raise SystemExit("--per-round must be positive, got %d"
+                         % args.per_round)
+    if args.games <= 0:
+        raise SystemExit("--games must be positive, got %d" % args.games)
+    if args.games % args.per_round:
+        raise SystemExit(
+            "--games %d is not a whole number of --per-round %d rounds "
+            "(remainder %d); training would drop the tail, so it is refused"
+            % (args.games, args.per_round, args.games % args.per_round))
     cfg = base._replace(
         games=args.games,
         per_round=args.per_round,
-        rounds=args.games // args.per_round if args.per_round else base.rounds,
+        rounds=args.games // args.per_round,
         n_procs=args.n_procs,
         rollout_device=args.rollout_device,
         update_device=args.update_device,
