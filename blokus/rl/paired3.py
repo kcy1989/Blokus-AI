@@ -181,6 +181,18 @@ RESERVED_RANGES = (
     # `rl.rollout.RL_O50K_V2_BLOCK` / `RL_O50K_V2_EVAL_BLOCK`.
     ("stage RL o50k v2 train", 7_550_000, 7_579_999),
     ("stage RL o50k v2 eval", 7_590_000, 7_590_999),
+    # plan10 v3 (2026-10-13 decree), the o learner again: a cold start on
+    # `rl_o1000_20k` under a ten-seat pool that no longer holds the learner's
+    # own start, dealt by the balanced schedule, rounds 1..60 = 30,000 games.
+    # Unlike every row above, `seed_base` is where round 1 actually starts and
+    # is drawn, so the base sits at the *floor* of the train row - which is
+    # what the anchor test's "no anchor inside any other row" wording exists
+    # for. Both ranges sit above every row registered so far (the highest of
+    # which ends 7,590,999), so registering them moved nothing. Labels and
+    # ranges must stay in step with `rl.rollout.RL_O50K_V3_BLOCK` /
+    # `RL_O50K_V3_EVAL_BLOCK`.
+    ("stage RL o50k v3 train", 7_620_000, 7_649_999),
+    ("stage RL o50k v3 eval", 7_660_000, 7_660_999),
 )
 
 PAIRS_A = 2_000

@@ -157,14 +157,37 @@ RL_O50K_V2_EVAL_SPAN = 1_000
 RL_O50K_V2_EVAL_BLOCK = ("stage RL o50k v2 eval", RL_O50K_V2_EVAL_SEED_BASE,
                          RL_O50K_V2_EVAL_SEED_BASE + RL_O50K_V2_EVAL_SPAN - 1)
 
+# plan10 v3 (2026-10-13 decree), the o learner again: 60 rounds from a cold
+# start (`--init`, no `--resume`) on `rl_o1000_20k`, under the balanced
+# schedule and a ten-seat pool without the learner's own start. Round
+# numbering restarts at 1, so - unlike the three reruns above - `seed_base` is
+# where round 1 actually starts *and is drawn*: rounds 1..60 on a 7,620,000
+# base walk exactly 7,620,000..7,649,999, which is why the base sits at the
+# floor of the row it claims rather than outside any row. Inside its own row
+# an anchor claims nothing but itself; the shape that must stay forbidden is
+# an anchor inside some *other* registered row, because the table is consulted
+# before containment and would shadow that row's claim. The eval base stays
+# the ordinary shape: arithmetic, never drawn by the in-training loop.
+RL_O50K_V3_SEED_BASE = 7_620_000
+RL_O50K_V3_BLOCK = ("stage RL o50k v3 train", 7_620_000, 7_649_999)
+
+RL_O50K_V3_EVAL_SEED_BASE = 7_660_000
+RL_O50K_V3_EVAL_SPAN = 1_000
+RL_O50K_V3_EVAL_BLOCK = ("stage RL o50k v3 eval", RL_O50K_V3_EVAL_SEED_BASE,
+                         RL_O50K_V3_EVAL_SEED_BASE + RL_O50K_V3_EVAL_SPAN - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
-# inside the row it is entitled to claim: every entry so far is a run that
-# resumed at a round above 1, so its base is arithmetic rather than a reserved
-# seed. Matched before containment, which is why a base that is *also* inside a
-# registered row must not appear here - see `RL_I50K_V2_SEED_BASE`.
+# inside the row it is entitled to claim. The first three are runs that
+# resumed at a round above 1, so their bases are arithmetic rather than
+# reserved seeds and sit outside every row. The v3 base is the deliberate
+# exception: it is drawn from round 1, so it sits at the floor of its own row.
+# Matched before containment, which is why a base inside a row *other than its
+# own* must never appear here - see `RL_I50K_V2_SEED_BASE`, where a base
+# inside the students' row would have stolen every student run's claim.
 TRAIN_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),
                        (RL_I50K_V2_SEED_BASE, RL_I50K_V2_BLOCK),
-                       (RL_O50K_V2_SEED_BASE, RL_O50K_V2_BLOCK))
+                       (RL_O50K_V2_SEED_BASE, RL_O50K_V2_BLOCK),
+                       (RL_O50K_V3_SEED_BASE, RL_O50K_V3_BLOCK))
 
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
