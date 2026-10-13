@@ -543,6 +543,65 @@ def test_resume_from_nothing_is_the_same_as_a_fresh_run(tmp_path):
     assert [row["round"] for row in rows] == [1, 2, 3]
 
 
+def test_a_resume_refuses_a_checkpoint_trained_under_another_shape():
+    """plan 2026-10-13 item 5b: per_round, seed_base, opponent_pool - and
+    the balanced flag, for the same reason those three are checked.
+
+    Any one of them changed is a different experiment: the rounds after the
+    resume would train on different games than the rounds before it, with the
+    seam logged as one continuous run. The helper sees the checkpoint's
+    `train_cfg` as `save_checkpoint` writes it - a plain dict.
+    """
+    cfg = T.TrainConfig()
+    good = dict(cfg._asdict())
+    # matching, nothing recorded at all, and an old blob without the flag key
+    T._refuse_mismatched_resume({"train_cfg": good}, cfg)
+    T._refuse_mismatched_resume({}, cfg)
+    T._refuse_mismatched_resume(None, cfg)
+    old = dict(good)
+    old.pop("balanced_schedule")
+    T._refuse_mismatched_resume({"train_cfg": old}, cfg)
+
+    for field, bad in (("per_round", cfg.per_round + 1),
+                       ("seed_base", cfg.seed_base + 1),
+                       ("opponent_pool", ("chess", "fox")),
+                       ("balanced_schedule", True)):
+        saved = dict(old)
+        saved[field] = bad
+        with pytest.raises(ValueError) as exc:
+            T._refuse_mismatched_resume({"train_cfg": saved}, cfg)
+        assert "resume config mismatch" in str(exc.value)
+        assert field in str(exc.value)
+
+    # an old checkpoint is fine to resume *without* the flag...
+    # ...but turning the flag on against it is still a splice
+    with pytest.raises(ValueError) as exc:
+        T._refuse_mismatched_resume(
+            {"train_cfg": old}, cfg._replace(balanced_schedule=True))
+    assert "balanced_schedule" in str(exc.value)
+
+
+@needs_checkpoint
+def test_the_loop_refuses_a_resume_under_a_different_shape(tmp_path):
+    """The refusal wired into `train()`: wrong `per_round` dies after the
+    checkpoint loads and before round 2 writes anything, and the matching
+    resume still works afterwards."""
+    out = str(tmp_path / "rl1")
+    cfg = small_cfg(out)
+    T.train(cfg, out, ppo_cfg=SMALL, init_path=CHECKPOINT, log=quiet,
+            nice=0, max_rounds=1)
+    before = read_log(out)
+    with pytest.raises(ValueError) as exc:
+        T.train(cfg._replace(per_round=20), out, ppo_cfg=SMALL,
+                init_path=CHECKPOINT, log=quiet, nice=0, resume=True,
+                max_rounds=1)
+    assert "per_round" in str(exc.value)
+    assert read_log(out) == before, "a refused resume ran a round"
+    r = T.train(cfg, out, ppo_cfg=SMALL, init_path=CHECKPOINT, log=quiet,
+                nice=0, resume=True, max_rounds=1)
+    assert r.rounds_done == 2
+
+
 # ------------------------------------------------------------- 8c guardrails
 
 @needs_checkpoint

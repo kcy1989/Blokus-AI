@@ -586,6 +586,10 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
     _renice(nice)
     os.makedirs(out_dir, exist_ok=True)
     net, blob = _start_net(init_path, cfg.update_device, resume_from)
+    if resume_from:
+        # After the checkpoint loads, before the first round writes anything:
+        # a mismatch must cost a refusal, not half a spliced-together run.
+        _refuse_mismatched_resume(blob, cfg)
     anchor, _ablob = _load_anchor(anchor_path, cfg.update_device,
                                   ppo_cfg.kl_coef)
     entropy_reference = blob.get("entropy_reference")
@@ -818,6 +822,38 @@ def _resume_rng(blob):
         except (TypeError, ValueError):
             pass
     return rng
+
+
+def _refuse_mismatched_resume(blob, cfg):
+    """Reject a resume whose checkpoint was trained under a different shape.
+
+    `per_round`, `seed_base` and `opponent_pool` decide *which games* every
+    round after the resume trains on, and `balanced_schedule` decides how
+    those games are dealt - so a checkpoint saved without one of them and
+    resumed with another splices two experiments together and logs the seam
+    as one continuous run. The first three are the decree's; the flag is
+    checked the same way for the same reason, with an absent key read as
+    False because every checkpoint written before the flag existed was an
+    ordinary uniform one.
+
+    A checkpoint with no recorded `train_cfg` has nothing to compare, so it
+    is accepted: refusing every old file would stop published runs from
+    resuming in order to catch a mismatch nobody can demonstrate.
+    """
+    saved = (blob or {}).get("train_cfg")
+    if not saved:
+        return
+    diffs = []
+    for field in ("per_round", "seed_base", "opponent_pool"):
+        if field in saved and saved[field] != getattr(cfg, field):
+            diffs.append("%s checkpoint=%r this run=%r"
+                         % (field, saved[field], getattr(cfg, field)))
+    if cfg.balanced_schedule != saved.get("balanced_schedule", False):
+        diffs.append("balanced_schedule checkpoint=%r this run=%r"
+                     % (saved.get("balanced_schedule", False),
+                        cfg.balanced_schedule))
+    if diffs:
+        raise ValueError("resume config mismatch: " + "; ".join(diffs))
 
 
 def _summary(row, log):
