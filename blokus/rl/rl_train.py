@@ -727,10 +727,14 @@ def _dry_run(cfg, ppo_cfg, out_dir, start_round, end_round, max_rounds,
         "first_ratio_dev>%g, disk<%g GB"
         % (cfg.max_kl_anchor, 100 * cfg.min_entropy_fraction,
            cfg.max_first_ratio_dev, cfg.min_free_gb))
-    # Both figures measured: 10.75 games/s of rollout (plan8-B2) and 6.7 s for a
-    # 3-epoch update over 8,800 rows on CUDA (plan8-B3).
-    roll_secs = cfg.per_round / 10.75
-    upd_secs = 6.7 * (cfg.per_round / 500.0)
+    # Measured on production rounds, 2026-10-13: rollout 55-68 s and update
+    # 29-33 s for a 500-game round, so the midpoints 62 s and 31 s are the
+    # budget a run should be planned against. The plan8 figures this replaces
+    # (10.75 games/s of rollout, 6.7 s per update) came from an earlier
+    # machine and understated the update about fivefold - a 40-round run was
+    # being advertised as ~43 min when the production log said ~62 min.
+    roll_secs = cfg.per_round * 62.0 / 500.0
+    upd_secs = cfg.per_round * 31.0 / 500.0
     per = roll_secs + upd_secs
     log("  estimate        ~%.0f s per round (%.0f s rollout + %.0f s update),"
         " ~%.1f min for %d rounds"

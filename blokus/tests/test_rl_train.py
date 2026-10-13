@@ -875,6 +875,25 @@ def test_dry_run_caps_at_max_rounds(tmp_path, capsys):
     assert "capped by --max-rounds" in said
 
 
+def test_the_dry_run_estimate_carries_the_measured_round_costs(tmp_path,
+                                                               capsys):
+    """Decree 5c: the plan8 constants (10.75 games/s, 6.7 s per update) were
+    4-5x off what a production 500-game round actually costs - measured
+    2026-10-13, rollout 55-68 s and update 29-33 s. The estimate is the
+    number a run gets budgeted by, so it carries the measured midpoints
+    (62 s + 31 s = 93 s per round) and still scales linearly with
+    `--per-round`.
+    """
+    T.main(["--dry-run", "--games", "500", "--per-round", "500",
+            "--out", str(tmp_path / "x")])
+    assert "~93 s per round (62 s rollout + 31 s update)" in \
+        capsys.readouterr().out
+    T.main(["--dry-run", "--games", "1000", "--per-round", "1000",
+            "--out", str(tmp_path / "y")])
+    assert "~186 s per round (124 s rollout + 62 s update)" in \
+        capsys.readouterr().out
+
+
 def test_the_cli_refuses_a_missing_checkpoint(tmp_path):
     with pytest.raises(SystemExit) as exc:
         T.main(["--out", str(tmp_path / "x"),
