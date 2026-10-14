@@ -193,6 +193,13 @@ RESERVED_RANGES = (
     # `RL_O50K_V3_EVAL_BLOCK`.
     ("stage RL o50k v3 train", 7_620_000, 7_649_999),
     ("stage RL o50k v3 eval", 7_660_000, 7_660_999),
+    # The pre-decreed re-verification (2026-10-13): the same 1,000-game
+    # paired argmax vs `rl_o1000_20k`, but on a fresh segment - a second
+    # measurement must not replay seeds the acceptance evaluation already
+    # scored, or the two numbers would be the same look twice. Nine thousand
+    # above the eval row, the gap style every pair above uses. Label must stay
+    # in step with `rl.rollout.RL_O50K_V3_EVAL2_BLOCK`.
+    ("stage RL o50k v3 eval2", 7_670_000, 7_670_999),
 )
 
 PAIRS_A = 2_000

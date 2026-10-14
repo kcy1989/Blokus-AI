@@ -176,6 +176,19 @@ RL_O50K_V3_EVAL_SPAN = 1_000
 RL_O50K_V3_EVAL_BLOCK = ("stage RL o50k v3 eval", RL_O50K_V3_EVAL_SEED_BASE,
                          RL_O50K_V3_EVAL_SEED_BASE + RL_O50K_V3_EVAL_SPAN - 1)
 
+# The pre-decreed re-verification (2026-10-13): same pairing, same criterion,
+# fresh seeds - 7,670,000..7,670,999 sits above every row registered so far
+# and 9,000 clear of the first evaluation's block, so the second measurement
+# does not replay a seed the first one scored. Eval bases never enter
+# `TRAIN_ANCHOR_BLOCKS`: no training round draws them, and the harness claims
+# the triple directly through `make_specs(..., own=...)`.
+RL_O50K_V3_EVAL2_SEED_BASE = 7_670_000
+RL_O50K_V3_EVAL2_SPAN = 1_000
+RL_O50K_V3_EVAL2_BLOCK = ("stage RL o50k v3 eval2",
+                          RL_O50K_V3_EVAL2_SEED_BASE,
+                          RL_O50K_V3_EVAL2_SEED_BASE + RL_O50K_V3_EVAL2_SPAN
+                          - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than
