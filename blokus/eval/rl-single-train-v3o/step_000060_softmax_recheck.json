@@ -1,0 +1,47 @@
+{
+ "mode": "softmax",
+ "games": 1000,
+ "seed_base": 7670000,
+ "seed_block": [
+  "stage RL o50k v3 eval2",
+  7670000,
+  7670999
+ ],
+ "pool": [
+  "hunter",
+  "optimizer",
+  "builder",
+  "intruder",
+  "fox",
+  "chess",
+  "wolf"
+ ],
+ "opponents_per_game": 3,
+ "learner_seat_counts": [
+  245,
+  239,
+  278,
+  238
+ ],
+ "current_path": "data/rl_o50k_v3/step_000060.pt",
+ "current_sha256": "0868776ef18ad2b3e2e00878fe0cf87fd2202ef47dcd9dde8e96f86e7db1154d",
+ "ref_path": "ai/checkpoints/rl_o1000_20k/step_000040.pt",
+ "ref_sha256": "272b2edf35e9157ed137a33787ceb5fc736c62f785c304cb6abfa2a273c1ad90",
+ "paired_diff": 0.08525,
+ "paired_se": 0.044598535478946696,
+ "ratio": 1.9114977450379138,
+ "n_procs": 16,
+ "current": {
+  "reward": 2.92736,
+  "rank": 1.957,
+  "remaining": 11.564
+ },
+ "ref": {
+  "reward": 2.84211,
+  "rank": 2.033,
+  "remaining": 12.489,
+  "paired_diff": 0.08525,
+  "paired_se": 0.044598535478946696,
+  "games": 1000
+ }
+}
