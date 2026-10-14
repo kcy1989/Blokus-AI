@@ -389,3 +389,22 @@ dry-run 的 `seeds` 行對案 B 是準的：`7620000..7649999` 正是實際取�
 - 第 1 輪平衡檢查全中：座位 [125×4]、池出場 150×10、格值 {37,38}。
 - 凍結席 sha256 階段 0 = 階段 1（§10 四檔全 UNCHANGED）。
 - 迴圈內評測 12 次：cur 3.1022 → 3.4650，起點固定 3.1098（不入判準）。
+
+---
+
+## 15. 入池記錄（2026-10-14，plan10 §7）
+
+依 2026-10-14 裁示（A–D 清單）入池；**本檔 §1–§14 的預先註冊句子一字未動**。
+
+| 項 | 值 |
+|---|---|
+| key | `rl_o1000_50k_v3`（命名定稿，改名 = 重排常規池，禁止） |
+| published | `ai/checkpoints/rl_o1000_50k_v3/step_000060.pt`，sha256 `0868776ef18ad2b3e2e00878fe0cf87fd2202ef47dcd9dde8e96f86e7db1154d`（與 `data/` 原件逐位相等後才複製） |
+| source | `data/rl_o50k_v3/step_000060.pt`（維持 gitignored） |
+| pools | `["all", "rl_only"]`：`all` 15→**16**、`rl_only` 8→**9**、`no_imitation` 7 不變 |
+| 訓練池 | **不擴張**——§3 的 10 席字面清單維持原樣，`rl/multi.FIXED_POOL` 也不動 |
+| 常規池重排 | 見主 README「GOLDEN 重採（v3 入池）」：GOLDEN_POOL 15→16 key，三個 GOLDEN 種子全重採 |
+| 狀態 | **待校準**（plan10 §7 第 7 項）：對外實力解讀以 §14 兩次 1000 局 argmax（+0.2286／6.17 se、+0.2187／5.61 se，皆 > 1.3×se、各一次看數）為準；尚無全池大樣本校準 |
+
+複驗證據檔 `step_000060_{argmax,softmax}_recheck.json` 在本機
+`eval/rl-single-train-v3o/`（裁示未要求入版控，保持未追蹤）。

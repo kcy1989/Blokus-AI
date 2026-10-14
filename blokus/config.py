@@ -158,6 +158,10 @@ I = {
     "rl_optimizer_desc50_fmt": "PPO 訓練 100 輪、共 50,000 局（自 20k 續練）；老師：優化者",
     "rl_builder_desc50_fmt": "PPO 訓練 100 輪、共 50,000 局（自 20k 續練）；老師：築城者",
     "rl_intruder_desc50_fmt": "PPO 訓練 100 輪、共 50,000 局（自 20k 續練）；老師：入侵者",
+    # plan10 v3: the same 50k direction but cold-started (fresh optimiser,
+    # fresh entropy reference) under the balanced schedule - the round count
+    # and the start method are what separate it from rl_optimizer_desc50_fmt.
+    "rl_optimizer_desc50v3_fmt": "PPO 訓練 60 輪、共 50,000 局（自 20k 冷啟動、平衡排程）；老師：優化者",
     "ai_pool": "AI",
     "human_pool": "人類",
     # Also unreferenced: nothing groups seats into a "模仿" tab any more.

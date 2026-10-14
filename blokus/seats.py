@@ -137,6 +137,12 @@ RL_SEATS = (
     ("rl_o1000_50k", "data/multi/o/step_000100.pt"),
     ("rl_b1000_50k", "data/multi/b/step_000100.pt"),
     ("rl_i1000_50k", "data/multi/i/step_000100.pt"),
+    # plan10 v3 (2026-10-14: the o learner's second 50k - cold-started from
+    # rl_o1000_20k under the balanced schedule and a ten-seat pool without
+    # its own start. Same split as the rows above: the path is where it was
+    # trained, ai/registry.json's checkpoint is where it is published, and
+    # this table's order is the registry's rl-family order.
+    ("rl_o1000_50k_v3", "data/rl_o50k_v3/step_000060.pt"),
 )
 
 # Every alias, the imitation ones and the trained-policy ones alike. This is

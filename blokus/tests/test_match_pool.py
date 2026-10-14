@@ -399,25 +399,25 @@ def test_no_pool_at_all_means_all():
 GOLDEN_POOL = ["builder", "chess", "fox", "hunter", "intruder", "optimizer",
                "rl_b1000_20k", "rl_b1000_50k", "rl_h1000_20k", "rl_h1000_50k",
                "rl_i1000_20k", "rl_i1000_50k", "rl_o1000_20k", "rl_o1000_50k",
-               "wolf"]
+               "rl_o1000_50k_v3", "wolf"]
 
-# plan10 milestone 1 (2026-10-10): the roster gained the four 50k policies, so
-# `all` went 11 -> 15 and every draw index moved. Recomputed with the command
-# in README's "GOLDEN 重採（plan10 里程碑 1）" on this commit's tree; the old
-# values are the ones the previous commit pinned, from the 11-key pool.
+# plan10 v3 (2026-10-14): the roster gained `rl_o1000_50k_v3`, so `all`
+# went 15 -> 16 and every draw index moved. Recomputed with the command in
+# README's "GOLDEN 重採（v3 入池）" on this commit's tree; the old values are
+# the ones the previous commit pinned, from the 15-key pool.
 GOLDEN = {
-    20260928: [('rl_i1000_20k', 'green', 12), ('rl_h1000_20k', 'red', 4),
-               ('wolf', 'yellow', 36), ('intruder', 'blue', 7),
-               ('rl_h1000_50k', 'yellow', 9), ('rl_b1000_20k', 'red', 11),
-               ('rl_b1000_20k', 'green', 16), ('builder', 'blue', 15)],
-    7: [('optimizer', 'green', 20), ('fox', 'red', 33),
-        ('rl_b1000_20k', 'yellow', 8), ('rl_i1000_20k', 'blue', 5),
-        ('chess', 'red', 33), ('chess', 'blue', 38),
-        ('rl_h1000_20k', 'yellow', 8), ('rl_b1000_20k', 'green', 0)],
-    99: [('rl_b1000_20k', 'yellow', 22), ('rl_b1000_20k', 'red', 12),
-         ('hunter', 'blue', 7), ('rl_h1000_50k', 'green', 6),
-         ('rl_b1000_50k', 'green', 0), ('optimizer', 'blue', 12),
-         ('rl_b1000_20k', 'yellow', 28), ('builder', 'red', 21)],
+    20260928: [('rl_h1000_20k', 'red', 8), ('chess', 'blue', 21),
+               ('rl_b1000_20k', 'green', 24), ('hunter', 'yellow', 8),
+               ('builder', 'yellow', 20), ('fox', 'blue', 17),
+               ('rl_i1000_50k', 'red', 8), ('rl_i1000_20k', 'green', 7)],
+    7: [('rl_i1000_20k', 'green', 12), ('intruder', 'yellow', 21),
+        ('rl_o1000_20k', 'red', 3), ('chess', 'blue', 30),
+        ('fox', 'yellow', 14), ('hunter', 'green', 14),
+        ('rl_o1000_50k', 'blue', 15), ('optimizer', 'red', 27)],
+    99: [('rl_o1000_20k', 'yellow', 2), ('rl_o1000_20k', 'red', 16),
+         ('rl_b1000_20k', 'blue', 10), ('optimizer', 'green', 15),
+         ('rl_i1000_20k', 'red', 10), ('rl_o1000_20k', 'yellow', 17),
+         ('chess', 'green', 37), ('rl_h1000_20k', 'blue', 0)],
 }
 
 

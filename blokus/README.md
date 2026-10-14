@@ -108,7 +108,7 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 
 ---
 
-## 七種 AI 人格，加四個訓練策略（共 11 個自動席位）
+## 七種 AI 人格，加九個訓練策略（共 16 個自動席位）
 
 人格分兩類：
 
@@ -1142,6 +1142,101 @@ EOF
 
 ---
 
+### GOLDEN 重採（v3 入池：`rl_o1000_50k_v3`，2026-10-14）
+
+plan10 v3（2026-10-14 裁示入池）把 `rl_o1000_50k_v3` 加進 `ai/registry.json`
+末尾，`all` 池從 **15 列變 16 列**，`rl_only` 從 **8 變 9**，
+`no_imitation` **7 不變**（新列的 `pools` 只有 `["all", "rl_only"]`）。
+這是**組成變更**：`rng.choice` 抽的是 index，16 個排序位置全部重排，
+三個種子全部改變。
+
+| 池 | 入池前 | 入池後 |
+|---|---|---|
+| `all` | 15 | **16** |
+| `rl_only` | 8 | **9** |
+| `no_imitation` | 7 | 7 |
+
+`automated_options()` 15 → **16**，`seat_options()` 17 → 18，座位選單
+（`seat_menu_options()`）18 → **19** 項。新 key 的排序位置在
+`rl_o1000_50k` 之後、`wolf` 之前——key 排序就是全部規則（AGENTS §四），
+**命名定稿後不可再改名**，改名等於再做一次本節。
+
+**重算命令**（新值由這支命令在本提交的樹上產出；舊值即上一節的「新值」，
+由同一支命令在前一個 commit 上產出）：
+
+```bash
+.venv-rl/bin/python - <<'EOF'
+from match import expand_pool, run_league
+
+def flat(rows):
+    return [r for game in rows for r in game]
+
+def seats_of(rows):
+    return [(k, c, r) for k, c, r, _rk, _p in flat(rows)]
+
+print(expand_pool("all"))
+for seed in (20260928, 7, 99):
+    print(seed, seats_of(run_league(2, seed=seed, options=expand_pool("all"))))
+EOF
+```
+
+新池（16 key，`expand_pool("all")` 輸出）：
+
+```
+['builder', 'chess', 'fox', 'hunter', 'intruder', 'optimizer',
+ 'rl_b1000_20k', 'rl_b1000_50k', 'rl_h1000_20k', 'rl_h1000_50k',
+ 'rl_i1000_20k', 'rl_i1000_50k', 'rl_o1000_20k', 'rl_o1000_50k',
+ 'rl_o1000_50k_v3', 'wolf']
+```
+
+舊值（十五 key 池）：
+
+```
+20260928 [('rl_i1000_20k', 'green', 12), ('rl_h1000_20k', 'red', 4),
+          ('wolf', 'yellow', 36), ('intruder', 'blue', 7),
+          ('rl_h1000_50k', 'yellow', 9), ('rl_b1000_20k', 'red', 11),
+          ('rl_b1000_20k', 'green', 16), ('builder', 'blue', 15)]
+7 [('optimizer', 'green', 20), ('fox', 'red', 33),
+   ('rl_b1000_20k', 'yellow', 8), ('rl_i1000_20k', 'blue', 5),
+   ('chess', 'red', 33), ('chess', 'blue', 38),
+   ('rl_h1000_20k', 'yellow', 8), ('rl_b1000_20k', 'green', 0)]
+99 [('rl_b1000_20k', 'yellow', 22), ('rl_b1000_20k', 'red', 12),
+    ('hunter', 'blue', 7), ('rl_h1000_50k', 'green', 6),
+    ('rl_b1000_50k', 'green', 0), ('optimizer', 'blue', 12),
+    ('rl_b1000_20k', 'yellow', 28), ('builder', 'red', 21)]
+```
+
+新值（十六 key 池）：
+
+```
+20260928 [('rl_h1000_20k', 'red', 8), ('chess', 'blue', 21),
+          ('rl_b1000_20k', 'green', 24), ('hunter', 'yellow', 8),
+          ('builder', 'yellow', 20), ('fox', 'blue', 17),
+          ('rl_i1000_50k', 'red', 8), ('rl_i1000_20k', 'green', 7)]
+7 [('rl_i1000_20k', 'green', 12), ('intruder', 'yellow', 21),
+   ('rl_o1000_20k', 'red', 3), ('chess', 'blue', 30),
+   ('fox', 'yellow', 14), ('hunter', 'green', 14),
+   ('rl_o1000_50k', 'blue', 15), ('optimizer', 'red', 27)]
+99 [('rl_o1000_20k', 'yellow', 2), ('rl_o1000_20k', 'red', 16),
+    ('rl_b1000_20k', 'blue', 10), ('optimizer', 'green', 15),
+    ('rl_i1000_20k', 'red', 10), ('rl_o1000_20k', 'yellow', 17),
+    ('chess', 'green', 37), ('rl_h1000_20k', 'blue', 0)]
+```
+
+同次修改的字面斷言（都在本提交裡）：
+
+| 斷言 | 舊 | 新 |
+|---|---|---|
+| `test_match_pool::GOLDEN_POOL` | 15 個 key 的字面清單 | **加 `rl_o1000_50k_v3`**（排序位） |
+| `test_match_pool` 的三個 `GOLDEN` 種子 | 15 key 池的 `(席位, 顏色, 餘格)` | **GOLDEN 重採**，舊→新見上表 |
+| `test_registry_json::test_the_json_rows_are_unchanged_...` | 15 列列序、15 個三元組 | **各加一項**（尾端） |
+| `test_registry_json::..._label_and_description_keys_exist_in_config` | desc_key 白名單 | **加 `rl_optimizer_desc50v3_fmt`** |
+
+**訓練池不動**：`rl/multi.py::FIXED_POOL` 不隨名册擴張（既有測試釘住），
+v3 自己的 10 席訓練池是它證據裡的字面清單——入池只擴張**常規對戰**的池。
+
+---
+
 ## 50k 席位的用法
 
 入池後 `rl_{h,o,b,i}1000_50k` 是普通席位，`match.py` 與遊戲介面都能直接選。
@@ -1169,7 +1264,7 @@ EOF
     --pool rl_h1000_50k,rl_o1000_50k,rl_b1000_50k,rl_i1000_50k \
     --out /tmp/four50k.json.gz
 
-# (丁) 全池 15 席
+# (丁) 全池 16 席
 .venv-rl/bin/python match.py --games 3000 --seed 4245 --paired-rng \
     --subject rl_h1000_50k --mode argmax --gzip --dry \
     --pool all --out /tmp/h50k-vs-all.json.gz
@@ -1186,14 +1281,16 @@ EOF
 
 ### 在遊戲介面選到 50k 席位
 
-座位選單（`seats.seat_menu_options()`）現在是 **18 項**：15 個自動席位 +
+座位選單（`seats.seat_menu_options()`）現在是 **19 項**：16 個自動席位 +
 2 個人類席位 + 「隨機 AI」。四個 50k 排在四個 20k 之後，中文名是
 「強化學習 rl_h1000_50k」，說明分別是「PPO 訓練 100 輪、共 50,000 局
 （自 20k 續練）」，再依老師加上「老師：優化者／築城者／入侵者」（h 版沿用
-通用說明，不加老師）。選到之後與其他席位完全同權，可存排行榜。
+通用說明，不加老師）。`rl_o1000_50k_v3` 排在 `rl_o1000_50k` 之後，說明是
+「PPO 訓練 60 輪、共 50,000 局（自 20k 冷啟動、平衡排程）；老師：優化者」。
+選到之後與其他席位完全同權，可存排行榜。
 
 `--pool random_ai` 或選單上的「隨機 AI」仍然是從 `automated_options()`
-的 **15** 個裡抽，所以 50k 也會被抽中。
+的 **16** 個裡抽，所以 50k 也會被抽中。
 
 ### 如何移除
 
