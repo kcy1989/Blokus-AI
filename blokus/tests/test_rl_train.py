@@ -371,29 +371,30 @@ def test_the_i50k_anchor_claims_rounds_41_to_100_and_leaves_the_students_alone()
         rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
 
 
-def test_the_anchor_table_is_exactly_the_four_registered_runs():
+def test_the_anchor_table_is_exactly_the_five_registered_runs():
     """The whole table, as literals, plus the property that keeps it safe.
 
     Anchors are matched *before* containment, so the table is the one place a
     typo can redirect a run's seed claim or - worse - shadow a registered row
     and break every run that claims that row by containment. Pinned as
-    literals so a fifth entry, a moved base or a changed row fails here.
+    literals so a sixth entry, a moved base or a changed row fails here.
 
     The property is the half that changed with the v3 run: no anchor may sit
     inside any *other* registered row. The first three entries are arithmetic
     bases outside their own rows, because those runs resumed above round 1
-    and round 1 never drew them. The v3 base is the deliberate exception -
-    a cold start at round 1, so its base is drawn and sits at the floor of
-    the row it claims. Inside its own row an anchor claims nothing but
-    itself; inside any other row it would win the pre-containment match and
-    steal that row's claim. `7,200,000` is the base that would still break
-    the rule, and it is not in the table.
+    and round 1 never drew them. The v3 base and the h-v2 base are the
+    deliberate exception - a cold start at round 1, so their bases are drawn
+    and sit at the floor of the rows they claim. Inside its own row an anchor
+    claims nothing but itself; inside any other row it would win the
+    pre-containment match and steal that row's claim. `7,200,000` is the base
+    that would still break the rule, and it is not in the table.
     """
     assert rollout_mod.TRAIN_ANCHOR_BLOCKS == (
         (7_460_000, ("stage RL v2 h train", 7_500_000, 7_509_999)),
         (7_150_000, ("stage RL i50k v2 train", 7_170_000, 7_199_999)),
         (7_530_000, ("stage RL o50k v2 train", 7_550_000, 7_579_999)),
         (7_620_000, ("stage RL o50k v3 train", 7_620_000, 7_649_999)),
+        (7_680_000, ("stage RL h50k v2 train", 7_680_000, 7_709_999)),
     )
     rows = [(label, lo, hi) for label, lo, hi in paired3.RESERVED_RANGES]
     for base, block in rollout_mod.TRAIN_ANCHOR_BLOCKS:
@@ -459,6 +460,46 @@ def test_the_o50k_v3_anchor_claims_rounds_1_to_60():
     # and without the claim the registered row refuses the run
     with pytest.raises(ValueError):
         rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
+
+
+def test_the_h50k_v2_anchor_claims_rounds_1_to_60():
+    """The h learner's cold start: same shape as the v3 anchor above - round 1
+    draws the base itself, so the base sits at the floor of the row it claims.
+    The pool this run trains under is the caller's ten seats, which keeps the
+    learner's own frozen start; that is a property of the pool, not of the seed
+    row, so it is asserted in the run's evidence rather than here."""
+    base = rollout_mod.RL_H50K_V2_SEED_BASE
+    assert base == 7_680_000
+    assert T._claimed_train_block(base) is rollout_mod.RL_H50K_V2_BLOCK
+
+    lo = base + (1 - 1) * 500
+    hi = base + (60 - 1) * 500 + 499
+    assert (lo, hi) == rollout_mod.RL_H50K_V2_BLOCK[1:]
+
+    specs, man = rollout_mod.make_specs(
+        lo, hi - lo + 1, rng_seed=base, own=T._claimed_train_block(base))
+    assert man["reserved_range_checked"] == list(rollout_mod.RL_H50K_V2_BLOCK)
+    assert [s.seed for s in specs][0] == 7_680_000
+    assert [s.seed for s in specs][-1] == 7_709_999
+
+    # an anchor is an exact key: a neighbouring base is not this row's claim
+    assert T._claimed_train_block(base + 1) is rollout_mod.RL_TRAIN_BLOCK
+    # and without the claim the registered row refuses the run
+    with pytest.raises(ValueError):
+        rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
+
+    # the acceptance block is claimed the ordinary way: an eval base never
+    # enters `TRAIN_ANCHOR_BLOCKS`, because no training round draws it
+    eval_specs, eval_man = rollout_mod.make_specs(
+        rollout_mod.RL_H50K_V2_EVAL_SEED_BASE, 1_000,
+        rng_seed=rollout_mod.RL_H50K_V2_EVAL_SEED_BASE,
+        own=rollout_mod.RL_H50K_V2_EVAL_BLOCK)
+    assert eval_man["reserved_range_checked"] == list(
+        rollout_mod.RL_H50K_V2_EVAL_BLOCK)
+    assert [s.seed for s in eval_specs][-1] == 7_715_999
+    with pytest.raises(ValueError):
+        rollout_mod.make_specs(rollout_mod.RL_H50K_V2_EVAL_SEED_BASE, 1_000,
+                               rng_seed=rollout_mod.RL_H50K_V2_EVAL_SEED_BASE)
 
 
 @needs_checkpoint

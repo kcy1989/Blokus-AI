@@ -200,6 +200,20 @@ RESERVED_RANGES = (
     # above the eval row, the gap style every pair above uses. Label must stay
     # in step with `rl.rollout.RL_O50K_V3_EVAL2_BLOCK`.
     ("stage RL o50k v3 eval2", 7_670_000, 7_670_999),
+    # plan10 (2026-10-14 decree), the h learner: a cold start on
+    # `rl_h1000_20k` under the balanced schedule, rounds 1..60 = 30,000 games,
+    # under the caller's ten-seat pool which keeps the learner's own frozen
+    # start - the self-play exception the user declared for this run. Round
+    # numbering restarts at 1, so `seed_base` is where round 1 actually starts
+    # and is drawn: the base sits at the floor of the row it claims, the shape
+    # the anchor test's "no anchor inside any other row" wording exists for.
+    # Both ranges sit above every row registered so far (the highest of which
+    # ends 7,670,999), so registering them moved nothing. There is no second
+    # evaluation row: the decree made the acceptance measurement a single
+    # 1000-game paired argmax look. Labels and ranges must stay in step with
+    # `rl.rollout.RL_H50K_V2_BLOCK` / `RL_H50K_V2_EVAL_BLOCK`.
+    ("stage RL h50k v2 train", 7_680_000, 7_709_999),
+    ("stage RL h50k v2 eval", 7_715_000, 7_715_999),
 )
 
 PAIRS_A = 2_000

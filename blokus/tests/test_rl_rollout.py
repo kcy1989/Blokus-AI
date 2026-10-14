@@ -441,7 +441,8 @@ def test_every_rollout_block_is_registered_to_the_tuple():
                   Rr.RL_I50K_V2_BLOCK, Rr.RL_I50K_V2_EVAL_BLOCK,
                   Rr.RL_O50K_V2_BLOCK, Rr.RL_O50K_V2_EVAL_BLOCK,
                   Rr.RL_O50K_V3_BLOCK, Rr.RL_O50K_V3_EVAL_BLOCK,
-                  Rr.RL_O50K_V3_EVAL2_BLOCK):
+                  Rr.RL_O50K_V3_EVAL2_BLOCK,
+                  Rr.RL_H50K_V2_BLOCK, Rr.RL_H50K_V2_EVAL_BLOCK):
         assert block in registered, block
 
 
