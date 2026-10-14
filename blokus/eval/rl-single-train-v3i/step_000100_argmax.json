@@ -1,0 +1,49 @@
+{
+ "current": {
+  "rank": 1.946,
+  "remaining": 10.754,
+  "reward": 2.94646,
+  "seconds": 67.37
+ },
+ "current_path": "data/rl_i50k_v3/step_000100.pt",
+ "current_sha256": "30e4a736e6e9102d727a53829f1711796dca9c052bb0b9da7ba324580b6769a6",
+ "games": 1000,
+ "learner_seat_counts": [
+  263,
+  250,
+  227,
+  260
+ ],
+ "mode": "argmax",
+ "n_procs": 16,
+ "opponents_per_game": 3,
+ "paired_diff": -0.03614,
+ "paired_se": 0.041348939952981084,
+ "pool": [
+  "hunter",
+  "optimizer",
+  "builder",
+  "intruder",
+  "fox",
+  "chess",
+  "wolf"
+ ],
+ "ratio": -0.8740248248466755,
+ "ref": {
+  "games": 1000,
+  "paired_diff": -0.03614,
+  "paired_se": 0.041348939952981084,
+  "rank": 1.912,
+  "remaining": 10.54,
+  "reward": 2.9826,
+  "seconds": 67.364
+ },
+ "ref_path": "ai/checkpoints/rl_i1000_20k/step_000040.pt",
+ "ref_sha256": "3db862d34fbe48943621e373d29adc456016c12675daf86133abf0460518c9d0",
+ "seed_base": 7765000,
+ "seed_block": [
+  "stage RL i50k v3 eval",
+  7765000,
+  7765999
+ ]
+}
