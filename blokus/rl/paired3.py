@@ -214,6 +214,17 @@ RESERVED_RANGES = (
     # `rl.rollout.RL_H50K_V2_BLOCK` / `RL_H50K_V2_EVAL_BLOCK`.
     ("stage RL h50k v2 train", 7_680_000, 7_709_999),
     ("stage RL h50k v2 eval", 7_715_000, 7_715_999),
+    # The pool-swapped re-measurement the user decreed on 2026-10-14, after
+    # the criterion run on 7,715,000 came back at +0.006430, below its
+    # 1.3 x se line. The opponent pool for it is the seven personalities plus
+    # `rl_b1000_50k` and `rl_o1000_50k_v3`, so - unlike the training pool -
+    # nothing in the set is the candidate itself, though both of those nets
+    # sat in the pool it trained against. Fresh seeds are the point: a second
+    # look on the seeds the first measurement scored would be the same 1,000
+    # games twice, which is why this row sits 9,001 above that block's top
+    # rather than inside it. Labels and ranges must stay in step with
+    # `rl.rollout.RL_H50K_V2_EVAL2_BLOCK`.
+    ("stage RL h50k v2 eval2", 7_725_000, 7_725_999),
 )
 
 PAIRS_A = 2_000

@@ -215,6 +215,28 @@ RL_H50K_V2_EVAL_BLOCK = ("stage RL h50k v2 eval", RL_H50K_V2_EVAL_SEED_BASE,
                          RL_H50K_V2_EVAL_SEED_BASE + RL_H50K_V2_EVAL_SPAN
                          - 1)
 
+# The pool-swapped re-measurement the user decreed on 2026-10-14, after the
+# §5 criterion run on 7,715,000 came back at +0.006430, below its 1.3 x se
+# line. The opponent pool is the seven personalities plus two frozen nets,
+# `rl_b1000_50k` and `rl_o1000_50k_v3`, and the learner's own start is gone
+# from it, so - unlike the training pool - nothing in this set is the
+# candidate itself. It is still not an independent measurement of the
+# candidate in general: both of those nets sat in the pool it trained
+# against, so a positive number here cannot separate "got stronger" from
+# "got used to these two opponents".
+#
+# Fresh seeds are the whole reason this row exists. A second look on the
+# seeds the first measurement scored would be the same 1,000 games twice,
+# which is why it sits 9,001 above that block's top rather than inside it -
+# the same gap style as `RL_O50K_V3_EVAL2_BLOCK`. Eval bases never enter
+# `TRAIN_ANCHOR_BLOCKS`: no training round draws them, and the harness
+# claims the triple through `make_specs(..., own=...)`.
+RL_H50K_V2_EVAL2_SEED_BASE = 7_725_000
+RL_H50K_V2_EVAL2_SPAN = 1_000
+RL_H50K_V2_EVAL2_BLOCK = ("stage RL h50k v2 eval2", RL_H50K_V2_EVAL2_SEED_BASE,
+                          RL_H50K_V2_EVAL2_SEED_BASE + RL_H50K_V2_EVAL2_SPAN
+                          - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than
