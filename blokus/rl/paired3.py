@@ -240,6 +240,19 @@ RESERVED_RANGES = (
     # `rl.rollout.RL_I50K_V3_BLOCK` / `RL_I50K_V3_EVAL_BLOCK`.
     ("stage RL i50k v3 train", 7_730_000, 7_759_999),
     ("stage RL i50k v3 eval", 7_765_000, 7_765_999),
+    # The two mid-step measurements the user decreed on 2026-10-15, after the
+    # criterion run on 7,765,000 came back at -0.036140, below its line, while
+    # the same run's in-training curve had peaked at rounds 30-35. They measure
+    # `data/rl_i50k_v3/step_000035.pt` against the start `rl_i1000_20k` and
+    # `data/rl_i50k_v3/step_000030.pt` against `rl_h1000_20k`: is an
+    # intermediate checkpoint stronger than the final one the criterion scored?
+    # Both are 1000-game paired argmax runs on the default seven-personality
+    # pool and they share this one block, so the two reads share a yardstick
+    # while each stays paired within itself. Fresh seeds because 7,765,000 was
+    # already scored: a second look on it would be the same 1,000 games twice.
+    # This row sits 4,001 above that row's top. Labels and ranges must stay in
+    # step with `rl.rollout.RL_I50K_V3_EVAL2_BLOCK`.
+    ("stage RL i50k v3 eval2", 7_770_000, 7_770_999),
 )
 
 PAIRS_A = 2_000

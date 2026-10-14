@@ -269,6 +269,31 @@ RL_I50K_V3_EVAL_BLOCK = ("stage RL i50k v3 eval", RL_I50K_V3_EVAL_SEED_BASE,
                          RL_I50K_V3_EVAL_SEED_BASE + RL_I50K_V3_EVAL_SPAN
                          - 1)
 
+# The two mid-step measurements the user decreed on 2026-10-15, after the
+# §5 criterion run on 7,765,000 came back at -0.036140, below its line. The
+# in-training curve for the same run had peaked at rounds 30-35 (+0.316 and
+# +0.334 against the start on the 100-game validation block), so the question
+# these answer is whether an *intermediate* checkpoint is stronger than the
+# final one - the final is what the criterion scored, and it lost.
+#
+#   * `step_000035.pt` against the start `rl_i1000_20k`
+#   * `step_000030.pt` against `rl_h1000_20k`
+#
+# Both are 1000-game paired argmax runs on the default seven-personality pool,
+# the same shape as the criterion. Fresh seeds are the point of the new row:
+# 7,765,000-7,765,999 was already scored by the criterion run, and replaying
+# it would make the second look the same 1,000 games twice. This block sits
+# 4,001 above that row's top, the gap style `RL_O50K_V3_EVAL2_BLOCK` set.
+# The two measurements share the one block, so both reads share a yardstick;
+# each is still paired within itself, and the two share nothing else - the
+# references differ (`rl_i1000_20k` vs `rl_h1000_20k`), so the two numbers
+# say nothing about each other. Eval bases never enter `TRAIN_ANCHOR_BLOCKS`.
+RL_I50K_V3_EVAL2_SEED_BASE = 7_770_000
+RL_I50K_V3_EVAL2_SPAN = 1_000
+RL_I50K_V3_EVAL2_BLOCK = ("stage RL i50k v3 eval2", RL_I50K_V3_EVAL2_SEED_BASE,
+                          RL_I50K_V3_EVAL2_SEED_BASE + RL_I50K_V3_EVAL2_SPAN
+                          - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than
