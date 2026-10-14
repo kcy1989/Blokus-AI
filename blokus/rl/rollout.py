@@ -237,12 +237,44 @@ RL_H50K_V2_EVAL2_BLOCK = ("stage RL h50k v2 eval2", RL_H50K_V2_EVAL2_SEED_BASE,
                           RL_H50K_V2_EVAL2_SEED_BASE + RL_H50K_V2_EVAL2_SPAN
                           - 1)
 
+# plan10 (2026-10-14 decree), the i learner: 60 rounds from a cold start
+# (`--init` on `rl_i1000_20k`, no `--resume`) under the balanced schedule,
+# 30,000 games, towards the seat `rl_i1000_50k_v3`. Cold start for the same
+# shape reason as the v3 and h-v2 rows: round 1 draws `seed_base` itself, so
+# the base sits at the floor of the row it claims rather than outside every
+# row.
+#
+# The pool is the caller's ten seats and it does **not** hold the learner's
+# own start - the plan10 default shape, not the h run's declared self-play
+# exception - so no game is the learner against its own frozen 20k. It also
+# holds no downstream version of the learner: `rl_i1000_50k` (the
+# four-at-once run's round 100) is deliberately absent, which is the check
+# the earlier i rerun's eleven-seat pool failed.
+#
+# The seat is named v3 rather than v2 because `rl_i1000_50k_v2` already
+# names the earlier resume-based rerun (rounds 41..100, evidence
+# `eval/rl-single-train-v2i/`), which scored argmax -0.0297 and was never
+# pooled; one name must not point at two sets of weights.
+#
+# One evaluation row only: the decree made the acceptance measurement a
+# single 1000-game argmax look, so softmax is not run and there is no
+# re-verification to reserve seeds for.
+RL_I50K_V3_SEED_BASE = 7_730_000
+RL_I50K_V3_BLOCK = ("stage RL i50k v3 train", RL_I50K_V3_SEED_BASE,
+                    RL_I50K_V3_SEED_BASE + 30_000 - 1)
+
+RL_I50K_V3_EVAL_SEED_BASE = 7_765_000
+RL_I50K_V3_EVAL_SPAN = 1_000
+RL_I50K_V3_EVAL_BLOCK = ("stage RL i50k v3 eval", RL_I50K_V3_EVAL_SEED_BASE,
+                         RL_I50K_V3_EVAL_SEED_BASE + RL_I50K_V3_EVAL_SPAN
+                         - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than
-# reserved seeds and sit outside every row. The v3 and h-v2 bases are the
-# deliberate exception: they start at round 1, so they are drawn from round 1
-# and sit at the floor of their own rows.
+# reserved seeds and sit outside every row. The v3, h-v2 and i-v3 bases are
+# the deliberate exception: they start at round 1, so they are drawn from
+# round 1 and sit at the floor of their own rows.
 # Matched before containment, which is why a base inside a row *other than its
 # own* must never appear here - see `RL_I50K_V2_SEED_BASE`, where a base
 # inside the students' row would have stolen every student run's claim.
@@ -250,7 +282,8 @@ TRAIN_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),
                        (RL_I50K_V2_SEED_BASE, RL_I50K_V2_BLOCK),
                        (RL_O50K_V2_SEED_BASE, RL_O50K_V2_BLOCK),
                        (RL_O50K_V3_SEED_BASE, RL_O50K_V3_BLOCK),
-                       (RL_H50K_V2_SEED_BASE, RL_H50K_V2_BLOCK))
+                       (RL_H50K_V2_SEED_BASE, RL_H50K_V2_BLOCK),
+                       (RL_I50K_V3_SEED_BASE, RL_I50K_V3_BLOCK))
 
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
