@@ -373,6 +373,39 @@ RL_H50K_V4_EVAL2_BLOCK = ("stage RL h50k v4 eval2", RL_H50K_V4_EVAL2_SEED_BASE,
                           RL_H50K_V4_EVAL2_SEED_BASE + RL_H50K_V4_EVAL2_SPAN
                           - 1)
 
+# plan10 (2026-10-15 decree), the h learner's fifth run: 105 rounds from a
+# cold start (`--init` on `data/rl_h50k_v4/step_000035.pt`, no `--resume`)
+# under the balanced schedule, 52,500 games, towards the seat
+# `rl_h1000_100k`. Cold start for the same reason as the rows above: round 1
+# draws `seed_base` itself, so the base sits at the floor of the row it claims.
+#
+# The start is a *training checkpoint*, not a registered seat: it is the v4
+# run's round 35, the mid-run snapshot that scored +0.046100 against the
+# `rl_h1000_30k` start - positive but short of its line, so unpublished. Its
+# accumulated step is 95 (the v4 start's 60 plus 35 rounds), which is why the
+# run adds 52,500 games rather than 80,000: 47,500 + 52,500 = 100,000, and the
+# final accumulated filename is `step_000200.pt`.
+#
+# The pool is the caller's twelve seats. It keeps the learner's own current
+# weights out - the plan10 default shape - but it holds the start's *parents*
+# `rl_h1000_30k` (the v4 run's start) and `rl_h1000_20k` (its grandparent), so
+# no game is the learner against itself yet the run does train against its own
+# older versions; the evidence says so rather than leaving it to a reader.
+#
+# The acceptance block is plan10 §5's eleven seats, paired against the start.
+# A custom pool means three opponents drawn with replacement, so a game may
+# repeat a seat, and the duplicate rate is recorded. One evaluation row only:
+# the decree runs argmax once, no softmax, no second look. Eval bases never
+# enter `TRAIN_ANCHOR_BLOCKS`.
+RL_H100K_SEED_BASE = 7_830_000
+RL_H100K_BLOCK = ("stage RL h100k train", RL_H100K_SEED_BASE,
+                  RL_H100K_SEED_BASE + 52_500 - 1)
+
+RL_H100K_EVAL_SEED_BASE = 7_887_000
+RL_H100K_EVAL_SPAN = 1_000
+RL_H100K_EVAL_BLOCK = ("stage RL h100k eval", RL_H100K_EVAL_SEED_BASE,
+                       RL_H100K_EVAL_SEED_BASE + RL_H100K_EVAL_SPAN - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than
@@ -388,7 +421,8 @@ TRAIN_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),
                        (RL_O50K_V3_SEED_BASE, RL_O50K_V3_BLOCK),
                        (RL_H50K_V2_SEED_BASE, RL_H50K_V2_BLOCK),
                        (RL_I50K_V3_SEED_BASE, RL_I50K_V3_BLOCK),
-                       (RL_H50K_V4_SEED_BASE, RL_H50K_V4_BLOCK))
+                       (RL_H50K_V4_SEED_BASE, RL_H50K_V4_BLOCK),
+                       (RL_H100K_SEED_BASE, RL_H100K_BLOCK))
 
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"

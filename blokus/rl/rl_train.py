@@ -89,11 +89,21 @@ class TrainConfig(NamedTuple):
     eval_every: int = 5
     eval_games: int = 100
     eval_seed_base: int = EVAL_SEED_BASE
+    # The opponents the *in-training evaluation* draws from, separate from
+    # `opponent_pool` on purpose. `None` is the seven personalities - the
+    # default every recorded curve used, so a run that says nothing stays
+    # comparable to them - and a tuple is a custom pool, drawn with
+    # replacement, the same shape the acceptance evaluation uses. A run may
+    # train against one pool and want its progress curve scored against the
+    # very seats the §5 criterion will use, which is the 2026-10-15 decree's
+    # shape. The balanced flag still never reaches it.
+    eval_pool: tuple = None
     # The opponents rollout draws from. `None` is the seven personalities,
     # which is every run before plan10 §2; a tuple is the caller's own frozen
     # pool, drawn with replacement. Only the *training* loop reads it - the
-    # in-training evaluation stays on the seven so a curve recorded under a
-    # custom pool is still comparable to the ones recorded without one.
+    # in-training evaluation reads `eval_pool` below, so which seats a run
+    # trains against and which seats its curve is scored against are two
+    # separate decisions.
     opponent_pool: tuple = None
     # The balanced schedule (`--balanced-schedule`): exact learner quarters
     # and pool spread <= 1 every round instead of the uniform draw, built by
@@ -497,7 +507,7 @@ def eval_specs(cfg):
     """
     specs, manifest = rollout_mod.make_specs(
         cfg.eval_seed_base, cfg.eval_games, rng_seed=cfg.eval_seed_base,
-        own=rollout_mod.RL_VALID_BLOCK)
+        own=rollout_mod.RL_VALID_BLOCK, opponent_pool=cfg.eval_pool)
     return specs, manifest
 
 
@@ -516,8 +526,9 @@ def evaluate(current_path, anchor_path, cfg, device=None):
     # because renaming it would split one baseline into two columns of history.
     for label, path in (("current", current_path), ("hc_1000", anchor_path)):
         eps = rollout_mod.play_batch(specs, path, n_procs=min(cfg.n_procs, 4),
-                                     device=None, mode="argmax",
-                                     learner_key=NAME)
+                                      device=None, mode="argmax",
+                                      learner_key=NAME,
+                                      opponent_pool=cfg.eval_pool)
         rewards = [e.rewards[e.learner_seat] for e in eps]
         remaining = [e.remaining[e.learner_seat] for e in eps]
         ranks = [e.ranks[e.learner_seat] for e in eps]
@@ -557,8 +568,11 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
     # A pool is configuration, so it is rejected before anything is opened -
     # before `--dry-run` prints its plan, and before a resume loads the
     # checkpoint. Left to `make_specs` a typo would surface at round 1 with a
-    # directory already created and `current.pt` already written.
+    # directory already created and `current.pt` already written. The eval pool
+    # is checked here for the same reason, one round earlier than the first
+    # evaluation would meet it.
     pool, _ = rollout_mod.resolve_opponent_pool(cfg.opponent_pool)
+    rollout_mod.resolve_opponent_pool(cfg.eval_pool)
     if cfg.balanced_schedule:
         # Same reasoning, one floor down: the balanced schedule's two shape
         # rules are configuration too, and `make_specs` would only meet them
@@ -726,6 +740,9 @@ def _dry_run(cfg, ppo_cfg, out_dir, start_round, end_round, max_rounds,
     log("  ppo             %s" % dict(ppo_cfg._asdict()))
     log("  eval            every %d rounds, %d games from seed %d"
         % (cfg.eval_every, cfg.eval_games, cfg.eval_seed_base))
+    log("  eval pool       %s"
+        % ("7 personalities (without replacement)" if not cfg.eval_pool
+           else ", ".join(cfg.eval_pool) + " (with replacement)"))
     log("  guardrails      kl>%g, entropy<%g%% of start, nan/inf, "
         "first_ratio_dev>%g, disk<%g GB"
         % (cfg.max_kl_anchor, 100 * cfg.min_entropy_fraction,
@@ -851,7 +868,7 @@ def _refuse_mismatched_resume(blob, cfg):
     if not saved:
         return
     diffs = []
-    for field in ("per_round", "seed_base", "opponent_pool"):
+    for field in ("per_round", "seed_base", "opponent_pool", "eval_pool"):
         if field in saved and saved[field] != getattr(cfg, field):
             diffs.append("%s checkpoint=%r this run=%r"
                          % (field, saved[field], getattr(cfg, field)))
@@ -912,6 +929,8 @@ def build_parser():
                    help="訓練種子起點(預設 %(default)s)")
     p.add_argument("--opponent-pool", default=None, metavar="KEYS",
                    help="逗號分隔的凍結對手池;省略則用七人格,有放回抽 3 個")
+    p.add_argument("--eval-pool", default=None, metavar="KEYS",
+                   help="迴圈內評測的對手池;省略則用七人格,與訓練池分開設定")
     p.add_argument("--balanced-schedule", action="store_true",
                    help="平衡排程:每輪學習者座位精確各 1/4、池席出場差 <= 1、"
                         "格子差 <= 1,對手由格子矩陣派;預設關閉(逐位不變)")
@@ -964,8 +983,11 @@ def _config_from_args(args):
         update_device=args.update_device,
         seed_base=args.seed_base,
         opponent_pool=(tuple(k.strip() for k in args.opponent_pool.split(",")
-                             if k.strip())
-                       if args.opponent_pool else None),
+                              if k.strip())
+                        if args.opponent_pool else None),
+        eval_pool=(tuple(k.strip() for k in args.eval_pool.split(",")
+                         if k.strip())
+                   if args.eval_pool else None),
         balanced_schedule=args.balanced_schedule,
         eval_every=args.eval_every,
         eval_games=args.eval_games,

@@ -294,6 +294,26 @@ RESERVED_RANGES = (
     # than inside it. Labels and ranges must stay in step with
     # `rl.rollout.RL_H50K_V4_EVAL2_BLOCK`.
     ("stage RL h50k v4 eval2", 7_806_000, 7_806_999),
+    # plan10 (2026-10-15 decree), the h learner's fifth run: a cold start on
+    # `data/rl_h50k_v4/step_000035.pt` - the v4 run's round 35, an unpublished
+    # mid-run snapshot whose accumulated step is 95 - under the balanced
+    # schedule, 105 rounds = 52,500 games towards `rl_h1000_100k`, so
+    # 47,500 + 52,500 = 100,000 and the accumulated name is `step_000200.pt`.
+    # Round numbering restarts at 1, so `seed_base` is where round 1 actually
+    # starts and is drawn: the base sits at the floor of the row it claims,
+    # the shape the anchor test's "no anchor inside any other row" wording
+    # exists for. Both ranges sit above every row registered so far (the
+    # highest of which ends 7,806,999), so registering them moved nothing.
+    #
+    # The pool is twelve seats and holds the start's parents (`rl_h1000_30k`
+    # and `rl_h1000_20k`) but not the learner's own current weights. The
+    # acceptance block is plan10 §5's eleven seats, paired against the start,
+    # custom pool, so three opponents are drawn with replacement and a game
+    # may repeat a seat. One evaluation row only - the decree runs argmax
+    # once, no softmax, no second look. Labels and ranges must stay in step
+    # with `rl.rollout.RL_H100K_BLOCK` / `RL_H100K_EVAL_BLOCK`.
+    ("stage RL h100k train", 7_830_000, 7_882_499),
+    ("stage RL h100k eval", 7_887_000, 7_887_999),
 )
 
 PAIRS_A = 2_000

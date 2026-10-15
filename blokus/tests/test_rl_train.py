@@ -371,21 +371,21 @@ def test_the_i50k_anchor_claims_rounds_41_to_100_and_leaves_the_students_alone()
         rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
 
 
-def test_the_anchor_table_is_exactly_the_seven_registered_runs():
+def test_the_anchor_table_is_exactly_the_eight_registered_runs():
     """The whole table, as literals, plus the property that keeps it safe.
 
     Anchors are matched *before* containment, so the table is the one place a
     typo can redirect a run's seed claim or - worse - shadow a registered row
     and break every run that claims that row by containment. Pinned as
-    literals so an eighth entry, a moved base or a changed row fails here.
+    literals so a ninth entry, a moved base or a changed row fails here.
 
     The property is the half that changed with the v3 run: no anchor may sit
     inside any *other* registered row. The first three entries are arithmetic
     bases outside their own rows, because those runs resumed above round 1
-    and round 1 never drew them. The v3, h-v2, i-v3 and h-v4 bases are the
-    deliberate exception - a cold start at round 1, so their bases are drawn
-    and sit at the floor of the rows they claim. Inside its own row an anchor
-    claims nothing but itself; inside any other row it would win the
+    and round 1 never drew them. The v3, h-v2, i-v3, h-v4 and h-100k bases are
+    the deliberate exception - a cold start at round 1, so their bases are
+    drawn and sit at the floor of the rows they claim. Inside its own row an
+    anchor claims nothing but itself; inside any other row it would win the
     pre-containment match and steal that row's claim. `7,200,000` is the base
     that would still break the rule, and it is not in the table.
     """
@@ -397,6 +397,7 @@ def test_the_anchor_table_is_exactly_the_seven_registered_runs():
         (7_680_000, ("stage RL h50k v2 train", 7_680_000, 7_709_999)),
         (7_730_000, ("stage RL i50k v3 train", 7_730_000, 7_759_999)),
         (7_780_000, ("stage RL h50k v4 train", 7_780_000, 7_799_999)),
+        (7_830_000, ("stage RL h100k train", 7_830_000, 7_882_499)),
     )
     rows = [(label, lo, hi) for label, lo, hi in paired3.RESERVED_RANGES]
     for base, block in rollout_mod.TRAIN_ANCHOR_BLOCKS:
@@ -583,6 +584,46 @@ def test_the_h50k_v4_anchor_claims_rounds_1_to_40():
     with pytest.raises(ValueError):
         rollout_mod.make_specs(rollout_mod.RL_H50K_V4_EVAL_SEED_BASE, 1_000,
                                rng_seed=rollout_mod.RL_H50K_V4_EVAL_SEED_BASE)
+
+
+def test_the_h100k_anchor_claims_rounds_1_to_105():
+    """The h learner's fifth run: the same cold-start shape as the rows above,
+    and the first run whose start is a *training checkpoint* rather than a
+    published seat. 105 rounds because the start's accumulated step is 95 and
+    the target is 100,000 games: 47,500 + 52,500, so the row spans
+    7,830,000..7,882,499 and the final accumulated name is `step_000200.pt`.
+    """
+    base = rollout_mod.RL_H100K_SEED_BASE
+    assert base == 7_830_000
+    assert T._claimed_train_block(base) is rollout_mod.RL_H100K_BLOCK
+
+    lo = base + (1 - 1) * 500
+    hi = base + (105 - 1) * 500 + 499
+    assert (lo, hi) == rollout_mod.RL_H100K_BLOCK[1:]
+    assert hi - lo + 1 == 52_500
+
+    specs, man = rollout_mod.make_specs(
+        lo, hi - lo + 1, rng_seed=base, own=T._claimed_train_block(base))
+    assert man["reserved_range_checked"] == list(rollout_mod.RL_H100K_BLOCK)
+    assert [s.seed for s in specs][0] == 7_830_000
+    assert [s.seed for s in specs][-1] == 7_882_499
+
+    # an anchor is an exact key: a neighbouring base is not this row's claim
+    assert T._claimed_train_block(base + 1) is rollout_mod.RL_TRAIN_BLOCK
+    # and without the claim the registered row refuses the run
+    with pytest.raises(ValueError):
+        rollout_mod.make_specs(lo, hi - lo + 1, rng_seed=base)
+
+    eval_specs, eval_man = rollout_mod.make_specs(
+        rollout_mod.RL_H100K_EVAL_SEED_BASE, 1_000,
+        rng_seed=rollout_mod.RL_H100K_EVAL_SEED_BASE,
+        own=rollout_mod.RL_H100K_EVAL_BLOCK)
+    assert eval_man["reserved_range_checked"] == list(
+        rollout_mod.RL_H100K_EVAL_BLOCK)
+    assert [s.seed for s in eval_specs][-1] == 7_887_999
+    with pytest.raises(ValueError):
+        rollout_mod.make_specs(rollout_mod.RL_H100K_EVAL_SEED_BASE, 1_000,
+                               rng_seed=rollout_mod.RL_H100K_EVAL_SEED_BASE)
 
 
 @needs_checkpoint
@@ -1027,6 +1068,69 @@ def test_the_evaluation_compares_against_hc_1000_on_the_same_seeds(tmp_path):
     # and the same function every time
     again, man2 = T.eval_specs(cfg)
     assert specs == again and man == man2
+
+
+# plan10 section 5's eleven seats, spelled out: the seven personalities plus
+# the four frozen nets the criterion is scored against.
+EVAL_POOL_11 = ("wolf", "chess", "fox", "hunter", "optimizer", "builder",
+                "intruder", "rl_b1000_50k", "rl_i1000_37.5k",
+                "rl_o1000_50k_v3", "rl_h1000_30k")
+
+
+def test_the_in_training_evaluation_can_score_a_curve_on_its_own_pool():
+    """`--eval-pool` (2026-10-15 decree): the curve may be scored on the same
+    seats as the §5 criterion, without the training pool deciding it.
+
+    Left unset the draw is the seven personalities, unchanged - the default
+    every recorded curve used. Set, the specs come from the named pool with
+    the custom-pool draw (replacement, so a game may repeat a seat) on the
+    same fixed validation seeds, and the balanced flag still never reaches
+    them either way. `opponent_pool` is a separate field: a run that trains
+    against a frozen pool but says nothing about the curve keeps the seven.
+    """
+    cfg = T.TrainConfig()
+    assert cfg.eval_pool is None
+    seven, man = T.eval_specs(cfg)
+    assert all(n in rollout_mod.PERSONALITY_POOL
+               for s in seven for n in s.opponent_names)
+    assert "balanced" not in man
+
+    pooled, man2 = T.eval_specs(cfg._replace(eval_pool=EVAL_POOL_11))
+    assert "balanced" not in man2
+    assert [s.seed for s in pooled] == [s.seed for s in seven]
+    assert all(n in EVAL_POOL_11 for s in pooled for n in s.opponent_names)
+    net_seats = set(EVAL_POOL_11) - set(rollout_mod.PERSONALITY_POOL)
+    assert any(n in net_seats for s in pooled for n in s.opponent_names), \
+        "no network seat was drawn: the pool did not reach the specs"
+
+    # the training pool is not the eval pool
+    trained, _ = T.eval_specs(cfg._replace(opponent_pool=EVAL_POOL_11))
+    assert trained == seven
+
+    # and the CLI names it
+    args = T.build_parser().parse_args(
+        ["--eval-pool", ",".join(EVAL_POOL_11)])
+    cfg_cli, _ = T._config_from_args(args)
+    assert cfg_cli.eval_pool == EVAL_POOL_11
+    cfg_plain, _ = T._config_from_args(T.build_parser().parse_args([]))
+    assert cfg_plain.eval_pool is None
+
+
+@needs_checkpoint
+def test_a_round_of_evaluation_plays_the_curve_pool_end_to_end(tmp_path):
+    """The wiring, not just the specs: `evaluate` must hand the pool to
+    `play_batch`, or the first evaluation of such a run dies on a name that is
+    not among the seven personalities - after `current.pt` is already written.
+    """
+    out = tmp_path / "rl1"
+    cfg = small_cfg(str(out), eval_every=1, eval_games=4,
+                    eval_pool=EVAL_POOL_11)
+    T.train(cfg, str(out), ppo_cfg=SMALL, init_path=CHECKPOINT, log=quiet,
+            nice=0, max_rounds=1)
+    row = json.loads(open(os.path.join(str(out), "eval.jsonl")).readline())
+    assert row["current"]["games"] == 4
+    assert row["hc_1000"]["games"] == 4
+    assert row["seed_base"] == rollout_mod.RL_SEED_VALID_BASE
 
 
 # --------------------------------------------------------- the CLI itself
