@@ -354,6 +354,25 @@ RL_H50K_V4_EVAL_BLOCK = ("stage RL h50k v4 eval", RL_H50K_V4_EVAL_SEED_BASE,
                          RL_H50K_V4_EVAL_SEED_BASE + RL_H50K_V4_EVAL_SPAN
                          - 1)
 
+# The round-35 measurement the user decreed on 2026-10-15, after the §5
+# criterion run on 7,805,000 came back at -0.017660, negative but inside the
+# noise. The question it answers is the same one the i run's mid-step look and
+# the h-v2 run's round-20 look asked: is an *intermediate* checkpoint stronger
+# than the one the criterion scored? The candidate is this run's round 35,
+# paired against the same start (`rl_h1000_30k`) under the same 14-seat pool,
+# so the only thing that changes from the criterion is the weights and the
+# seeds. Fresh seeds are the whole point of the new row: 7,805,000 was already
+# scored, and replaying it would make this look the same 1,000 games twice.
+# The row sits 1 above that block's top, the same "above everything registered"
+# style the four rows above it used. Eval bases never enter
+# `TRAIN_ANCHOR_BLOCKS`: no training round draws them, and the harness claims
+# the triple through `make_specs(..., own=...)`.
+RL_H50K_V4_EVAL2_SEED_BASE = 7_806_000
+RL_H50K_V4_EVAL2_SPAN = 1_000
+RL_H50K_V4_EVAL2_BLOCK = ("stage RL h50k v4 eval2", RL_H50K_V4_EVAL2_SEED_BASE,
+                          RL_H50K_V4_EVAL2_SEED_BASE + RL_H50K_V4_EVAL2_SPAN
+                          - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than

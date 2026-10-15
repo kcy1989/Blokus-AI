@@ -284,6 +284,16 @@ RESERVED_RANGES = (
     # step with `rl.rollout.RL_H50K_V4_BLOCK` / `RL_H50K_V4_EVAL_BLOCK`.
     ("stage RL h50k v4 train", 7_780_000, 7_799_999),
     ("stage RL h50k v4 eval", 7_805_000, 7_805_999),
+    # The round-35 measurement the user decreed on 2026-10-15, after the
+    # criterion run on 7,805,000 came back at -0.017660, negative but inside
+    # the noise, while the i run's round 35 had beaten its own start and the
+    # h-v2 run's round 20 had done the same. It measures this run's round 35
+    # against the same start `rl_h1000_30k` under the same 14-seat pool, on
+    # fresh seeds: a second look on the scored block would be the same 1,000
+    # games twice, which is why this row sits 1 above that block's top rather
+    # than inside it. Labels and ranges must stay in step with
+    # `rl.rollout.RL_H50K_V4_EVAL2_BLOCK`.
+    ("stage RL h50k v4 eval2", 7_806_000, 7_806_999),
 )
 
 PAIRS_A = 2_000
