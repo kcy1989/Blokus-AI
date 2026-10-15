@@ -1,0 +1,148 @@
+{
+ "current": {
+  "rank": 1.777,
+  "remaining": 9.002,
+  "reward": 3.13298,
+  "seconds": 79.537
+ },
+ "current_path": "data/rl_h100k/step_000200.pt",
+ "current_sha256": "e57dbf1cf5dbef11a1379e55417c1dc284738f507c15ed609fb839f8948b830a",
+ "games": 1000,
+ "games_with_repeated_opponent": 273,
+ "learner_key": "rl_1000_20k",
+ "learner_seat_counts": [
+  247,
+  275,
+  237,
+  241
+ ],
+ "mode": "argmax",
+ "n_procs": 16,
+ "opponent_appearances": {
+  "builder": 259,
+  "chess": 260,
+  "fox": 259,
+  "hunter": 276,
+  "intruder": 268,
+  "optimizer": 266,
+  "rl_b1000_50k": 283,
+  "rl_h1000_30k": 273,
+  "rl_i1000_37.5k": 288,
+  "rl_o1000_50k_v3": 284,
+  "wolf": 284
+ },
+ "opponents_per_game": 3,
+ "paired_diff": 0.00805,
+ "paired_se": 0.03891829301281123,
+ "per_opponent": {
+  "builder": {
+   "current_reward": 3.10313,
+   "games": 233,
+   "paired_diff": -0.00378,
+   "paired_se": 0.08123,
+   "ref_reward": 3.10691
+  },
+  "chess": {
+   "current_reward": 3.32835,
+   "games": 242,
+   "paired_diff": 0.03975,
+   "paired_se": 0.06908,
+   "ref_reward": 3.2886
+  },
+  "fox": {
+   "current_reward": 3.40764,
+   "games": 233,
+   "paired_diff": 0.07691,
+   "paired_se": 0.07078,
+   "ref_reward": 3.33073
+  },
+  "hunter": {
+   "current_reward": 3.10667,
+   "games": 249,
+   "paired_diff": 0.03916,
+   "paired_se": 0.08145,
+   "ref_reward": 3.06751
+  },
+  "intruder": {
+   "current_reward": 3.14743,
+   "games": 245,
+   "paired_diff": -0.18331,
+   "paired_se": 0.0815,
+   "ref_reward": 3.33073
+  },
+  "optimizer": {
+   "current_reward": 3.07115,
+   "games": 235,
+   "paired_diff": -0.02421,
+   "paired_se": 0.0802,
+   "ref_reward": 3.09536
+  },
+  "rl_b1000_50k": {
+   "current_reward": 2.9314,
+   "games": 257,
+   "paired_diff": -0.02463,
+   "paired_se": 0.07616,
+   "ref_reward": 2.95603
+  },
+  "rl_h1000_30k": {
+   "current_reward": 2.90403,
+   "games": 253,
+   "paired_diff": -0.0364,
+   "paired_se": 0.08674,
+   "ref_reward": 2.94043
+  },
+  "rl_i1000_37.5k": {
+   "current_reward": 3.05823,
+   "games": 260,
+   "paired_diff": -0.02427,
+   "paired_se": 0.08022,
+   "ref_reward": 3.0825
+  },
+  "rl_o1000_50k_v3": {
+   "current_reward": 3.00435,
+   "games": 255,
+   "paired_diff": 0.01663,
+   "paired_se": 0.08521,
+   "ref_reward": 2.98773
+  },
+  "wolf": {
+   "current_reward": 3.37885,
+   "games": 252,
+   "paired_diff": -0.01833,
+   "paired_se": 0.06574,
+   "ref_reward": 3.39718
+  }
+ },
+ "pool": [
+  "wolf",
+  "chess",
+  "fox",
+  "hunter",
+  "optimizer",
+  "builder",
+  "intruder",
+  "rl_b1000_50k",
+  "rl_i1000_37.5k",
+  "rl_o1000_50k_v3",
+  "rl_h1000_30k"
+ ],
+ "pool_draw": "with replacement",
+ "ratio": 0.20684360430068396,
+ "ref": {
+  "games": 1000,
+  "paired_diff": 0.00805,
+  "paired_se": 0.03891829301281123,
+  "rank": 1.78,
+  "remaining": 9.507,
+  "reward": 3.12493,
+  "seconds": 76.728
+ },
+ "ref_path": "data/rl_h50k_v4/step_000035.pt",
+ "ref_sha256": "a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c",
+ "seed_base": 7887000,
+ "seed_block": [
+  "stage RL h100k eval",
+  7887000,
+  7887999
+ ]
+}
