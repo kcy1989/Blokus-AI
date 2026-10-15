@@ -294,6 +294,27 @@ RL_I50K_V3_EVAL2_BLOCK = ("stage RL i50k v3 eval2", RL_I50K_V3_EVAL2_SEED_BASE,
                           RL_I50K_V3_EVAL2_SEED_BASE + RL_I50K_V3_EVAL2_SPAN
                           - 1)
 
+# The h run's round-20 measurement, decreed on 2026-10-15 after the i run's
+# mid-step look: the i run's round 35 beat its own start (+0.0656) while its
+# final weights did not (-0.0361), so the same question is asked of the h run.
+# The h in-training curve peaked at rounds 15-20 (+0.154 and +0.150 against
+# the start on the 100-game validation block) and its final weights scored
+# +0.006430, below the criterion's line, so round 20 is the checkpoint most
+# likely to carry the gain the final one lost.
+#
+# Same shape as the criterion and as the i mid-step measurements: 1000 paired
+# argmax games on the default seven-personality pool, this time
+# `data/rl_h50k_v3/step_000020.pt` against its own start
+# `rl_h1000_20k`. Fresh seeds again - the criterion run scored
+# 7,680,000-adjacent eval row 7,715,000 and the pool-swapped look scored
+# 7,725,000, so this row sits 9,001 above the highest of them. Eval bases
+# never enter `TRAIN_ANCHOR_BLOCKS`.
+RL_H50K_V2_EVAL3_SEED_BASE = 7_775_000
+RL_H50K_V2_EVAL3_SPAN = 1_000
+RL_H50K_V2_EVAL3_BLOCK = ("stage RL h50k v2 eval3", RL_H50K_V2_EVAL3_SEED_BASE,
+                          RL_H50K_V2_EVAL3_SEED_BASE + RL_H50K_V2_EVAL3_SPAN
+                          - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than

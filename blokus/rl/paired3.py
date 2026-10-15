@@ -253,6 +253,17 @@ RESERVED_RANGES = (
     # This row sits 4,001 above that row's top. Labels and ranges must stay in
     # step with `rl.rollout.RL_I50K_V3_EVAL2_BLOCK`.
     ("stage RL i50k v3 eval2", 7_770_000, 7_770_999),
+    # The h run's round-20 measurement, decreed on 2026-10-15 after the i run's
+    # mid-step look: the i run's round 35 beat its own start (+0.0656) while its
+    # final weights did not (-0.0361), so the same question is asked of the h
+    # run, whose in-training curve peaked at rounds 15-20 and whose final
+    # weights scored +0.006430, below the criterion's line. One 1000-game
+    # paired argmax run on the default seven-personality pool,
+    # `data/rl_h50k_v3/step_000020.pt` against its own start `rl_h1000_20k`.
+    # Fresh seeds: the criterion run scored 7,715,000 and the pool-swapped look
+    # scored 7,725,000, so this row sits 9,001 above the highest of them. Labels
+    # and ranges must stay in step with `rl.rollout.RL_H50K_V2_EVAL3_BLOCK`.
+    ("stage RL h50k v2 eval3", 7_775_000, 7_775_999),
 )
 
 PAIRS_A = 2_000
