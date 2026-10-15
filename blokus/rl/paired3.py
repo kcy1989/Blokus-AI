@@ -264,6 +264,26 @@ RESERVED_RANGES = (
     # scored 7,725,000, so this row sits 9,001 above the highest of them. Labels
     # and ranges must stay in step with `rl.rollout.RL_H50K_V2_EVAL3_BLOCK`.
     ("stage RL h50k v2 eval3", 7_775_000, 7_775_999),
+    # plan10 (2026-10-15 decree), the h learner's fourth run: 40 rounds from a
+    # cold start on `rl_h1000_30k` - the mid-run snapshot pooled the same day -
+    # under the balanced schedule, 20,000 games, towards `rl_h1000_50k_v4`.
+    # Round numbering restarts at 1, so `seed_base` is where round 1 actually
+    # starts and is drawn: the base sits at the floor of the row it claims, the
+    # shape the anchor test's "no anchor inside any other row" wording exists
+    # for. Both ranges sit above every row registered so far (the highest of
+    # which ends 7,775,999), so registering them moved nothing.
+    #
+    # The acceptance block is a **14-seat** pool the caller named - the seven
+    # personalities, the four 20k seats, and `rl_o1000_50k_v3`, `rl_b1000_50k`,
+    # `rl_i1000_37.5k` - paired against the start `rl_h1000_30k`. Every seat of
+    # the training pool is inside that pool, so the measure runs mostly against
+    # opponents the candidate trained with; a custom pool also means three
+    # opponents drawn with replacement, so a game may repeat a seat and the
+    # duplicate rate is recorded. One evaluation row only - the decree runs
+    # argmax once, no softmax, no second look. Labels and ranges must stay in
+    # step with `rl.rollout.RL_H50K_V4_BLOCK` / `RL_H50K_V4_EVAL_BLOCK`.
+    ("stage RL h50k v4 train", 7_780_000, 7_799_999),
+    ("stage RL h50k v4 eval", 7_805_000, 7_805_999),
 )
 
 PAIRS_A = 2_000
