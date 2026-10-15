@@ -143,6 +143,16 @@ RL_SEATS = (
     # trained, ai/registry.json's checkpoint is where it is published, and
     # this table's order is the registry's rl-family order.
     ("rl_o1000_50k_v3", "data/rl_o50k_v3/step_000060.pt"),
+    # plan10 (2026-10-15 decree): two mid-run snapshots of the balanced
+    # cold-start runs, each the checkpoint its own run's final weights beat on
+    # acceptance and each published under the accumulating step count. The path
+    # is where the weights live under their accumulated name; the per-run
+    # directories beside them (data/rl_h50k_v3/step_000020.pt,
+    # data/rl_i50k_v3/step_000035.pt) are the raw round outputs the copies are
+    # byte-identical to, verified by sha256 before publication. Both runs'
+    # final weights failed their criteria and are not seats.
+    ("rl_h1000_30k", "data/rl_h1000_30k/step_000060.pt"),
+    ("rl_i1000_37.5k", "data/rl_i1000_37.5k/step_000075.pt"),
 )
 
 # Every alias, the imitation ones and the trained-policy ones alike. This is

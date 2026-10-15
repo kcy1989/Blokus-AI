@@ -272,7 +272,13 @@ def test_the_label_and_description_keys_exist_in_config():
                                      # plan10 v3: cold start + balanced
                                      # schedule separate this one from the
                                      # row above.
-                                     "rl_optimizer_desc50v3_fmt")
+                                     "rl_optimizer_desc50v3_fmt",
+                                     # plan10 (2026-10-15): the two mid-run
+                                     # snapshots, one per learner, so the
+                                     # game total in the key separates them
+                                     # from both the 20k and the 50k rows.
+                                     "rl_hunter_desc30k_fmt",
+                                     "rl_intruder_desc37.5k_fmt")
 
 
 # --------------------------------------------------------------------------
@@ -607,7 +613,13 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
                     "rl_i1000_50k",
                     # plan10 v3 (2026-10-14): the o learner's second 50k,
                     # appended at the end for the same reason.
-                    "rl_o1000_50k_v3"]
+                    "rl_o1000_50k_v3",
+                    # plan10 (2026-10-15): two mid-run snapshots of the
+                    # balanced cold-start runs, appended at the end for the
+                    # same reason. Their names carry the accumulated game
+                    # count (20k start + the rounds the snapshot took), which
+                    # is why they do not read as another 50k.
+                    "rl_h1000_30k", "rl_i1000_37.5k"]
     # The pin above already fixes the length - a row added or removed shows up
     # there - so what is left for the count to say is that no key appears twice.
     assert len(keys) == len(set(keys))
@@ -636,6 +648,8 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
         ("rl_b1000_50k", "network", "rl"),
         ("rl_i1000_50k", "network", "rl"),
         ("rl_o1000_50k_v3", "network", "rl"),
+        ("rl_h1000_30k", "network", "rl"),
+        ("rl_i1000_37.5k", "network", "rl"),
     }
 
 

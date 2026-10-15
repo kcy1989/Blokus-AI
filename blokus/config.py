@@ -162,6 +162,13 @@ I = {
     # fresh entropy reference) under the balanced schedule - the round count
     # and the start method are what separate it from rl_optimizer_desc50_fmt.
     "rl_optimizer_desc50v3_fmt": "PPO 訓練 60 輪、共 50,000 局（自 20k 冷啟動、平衡排程）；老師：優化者",
+    # plan10 (2026-10-15): two mid-run snapshots of the balanced cold-start
+    # runs. The round count and the total are what separate them from the rows
+    # above - 30k is 20 more rounds on h's own 20k, 37.5k is 35 more on i's -
+    # and the word 中段檢查點 is what says the run continued past this
+    # checkpoint and its final weights were measured separately.
+    "rl_hunter_desc30k_fmt": "PPO 訓練 20 輪、共 30,000 局（自 20k 冷啟動、平衡排程的中段檢查點）；老師：獵者",
+    "rl_intruder_desc37.5k_fmt": "PPO 訓練 35 輪、共 37,500 局（自 20k 冷啟動、平衡排程的中段檢查點）；老師：入侵者",
     "ai_pool": "AI",
     "human_pool": "人類",
     # Also unreferenced: nothing groups seats into a "模仿" tab any more.
