@@ -314,6 +314,14 @@ RESERVED_RANGES = (
     # with `rl.rollout.RL_H100K_BLOCK` / `RL_H100K_EVAL_BLOCK`.
     ("stage RL h100k train", 7_830_000, 7_882_499),
     ("stage RL h100k eval", 7_887_000, 7_887_999),
+    # The diagnostic 12-seat training-pool measurement decreed on 2026-10-15,
+    # after the criterion run on 7,887,000 came back at +0.008050. Pairs the
+    # start (`v4 r35`) and the end (`step_000200.pt`) on 1,000 balanced-schedule
+    # games over the 12-seat training pool, in both `argmax` and `softmax`
+    # (T=1.0), on fresh seeds 1 above the acceptance block's top. Diagnostic
+    # only, not a pooling criterion. Labels and ranges must stay in step with
+    # `rl.rollout.RL_H100K_EVAL2_BLOCK`.
+    ("stage RL h100k eval2", 7_888_000, 7_888_999),
 )
 
 PAIRS_A = 2_000

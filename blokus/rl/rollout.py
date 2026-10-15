@@ -406,6 +406,21 @@ RL_H100K_EVAL_SPAN = 1_000
 RL_H100K_EVAL_BLOCK = ("stage RL h100k eval", RL_H100K_EVAL_SEED_BASE,
                        RL_H100K_EVAL_SEED_BASE + RL_H100K_EVAL_SPAN - 1)
 
+# The diagnostic measurement on the 12-seat training pool, decreed on
+# 2026-10-15 after the §5 criterion run on 7,887,000 came back at +0.008050,
+# below its line. The rounds log only ever scored `v4 r35` on 500 seeds at the
+# start and `step_000104.pt` on 500 different seeds at the end, both under
+# softmax, and never scored the final `step_000200.pt` on the training pool at
+# all. This block pairs `v4 r35` against `step_000200.pt` on 1,000 games of
+# the 12-seat training pool under `balanced=True` (`round_no=1`), in both
+# `argmax` and `softmax` (T=1.0), to separate pool/schedule effects from the
+# softmax-to-argmax shift. Diagnostic only - cannot flip the §14 decision.
+# Eval bases never enter `TRAIN_ANCHOR_BLOCKS`.
+RL_H100K_EVAL2_SEED_BASE = 7_888_000
+RL_H100K_EVAL2_SPAN = 1_000
+RL_H100K_EVAL2_BLOCK = ("stage RL h100k eval2", RL_H100K_EVAL2_SEED_BASE,
+                        RL_H100K_EVAL2_SEED_BASE + RL_H100K_EVAL2_SPAN - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than
