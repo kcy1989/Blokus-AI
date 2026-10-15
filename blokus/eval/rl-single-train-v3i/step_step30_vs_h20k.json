@@ -1,0 +1,50 @@
+{
+ "current": {
+  "rank": 1.889,
+  "remaining": 10.722,
+  "reward": 3.00378,
+  "seconds": 63.876
+ },
+ "current_path": "data/rl_i50k_v3/step_000030.pt",
+ "current_sha256": "828edbd769a34b90a589fe11c896d08df81c835e2d5d708fa8efa85f8e282485",
+ "games": 1000,
+ "learner_seat_counts": [
+  248,
+  266,
+  233,
+  253
+ ],
+ "mode": "argmax",
+ "n_procs": 16,
+ "opponents_per_game": 3,
+ "paired_diff": -0.26119,
+ "paired_se": 0.03864294969928488,
+ "pool": [
+  "hunter",
+  "optimizer",
+  "builder",
+  "intruder",
+  "fox",
+  "chess",
+  "wolf"
+ ],
+ "ratio": -6.759059596447771,
+ "ref": {
+  "games": 1000,
+  "paired_diff": -0.26119,
+  "paired_se": 0.03864294969928488,
+  "rank": 1.646,
+  "remaining": 8.903,
+  "reward": 3.26497,
+  "seconds": 65.804
+ },
+ "ref_path": "ai/checkpoints/rl_h1000_20k/step_000040.pt",
+ "ref_sha256": "e1dc6230a70d205a89287468c47db6126717f0e9d42369bc1beca31404801636",
+ "seed_base": 7770000,
+ "seed_block": [
+  "stage RL i50k v3 eval2",
+  7770000,
+  7770999
+ ],
+ "shared_specs_with": "step35_vs_i20k and step30_vs_h20k share this block"
+}
