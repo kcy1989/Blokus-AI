@@ -1,0 +1,31 @@
+{
+  "current": {
+    "rank": 1.725,
+    "remaining": 9.97,
+    "reward": 3.1753,
+    "seconds": 176.023
+  },
+  "current_path": "data/rl_t05/step_000155.pt",
+  "current_sha256": "67b1cd7823536004de9beb10e9ffe1b47fba6fdb462644d911bd55c8c949855d",
+  "games": 1000,
+  "games_with_repeated_opponent": 0,
+  "mode": "argmax",
+  "paired_diff": -0.15558,
+  "paired_se": 0.03763189,
+  "ratio": -4.134259,
+  "ref": {
+    "rank": 1.583,
+    "remaining": 8.612,
+    "reward": 3.33088,
+    "seconds": 176.023
+  },
+  "ref_path": "data/rl_h50k_v4/step_000035.pt",
+  "ref_sha256": "a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c",
+  "seed_base": 7919000,
+  "seed_block": [
+    "stage RL t05 eval",
+    7919000,
+    7919999
+  ],
+  "temperature": 1.0
+}
