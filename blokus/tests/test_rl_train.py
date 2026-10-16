@@ -1298,3 +1298,21 @@ def test_rollout_temperature_is_read_from_the_command_line():
     cfg, _ = T._config_from_args(T.build_parser().parse_args(
         ["--games", "20000", "--per-round", "500"]))
     assert cfg.rollout_temperature == 1.0
+
+
+@needs_checkpoint
+def test_t05_first_ratio_dev_below_threshold(tmp_path):
+    """T=0.5 下第一個 minibatch 的 PPO ratio 必須接近 1。
+
+    rollout 採樣與 PPO rescore 都必須以 logits / T 計算，否則
+    first_ratio_dev 會脫離 1e-6 守護並導致守護誤觸。
+    """
+    out = tmp_path / "t05"
+    cfg = small_cfg(str(out), rounds=1, rollout_temperature=0.5)
+    result = T.train(cfg, str(out), ppo_cfg=SMALL,
+                     init_path=CHECKPOINT, log=quiet, nice=0)
+    assert result.rounds_done == 1
+    rows = read_log(str(out))
+    dev = rows[0]["stats"]["first_ratio_dev"]
+    assert dev is not None and T._finite(dev), dev
+    assert dev < 1e-6, dev
