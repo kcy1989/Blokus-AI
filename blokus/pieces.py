@@ -1,6 +1,4 @@
 """Piece definitions, orientation generation, hand management."""
-from dataclasses import dataclass
-
 from config import PIECES
 
 
@@ -30,14 +28,6 @@ for _p in PIECES:
     item = dict(_p)
     item["orientations"] = _orient_set(item["cells"])
     MASTER[item["name"]] = item
-
-
-@dataclass(frozen=True)
-class Move:
-    name: str
-    orient: int
-    x: int
-    y: int
 
 
 class Hand:

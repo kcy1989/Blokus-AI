@@ -11,7 +11,6 @@ CORNERS = ((0, 0), (B - 1, 0), (0, B - 1), (B - 1, B - 1))
 CORNERS_IDX = [x + y * B for x, y in CORNERS]
 
 OWNER_CORNER = {0: (B - 1, B - 1), 1: (0, 0), 2: (B - 1, 0), 3: (0, B - 1)}
-CORNERS_BY_OWNER = {ci: (x, y) for (ci, (x, y)) in enumerate(CORNERS)}
 OWNER_BY_CORNER = {pos: owner for owner, pos in OWNER_CORNER.items()}
 
 # The rotation must go clockwise around the board: TL -> TR -> BR -> BL. CORNERS

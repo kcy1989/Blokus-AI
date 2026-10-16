@@ -553,10 +553,6 @@ def _hand_names(s, owner):
             if bits >> i & 1]
 
 
-def _playout_key(key, seed):
-    return key, seed
-
-
 F4A_KEYS = ("optimizer", "wolf", "chess", "fox", "intruder", "builder")
 
 

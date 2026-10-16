@@ -127,7 +127,6 @@ ORIENTS = _build_orientations()
 # A move packs into one integer so a whole legal set can be compared with a
 # single `==` instead of building thousands of tuples at every step.
 _MOVE_STRIDE = N * 8   # 400 bases x up to 8 orientations per piece
-MOVE_MASK_BITS = N_PIECES * _MOVE_STRIDE
 
 
 def _pack(piece_idx, oi, base):
@@ -462,7 +461,6 @@ def rot_base(piece_idx, oi, base):
 
 # Which owner sits where: TL, TR, BR, BL.
 ROT_OWNER = {1: 2, 2: 0, 0: 3, 3: 1}
-ROT_CORNER = {OWNER_CORNER[o]: OWNER_CORNER[ROT_OWNER[o]] for o in ROT_OWNER}
 
 
 def _rot_mask(mask):

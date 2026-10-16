@@ -979,15 +979,6 @@ def write_jsonl(path, rows):
             fh.write(json.dumps(r, sort_keys=True) + "\n")
 
 
-def read_jsonl(path):
-    out = []
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if line:
-                out.append(json.loads(line))
-    return out
-
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])

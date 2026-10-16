@@ -154,11 +154,6 @@ def legal_indices(state, owner=None):
     return idx[idx >= 0]
 
 
-def legal_index_set(state, owner=None):
-    """`legal_indices` as a Python set, for tests and for membership checks
-    that are not on a hot path."""
-    return set(int(i) for i in legal_indices(state, owner))
-
 
 # --------------------------------------------------------------------------
 # rotation between the real board and the mover's view
@@ -240,12 +235,6 @@ def legal_mask_view(state):
         out[real_to_view(idx, seat_of_mover(state))] = True
     return out
 
-
-def legal_mask_real(state, owner=None):
-    """The same mask without the rotation, for the rare caller that wants it."""
-    out = np.zeros(N_ACTIONS, dtype=bool)
-    out[legal_indices(state, owner)] = True
-    return out
 
 
 POLICY_SHAPE = (N_ORIENT, B, B)

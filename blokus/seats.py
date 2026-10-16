@@ -190,8 +190,6 @@ ALIASES = dict(registry_aliases())
 # about aliases. `records.json` was renamed in step 1 rather than left to split.
 RL_ALIASES = {a: v for a, v in ALIASES.items() if v in dict(RL_SEATS)}
 
-RL_KEY_PREFIX = "rl_"
-
 SEATS = 4
 
 
@@ -584,16 +582,3 @@ def build_brain(key, rng, kind=None, checkpoint_dir=None,
         return load_brain_at(rl_checkpoint(key), key=key, device=device,
                              mode=mode)
     return None
-
-
-def describe_seats(owner_key, colors):
-    """A short human-readable line per seat, for logs and for match output."""
-    from config import I
-    out = []
-    for o in range(SEATS):
-        try:
-            name = I[owner_key[o]]
-        except KeyError:
-            name = owner_key[o]
-        out.append("座位%d %s %s" % (o + 1, name, colors[o]))
-    return out

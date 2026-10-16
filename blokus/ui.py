@@ -150,14 +150,6 @@ def load_cjk_font_path():
     return None
 
 
-def load_cjk_font(size=16):
-    path = load_cjk_font_path()
-    if path is None:
-        print("warning: no CJK-capable font found; Chinese text may not render.")
-        print("         install one with: sudo apt install fonts-noto-cjk")
-        return pygame.font.Font(None, size)
-    return pygame.font.Font(path, size)
-
 
 def load_settings():
     try:
@@ -183,7 +175,6 @@ for _n, _p in MASTER.items():
                                max(x for x in [c[0] for c in _p["orientations"][i]]), i))
     HAND_ITEMS[_n] = best
 GROUP_BG = (36, 42, 55)
-
 
 
 def corner_zh(owner):

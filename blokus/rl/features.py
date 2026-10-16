@@ -31,7 +31,6 @@ import numpy as np
 import engine
 from config import B, CLOCKWISE_OWNERS, N, OWNER_CORNER
 
-N_SQUARES = B * B
 N_BYTES = N // 8
 
 # Fixed, because a pipeline that renumbers its inputs between runs produces a
