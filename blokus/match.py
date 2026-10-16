@@ -12,11 +12,59 @@ with them. The two human seats are excluded: a league of people cannot
 be replayed from a seed, and a seat with no brain would have nothing to choose
 with.
 
-    python3 match.py --games 100            # record into records.json
-    python3 match.py --games 20 --dry       # run only, write nothing
-    python3 match.py --games 100 --reset    # clear the leaderboard first
-    python3 match.py --games 5 --pool rl_only       # only the trained policies
-    python3 match.py --games 5 --pool no_imitation,hunter
+用法教學
+---------
+
+基本範例：
+
+    python3 match.py --games 100            # 跑 100 局，結果寫入 records.json 排行榜
+    python3 match.py --games 20 --dry       # 跑 20 局，不寫入任何檔（快速試跑）
+    python3 match.py --games 100 --reset    # 跑前先清空排行榜
+    python3 match.py --games 5 --pool rl_only          # 只跑訓練好的政策
+    python3 match.py --games 5 --pool no_imitation,hunter   # 指定 preset + 人格
+
+常用參數：
+
+    --games N          跑幾局（預設 100）
+    --seed S           隨機種子（預設 20260928；同種子可重現同樣對局）
+    --reset            跑前清空 records.json 排行榜
+    --dry              不寫入 records.json，只跑並輸出統計（快速試跑）
+    --pool NAMES       逗號分隔，可為 preset 或單一 AI 名稱；展開後取聯集並去重，
+                       每個不同 AI 權重相等；預設 all（全部 19 席）
+    --pool-order MODE  sorted（預設，依 key 排序）或 literal（照 --pool 原樣，
+                       僅用於重現舊批次）
+    --out PATH         批量評測輸出檔（JSON）；預設寫到 data/match/ 下，
+                       不寫入 records.json
+    --mode MODE        模仿選項的選步方式：argmax（預設）或 softmax
+    --device DEVICE    模仿/網路選項的 torch device（預設 None = CPU）
+    --paired-rng       每局用五條由 (種子, 局序) 派生的獨立流；使只更換某席位
+                       模型時每局開局完全一致。須搭配 --subject 或 --jobs 使用
+    --subject KEY      指定每局必有一席的選項；必須同時使用 --paired-rng
+    --adhoc KEY=PATH   把一個未註冊的檢查點檔當席位用（僅本程序有效）；可重複
+
+平行評測（plan12，加速跑長評測）：
+
+    --jobs N / -j N    平行工作者行程數（預設 1，舊行為不變；需與 --paired-rng
+                       併用，否則報錯）。建議 --games 較大時開啟
+    --progress [N]     每 N 局印一次進度（預設 10；不給值也預設 10；0 為不印）
+
+範例：
+
+    # 跑 200 局，4 行程並行，印進度
+    python3 match.py --games 200 --paired-rng --jobs 4 --progress
+
+    # 評測單一模型：固定 hunter 對全部池，每局都有 hunter 席
+    python3 match.py --games 100 --paired-rng --subject hunter --pool all
+
+注意事項：
+
+- 預設「單一隨機流」模式（不帶 --paired-rng）局與局嚴格有序，無法並行；
+  --jobs 必須搭配 --paired-rng 使用。
+- --paired-rng 模式不寫入 records.json 排行榜，結果只寫入批次檔；
+  排行榜用途請用預設模式。
+- records.json 是人類玩家的累積排行榜，機器對戰批次請用 --out 指定
+  獨立檔案，避免汙染排行榜。
+
 """
 import argparse
 import gzip
