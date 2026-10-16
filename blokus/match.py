@@ -23,9 +23,11 @@ import gzip
 import hashlib
 import json
 import math
+import multiprocessing
 import os
 import random
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import ai
 import seats as seats_mod
@@ -509,7 +511,7 @@ def write_batch(path, payload, compress=False):
 
 def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
                options=None, mode="argmax", checkpoint_dir=None, device=None,
-               paired_rng=False, subject=None):
+               paired_rng=False, subject=None, jobs=1, progress=0):
     """Run `games` league matches, recording each into the leaderboard.
 
     Every seat is drawn independently from `options`, so options repeat freely -
@@ -546,11 +548,26 @@ def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
     rather than making a mistake. `subject_draw` draws the seat from the setup
     stream, so two runs with different subjects meet the same board in every
     game.
+
+    `jobs` is the number of worker processes. `jobs > 1` requires `paired_rng`
+    (because only paired mode makes every game an independent function of its
+    index). Games are dispatched to workers in small batches and results are
+    reassembled in `game_index` order, so the returned `rows` and any
+    `records`/`on_game` callbacks are identical to the sequential run.
+
+    `progress` prints a progress line every `progress` games (0 = disabled).
     """
     options = league_options() if options is None else tuple(options)
     if not options:
         raise ValueError("run_league needs at least one option to draw from")
     validate_subject(subject, options, paired_rng)
+    if jobs > 1 and not paired_rng:
+        raise ValueError("--jobs requires --paired-rng")
+    if jobs > 1:
+        return _run_league_parallel(
+            games, seed, records, on_game, on_move, options, mode,
+            checkpoint_dir, device, paired_rng, subject, jobs, progress)
+
     # `checkpoint_dir` is passed through as-is, `None` included. Since plan9a
     # stage 4 the directory is per key and comes from the registry, so defaulting
     # it to `IMITATION_CHECKPOINT_DIR` here would point *every* imitation seat at
@@ -576,6 +593,92 @@ def run_league(games=100, seed=0, records=None, on_game=None, on_move=None,
         if records is not None:
             records.record([(k, rem) for k, _c, rem, _rk, _p in standings])
         if on_game is not None:
+            on_game(i + 1, standings)
+        if progress and (i + 1) % progress == 0:
+            print("  進度：%d/%d 局完成" % (i + 1, games))
+    return rows
+
+
+def _play_game_batch(seed, game_indices, options, mode, device,
+                     paired_rng, subject):
+    """Play a batch of games in one worker process.
+
+    Returns `{game_index: standings}` where `standings` is the `play_match`
+    result (a list of four `(option, colour, remaining, rank, points)` tuples).
+    All inputs are plain data so the call is picklable for `spawn` workers.
+
+    Each worker releases OpenMP/MKL/OpenBLAS threads to avoid oversubscription
+    when several workers each import numpy/torch-backed rl seats.
+    """
+    # Release threaded BLAS/OpenMP in the worker. With `spawn` these values are
+    # inherited from the parent process; set them here as a belt-and-suspenders
+    # in case the worker is started another way.
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
+    results = {}
+    for i in game_indices:
+        if paired_rng:
+            game_rng, seat_rngs = paired_streams(seed, i)
+        else:
+            game_rng, seat_rngs = random.Random(seed), None
+        g = Game(game_rng)
+        if subject is None:
+            keys = [game_rng.choice(options) for _ in range(4)]
+        else:
+            _seat, keys = subject_draw(game_rng, options, subject)
+        g.setup_seats(keys, [None] * 4, game_rng, seat_rngs=seat_rngs,
+                      checkpoint_dir=None, device=device, mode=mode)
+        standings = play_match(g, game_rng, None, seat_rngs=seat_rngs)
+        results[i] = standings
+    return results
+
+
+def _run_league_parallel(games, seed, records, on_game, on_move,
+                         options, mode, checkpoint_dir, device,
+                         paired_rng, subject, jobs, progress):
+    """Run the league with `jobs` worker processes (paired_rng only).
+
+    Games are split into small batches and dispatched dynamically to workers.
+    Results are reassembled in `game_index` order so `rows`, `records`, and
+    `on_game` are identical to the sequential run.
+    """
+    # Inherited by spawn children; also set in each worker as backup.
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+
+    mp_context = multiprocessing.get_context("spawn")
+    batch_size = max(1, games // (jobs * 4))
+    batches = []
+    for start in range(0, games, batch_size):
+        batches.append(list(range(start, min(start + batch_size, games))))
+
+    results = {}
+    completed = 0
+    with ProcessPoolExecutor(max_workers=jobs, mp_context=mp_context) as ex:
+        future_to_batch = {}
+        for batch in batches:
+            fut = ex.submit(_play_game_batch, seed, batch, options, mode,
+                            device, paired_rng, subject)
+            future_to_batch[fut] = batch
+        for fut in as_completed(future_to_batch):
+            batch_result = fut.result()
+            results.update(batch_result)
+            completed += len(batch_result)
+            if progress:
+                print("  進度：%d/%d 局完成" % (completed, games))
+
+    # Reassemble in game_index order so output is identical to sequential.
+    rows = [results[i] for i in range(games)]
+
+    # Main process owns records and callbacks (workers never touch them).
+    if records is not None:
+        for standings in rows:
+            records.record([(k, rem) for k, _c, rem, _rk, _p in standings])
+    if on_game is not None:
+        for i, standings in enumerate(rows):
             on_game(i + 1, standings)
     return rows
 
@@ -626,6 +729,11 @@ def main(argv=None):
                     help="把一個未註冊的檢查點檔當席位用（僅本程序有效，不進名冊、"
                          "不進自動選項）：KEY 可出現在 --pool 與 --subject，PATH 是"
                          "它的權重檔；批次 payload 記錄 path 與 md5。可重複。")
+    ap.add_argument("--jobs", "-j", type=int, default=1,
+                    help="平行工作者行程數（預設 1，舊行為不變；需與 --paired-rng "
+                         "併用，否則報錯）。")
+    ap.add_argument("--progress", type=int, nargs="?", const=10, default=0,
+                    help="每 N 局印進度（預設 10）；0 為不印。")
     args = ap.parse_args(argv)
 
     pool_raw = args.pool
@@ -661,9 +769,12 @@ def main(argv=None):
         # seat draws are not comparable. The batch file carries the per-game rows
         # the paired statistics need, so nothing is lost by not folding.
         print("成對模式：不寫入排行榜（--paired-rng），結果只寫入批次檔")
+    if args.jobs > 1 and not args.paired_rng:
+        ap.error("--jobs 需要搭配 --paired-rng 使用")
     rows = run_league(args.games, args.seed, records, options=pool,
                       mode=args.mode, device=args.device,
-                      paired_rng=args.paired_rng, subject=subject)
+                      paired_rng=args.paired_rng, subject=subject,
+                      jobs=args.jobs, progress=args.progress)
 
     flat = [r for game in rows for r in game]
     summary = summarise(flat)
