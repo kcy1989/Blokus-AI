@@ -438,6 +438,13 @@ RL_T05_EVAL_SPAN = 1_000
 RL_T05_EVAL_BLOCK = ("stage RL t05 eval", RL_T05_EVAL_SEED_BASE,
                      RL_T05_EVAL_SEED_BASE + RL_T05_EVAL_SPAN - 1)
 
+# 新池絕對 argmax 評測（2026-10-16 補充預註冊）：5 個檢查點，完整 12
+# 席評測池，1000 局。Eval bases never enter `TRAIN_ANCHOR_BLOCKS`.
+RL_T05_EVAL2_SEED_BASE = 7_920_000
+RL_T05_EVAL2_SPAN = 1_000
+RL_T05_EVAL2_BLOCK = ("stage RL t05 eval2", RL_T05_EVAL2_SEED_BASE,
+                      RL_T05_EVAL2_SEED_BASE + RL_T05_EVAL2_SPAN - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than

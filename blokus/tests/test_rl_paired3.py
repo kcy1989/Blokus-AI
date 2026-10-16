@@ -232,7 +232,8 @@ def test_the_rl_blocks_clear_every_block_already_registered():
                           ("stage RL o50k v2 train", 7_550_000, 7_579_999),
                           ("stage RL o50k v2 eval", 7_590_000, 7_590_999),
                           ("stage RL t05 train", 7_889_000, 7_918_999),
-                          ("stage RL t05 eval", 7_919_000, 7_919_999)):
+                          ("stage RL t05 eval", 7_919_000, 7_919_999),
+                          ("stage RL t05 eval2", 7_920_000, 7_920_999)):
         for other, olo, ohi in list(P.RESERVED_RANGES) + list(P.OWN_RANGES):
             if other == label:
                 continue
@@ -283,6 +284,23 @@ def test_the_t05_rows_are_registered_exactly_and_claimable():
     with pytest.raises(ValueError) as exc:
         P.reject_reserved_seeds(7_919_000, 7_919_999, own=train)
     assert "stage RL t05 eval" in str(exc.value)
+
+
+def test_the_t05_eval2_row_is_registered_exactly_and_claimable():
+    """The T=0.5 new-pool absolute argmax evaluation row.
+
+    Covers 1,000 seeds for the new-pool absolute evaluation, distinct from
+    the acceptance block 7,919,000–7,919,999.
+    """
+    got = {label: (lo, hi) for label, lo, hi in P.RESERVED_RANGES}
+    assert got["stage RL t05 eval2"] == (7_920_000, 7_920_999)
+
+    ev2 = ("stage RL t05 eval2", 7_920_000, 7_920_999)
+    assert P.reject_reserved_seeds(7_920_000, 7_920_999, own=ev2) == []
+    # nobody else may claim it
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_920_000, 7_920_999)
+    assert "stage RL t05 eval2" in str(exc.value)
 
 
 def test_the_v2_h_rows_are_registered_exactly_and_claimable():

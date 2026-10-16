@@ -328,6 +328,10 @@ RESERVED_RANGES = (
     # `rl.rollout.RL_T05_BLOCK` / `RL_T05_EVAL_BLOCK`.
     ("stage RL t05 train", 7_889_000, 7_918_999),
     ("stage RL t05 eval", 7_919_000, 7_919_999),
+    # plan10 §16 (2026-10-16 補充預註冊), 新池絕對 argmax 評測：
+    # 5 個檢查點，完整 12 席評測池，1000 局。Labels and ranges must stay
+    # in step with `rl.rollout.RL_T05_EVAL2_BLOCK`.
+    ("stage RL t05 eval2", 7_920_000, 7_920_999),
 )
 
 PAIRS_A = 2_000
