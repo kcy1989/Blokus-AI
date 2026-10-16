@@ -278,7 +278,12 @@ def test_the_label_and_description_keys_exist_in_config():
                                      # game total in the key separates them
                                      # from both the 20k and the 50k rows.
                                      "rl_hunter_desc30k_fmt",
-                                     "rl_intruder_desc37.5k_fmt")
+                                     "rl_intruder_desc37.5k_fmt",
+                                     # plan10 §16 (2026-10-16): the h learner
+                                     # after 105 more rounds of 500 games,
+                                     # so the round count separates it from
+                                     # both the 30k and the 100k rows.
+                                     "rl_hunter_desc100k_fmt")
 
 
 # --------------------------------------------------------------------------
@@ -619,7 +624,11 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
                     # same reason. Their names carry the accumulated game
                     # count (20k start + the rounds the snapshot took), which
                     # is why they do not read as another 50k.
-                    "rl_h1000_30k", "rl_i1000_37.5k"]
+                    "rl_h1000_30k", "rl_i1000_37.5k",
+                    # plan10 §16 (2026-10-16): the h learner after 105 more
+                    # rounds of 500 games cold-started from v4 r35, appended
+                    # at the end for the same reason.
+                    "rl_h1000_100k"]
     # The pin above already fixes the length - a row added or removed shows up
     # there - so what is left for the count to say is that no key appears twice.
     assert len(keys) == len(set(keys))
@@ -650,6 +659,7 @@ def test_the_json_rows_are_unchanged_and_the_pool_is_them_sorted():
         ("rl_o1000_50k_v3", "network", "rl"),
         ("rl_h1000_30k", "network", "rl"),
         ("rl_i1000_37.5k", "network", "rl"),
+        ("rl_h1000_100k", "network", "rl"),
     }
 
 

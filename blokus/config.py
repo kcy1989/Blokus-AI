@@ -169,6 +169,9 @@ I = {
     # checkpoint and its final weights were measured separately.
     "rl_hunter_desc30k_fmt": "PPO 訓練 20 輪、共 30,000 局（自 20k 冷啟動、平衡排程的中段檢查點）；老師：獵者",
     "rl_intruder_desc37.5k_fmt": "PPO 訓練 35 輪、共 37,500 局（自 20k 冷啟動、平衡排程的中段檢查點）；老師：入侵者",
+    # plan10 §16 (2026-10-16): 105 rounds of 500 games cold-started from v4 r35
+    # under --balanced-schedule, 100,000 games total and accumulated step 200.
+    "rl_hunter_desc100k_fmt": "PPO 訓練 105 輪、共 100,000 局（自 v4 r35 冷啟動、平衡排程）；老師：獵者",
     "ai_pool": "AI",
     "human_pool": "人類",
     # Also unreferenced: nothing groups seats into a "模仿" tab any more.

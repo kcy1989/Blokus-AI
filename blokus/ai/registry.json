@@ -255,6 +255,21 @@
       "label": "rl_fmt",
       "desc_key": "rl_intruder_desc37.5k_fmt",
       "note": "Intruder's trained policy, a mid-run snapshot: round 35 of the balanced cold-start run in data/rl_i50k_v3 (cold-started from rl_i1000_20k, --balanced-schedule, ten-seat pool without the learner's own start), so 20,000 + 17,500 = 37,500 games and the accumulated step count 40 + 35 = 75. The file is that run's round-35 output, byte-identical here and in the accumulating-name copy under data/rl_i1000_37.5k/. Acceptance: +0.065620 (1.597 x paired_se) over the start rl_i1000_20k on a fresh block, above 1.3 x se, one look. The run's final weights (the rl_i1000_50k_v3 candidate) scored -0.036140 and were not pooled; the training pool was deliberately not widened with this row. Evidence: eval/rl-single-train-v3i/README.md sections 14 and 15. Status: 待校準."
+    },
+    {
+      "key": "rl_h1000_100k",
+      "aliases": [],
+      "kind": "network",
+      "family": "rl",
+      "checkpoint": "ai/checkpoints/rl_h1000_100k/step_000200.pt",
+      "source": "data/rl_h100k/step_000200.pt",
+      "sha256": "e57dbf1cf5dbef11a1379e55417c1dc284738f507c15ed609fb839f8948b830a",
+      "pools": ["all", "rl_only"],
+      "enabled": true,
+      "selectable": true,
+      "label": "rl_fmt",
+      "desc_key": "rl_hunter_desc100k_fmt",
+      "note": "Hunter's trained policy, plan10 §16 (2026-10-16 decree): 105 rounds of 500 games cold-started from v4 r35 (data/rl_h50k_v4/step_000035.pt, accumulated step 95) under --balanced-schedule under a twelve-seat pool that no longer held the learner's own start, so 47,500 + 52,500 = 100,000 games and the accumulated step count 95 + 105 = 200. The file is data/rl_h100k's round-105 output, published here under the accumulating step name step_000200.pt; the frozen v4 r35 it started from stays a separate weight and the training pool was deliberately not widened with this row. Evidence: eval/rl-single-train-h100k/README.md - acceptance argmax +0.008050 (0.207 x paired_se) over the start, below 1.3 x se, one look. Not pooled by the acceptance criterion; pooled by user decree 2026-10-16."
     }
   ]
 }

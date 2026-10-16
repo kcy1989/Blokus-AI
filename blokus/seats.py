@@ -153,6 +153,11 @@ RL_SEATS = (
     # final weights failed their criteria and are not seats.
     ("rl_h1000_30k", "data/rl_h1000_30k/step_000060.pt"),
     ("rl_i1000_37.5k", "data/rl_i1000_37.5k/step_000075.pt"),
+    # plan10 §16 (2026-10-16): the h learner after 105 more rounds of 500
+    # games, cold-started from v4 r35 under the balanced schedule. The path is
+    # where the policy was trained; ai/registry.json's checkpoint is where it
+    # is published.
+    ("rl_h1000_100k", "data/rl_h100k/step_000200.pt"),
 )
 
 # Every alias, the imitation ones and the trained-policy ones alike. This is

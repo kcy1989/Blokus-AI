@@ -397,14 +397,19 @@ def test_no_pool_at_all_means_all():
 # are allowed to meet, and it is what turns a roster edit into a loud failure
 # here rather than a silent drift.
 #
+# **Recaptured an eighth time on 2026-10-16** by the decree that pooled
+# `rl_h1000_100k`: nineteen keys, so every draw index moved and all three
+# seeds changed again. Old values, new values and the recapture command are in
+# README.md under 「GOLDEN 重採（入池 `rl_h1000_100k`）」.
+#
 # **Recaptured a seventh time on 2026-10-15** by the decree that pooled the two
 # mid-run snapshots: eighteen keys, so every draw index moved and all three
 # seeds changed again. Old values, new values and the recapture command are in
 # README.md under 「GOLDEN 重採（入池兩個中段檢查點：`rl_h1000_30k`、
 # `rl_i1000_37.5k`）」.
 GOLDEN_POOL = ["builder", "chess", "fox", "hunter", "intruder", "optimizer",
-               "rl_b1000_20k", "rl_b1000_50k", "rl_h1000_20k", "rl_h1000_30k",
-               "rl_h1000_50k", "rl_i1000_20k", "rl_i1000_37.5k",
+               "rl_b1000_20k", "rl_b1000_50k", "rl_h1000_100k", "rl_h1000_20k",
+               "rl_h1000_30k", "rl_h1000_50k", "rl_i1000_20k", "rl_i1000_37.5k",
                "rl_i1000_50k", "rl_o1000_20k", "rl_o1000_50k",
                "rl_o1000_50k_v3", "wolf"]
 
@@ -414,18 +419,18 @@ GOLDEN_POOL = ["builder", "chess", "fox", "hunter", "intruder", "optimizer",
 # the old values are the ones the previous recapture pinned, from the 16-key
 # pool.
 GOLDEN = {
-    20260928: [('wolf', 'yellow', 30), ('rl_h1000_20k', 'red', 0),
-               ('chess', 'green', 33), ('rl_b1000_20k', 'blue', 12),
-               ('rl_o1000_50k', 'yellow', 22), ('rl_i1000_50k', 'red', 15),
-               ('rl_i1000_50k', 'green', 23), ('builder', 'blue', 8)],
-    7: [('rl_h1000_50k', 'green', 16), ('intruder', 'yellow', 17),
-        ('rl_i1000_37.5k', 'red', 4), ('chess', 'blue', 43),
-        ('rl_o1000_20k', 'red', 27), ('rl_h1000_30k', 'green', 15),
-        ('fox', 'blue', 19), ('hunter', 'yellow', 7)],
-    99: [('rl_i1000_37.5k', 'yellow', 23), ('rl_i1000_37.5k', 'red', 9),
-         ('rl_b1000_20k', 'blue', 4), ('optimizer', 'green', 16),
-         ('rl_h1000_50k', 'red', 12), ('rl_i1000_37.5k', 'yellow', 11),
-         ('chess', 'green', 26), ('rl_h1000_20k', 'blue', 10)],
+    20260928: [('rl_o1000_50k_v3', 'yellow', 13), ('rl_h1000_100k', 'red', 23),
+               ('chess', 'green', 36), ('rl_b1000_20k', 'blue', 7),
+               ('optimizer', 'green', 32), ('rl_b1000_20k', 'red', 15),
+               ('optimizer', 'yellow', 10), ('rl_b1000_50k', 'blue', 7)],
+    7: [('rl_h1000_30k', 'green', 4), ('intruder', 'yellow', 19),
+        ('rl_i1000_20k', 'red', 4), ('chess', 'blue', 37),
+        ('fox', 'red', 17), ('hunter', 'blue', 14),
+        ('rl_o1000_50k', 'yellow', 24), ('rl_i1000_37.5k', 'green', 8)],
+    99: [('rl_i1000_20k', 'yellow', 7), ('rl_i1000_20k', 'red', 21),
+         ('rl_b1000_20k', 'blue', 4), ('optimizer', 'green', 6),
+         ('rl_h1000_30k', 'red', 12), ('rl_i1000_20k', 'yellow', 9),
+         ('chess', 'green', 40), ('rl_h1000_100k', 'blue', 0)],
 }
 
 
