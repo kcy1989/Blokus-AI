@@ -96,6 +96,7 @@ class Config(NamedTuple):
     entropy_coef: float = DEFAULT_ENTROPY_COEF
     max_grad_norm: float = DEFAULT_MAX_GRAD_NORM
     normalize_advantage: bool = True
+    temperature: float = 1.0
 
 
 def compute_gae(rewards, values, gamma=DEFAULT_GAMMA, lam=DEFAULT_LAM):
@@ -306,7 +307,7 @@ def _forward(net, states, device):
     return apply_legal_mask(logits, mask), trunk
 
 
-def _rescore(net, states, actions, device, chunk):
+def _rescore(net, states, actions, device, chunk, temperature=1.0):
     """`(log_probs, values)` under `no_grad`, in chunks of `chunk`.
 
     The chunk size is the whole reason this is a helper rather than one big call:
@@ -324,7 +325,7 @@ def _rescore(net, states, actions, device, chunk):
             hi = min(lo + chunk, n)
             logits, trunk = _forward(net, states[lo:hi], device)
             a, _e = log_prob_entropy(
-                logits,
+                logits / temperature,
                 torch.from_numpy(actions[lo:hi]).to(logits.device))
             v = net.rl_value(trunk.detach())
             lp[lo:hi] = a.detach().cpu().numpy()
@@ -392,7 +393,7 @@ def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None,
     for lo in range(0, n, int(cfg.minibatch)):
         idx = order[lo:lo + int(cfg.minibatch)]
         lp, vv = _rescore(net, [states[i] for i in idx], actions[idx], device,
-                          len(idx) or 1)
+                          len(idx) or 1, cfg.temperature)
         old_lp[idx] = lp
         old_v[idx] = vv
 
@@ -439,7 +440,9 @@ def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None,
             t_actions_mb = t_actions[idx]
 
             logits, trunk = _forward(net, mb_states, device)
-            lp, entropy = log_prob_entropy(logits, t_actions_mb.to(logits.device))
+            lp, entropy = log_prob_entropy(
+                logits / cfg.temperature,
+                t_actions_mb.to(logits.device))
             a_mb = t_adv_all[idx]
             old_mb = t_old_lp[idx]
 
@@ -469,7 +472,8 @@ def ppo_update(net, anchor_net, batch, cfg=Config(), device=None, rng=None,
                 # update on this machine.
                 with torch.no_grad():
                     a_logits, _a_trunk = _forward(anchor_net, mb_states, device)
-                kl = kl_to_anchor(logits, a_logits)
+                kl = kl_to_anchor(logits / cfg.temperature,
+                                  a_logits / cfg.temperature)
                 kl_mean = kl.mean()
                 loss = loss + cfg.kl_coef * kl_mean
 

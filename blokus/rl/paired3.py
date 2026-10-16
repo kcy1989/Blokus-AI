@@ -322,6 +322,12 @@ RESERVED_RANGES = (
     # only, not a pooling criterion. Labels and ranges must stay in step with
     # `rl.rollout.RL_H100K_EVAL2_BLOCK`.
     ("stage RL h100k eval2", 7_888_000, 7_888_999),
+    # plan10 §16 (2026-10-16 decree), the temperature T=0.5 single-variable run:
+    # 60 rounds x 500 games = 30,000 training games, plus a 1,000-game
+    # acceptance evaluation. Labels and ranges must stay in step with
+    # `rl.rollout.RL_T05_BLOCK` / `RL_T05_EVAL_BLOCK`.
+    ("stage RL t05 train", 7_889_000, 7_918_999),
+    ("stage RL t05 eval", 7_919_000, 7_919_999),
 )
 
 PAIRS_A = 2_000

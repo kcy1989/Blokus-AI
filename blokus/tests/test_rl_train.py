@@ -398,6 +398,7 @@ def test_the_anchor_table_is_exactly_the_eight_registered_runs():
         (7_730_000, ("stage RL i50k v3 train", 7_730_000, 7_759_999)),
         (7_780_000, ("stage RL h50k v4 train", 7_780_000, 7_799_999)),
         (7_830_000, ("stage RL h100k train", 7_830_000, 7_882_499)),
+        (7_889_000, ("stage RL t05 train", 7_889_000, 7_918_999)),
     )
     rows = [(label, lo, hi) for label, lo, hi in paired3.RESERVED_RANGES]
     for base, block in rollout_mod.TRAIN_ANCHOR_BLOCKS:
@@ -781,6 +782,7 @@ def test_a_resume_refuses_a_checkpoint_trained_under_another_shape():
     for field, bad in (("per_round", cfg.per_round + 1),
                        ("seed_base", cfg.seed_base + 1),
                        ("opponent_pool", ("chess", "fox")),
+                       ("rollout_temperature", 0.5),
                        ("balanced_schedule", True)):
         saved = dict(old)
         saved[field] = bad
@@ -1267,3 +1269,32 @@ def test_a_bad_pool_is_refused_before_anything_is_opened(tmp_path):
                 dry_run=True, log=quiet, nice=0)
     assert "no_such_seat" in str(exc.value)
     assert not os.path.exists(out), "a refused run created its output dir"
+
+
+def test_rollout_temperature_defaults_to_one():
+    """T=1.0 is the default every recorded curve used."""
+    assert T.TrainConfig().rollout_temperature == 1.0
+
+
+def test_rollout_temperature_enters_refuse_mismatched_resume():
+    """Changing T between checkpoint and resume is a config mismatch."""
+    cfg = T.TrainConfig(rollout_temperature=0.5)
+    saved = dict(cfg._asdict())
+    saved["rollout_temperature"] = 1.0
+    with pytest.raises(ValueError) as exc:
+        T._refuse_mismatched_resume({"train_cfg": saved}, cfg)
+    assert "resume config mismatch" in str(exc.value)
+    assert "rollout_temperature" in str(exc.value)
+    # matching temperature is fine
+    T._refuse_mismatched_resume(
+        {"train_cfg": dict(cfg._asdict())}, cfg)
+
+
+def test_rollout_temperature_is_read_from_the_command_line():
+    cfg, _ = T._config_from_args(T.build_parser().parse_args(
+        ["--games", "20000", "--per-round", "500",
+         "--rollout-temperature", "0.5"]))
+    assert cfg.rollout_temperature == 0.5
+    cfg, _ = T._config_from_args(T.build_parser().parse_args(
+        ["--games", "20000", "--per-round", "500"]))
+    assert cfg.rollout_temperature == 1.0

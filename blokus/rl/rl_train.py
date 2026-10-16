@@ -109,8 +109,16 @@ class TrainConfig(NamedTuple):
     # and pool spread <= 1 every round instead of the uniform draw, built by
     # `rollout.balanced_cells` from the round number. Only the *training* loop
     # reads it - `eval_specs` never passes it, so the in-training evaluation
-    # stays the same draw whichever flag the run trained under.
+    # stays the same draw whichever flag the train ran under.
     balanced_schedule: bool = False
+    # Rollout temperature: the masked softmax the learner samples from is
+    # `softmax(logits / T)`. T=1.0 is the default every recorded curve used;
+    # T<1 sharpens the distribution toward the argmax action. The same T must
+    # be used to recompute old log_probs in `rl.ppo._rescore` and in the
+    # update loop, or the PPO ratio is not 1 on the first minibatch and the
+    # `first_ratio_dev` guardrail fires. Entropy and the entropy floor are
+    # computed under the same logits/T distribution.
+    rollout_temperature: float = rollout_mod.DEFAULT_TEMPERATURE
     # guardrail thresholds, all configurable per plan8-B4 item 3
     max_kl_anchor: float = 0.05
     min_entropy_fraction: float = 0.5
@@ -562,7 +570,7 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
     test; without it the run goes the full `cfg.rounds`.
     """
     out_dir = out_dir or DEFAULT_OUT_DIR
-    ppo_cfg = ppo_cfg or ppo_mod.Config()
+    ppo_cfg = ppo_cfg or ppo_mod.Config(temperature=cfg.rollout_temperature)
     init_path = init_path or INIT_CHECKPOINT
     anchor_path = anchor_path or ANCHOR_CHECKPOINT
     # A pool is configuration, so it is rejected before anything is opened -
@@ -654,7 +662,8 @@ def train(cfg=TrainConfig(), out_dir=None, *, ppo_cfg=None, init_path=None,
             episodes = rollout_mod.play_batch(
                 specs, paths["current"], n_procs=cfg.n_procs,
                 device=cfg.rollout_device, mode="softmax", learner_key=NAME,
-                opponent_pool=cfg.opponent_pool)
+                opponent_pool=cfg.opponent_pool,
+                temperature=cfg.rollout_temperature)
             timings["rollout"] = time.perf_counter() - t0
 
             # 3. update
@@ -728,8 +737,8 @@ def _dry_run(cfg, ppo_cfg, out_dir, start_round, end_round, max_rounds,
            "" if max_rounds is None else "  [capped by --max-rounds]"))
     log("  seeds           %d..%d  (checked against the reserved RL block)"
         % (cfg.seed_base, cfg.seed_base + cfg.games - 1))
-    log("  rollout         device=%s n_procs=%d mode=softmax T=1.0"
-        % (cfg.rollout_device, cfg.n_procs))
+    log("  rollout         device=%s n_procs=%d mode=softmax T=%g"
+        % (cfg.rollout_device, cfg.n_procs, cfg.rollout_temperature))
     log("  opponents       %s"
         % ("7 personalities (without replacement)" if not cfg.opponent_pool
            else ", ".join(cfg.opponent_pool) + " (with replacement)"))
@@ -868,7 +877,8 @@ def _refuse_mismatched_resume(blob, cfg):
     if not saved:
         return
     diffs = []
-    for field in ("per_round", "seed_base", "opponent_pool", "eval_pool"):
+    for field in ("per_round", "seed_base", "opponent_pool", "eval_pool",
+                  "rollout_temperature"):
         if field in saved and saved[field] != getattr(cfg, field):
             diffs.append("%s checkpoint=%r this run=%r"
                          % (field, saved[field], getattr(cfg, field)))
@@ -934,6 +944,10 @@ def build_parser():
     p.add_argument("--balanced-schedule", action="store_true",
                    help="平衡排程:每輪學習者座位精確各 1/4、池席出場差 <= 1、"
                         "格子差 <= 1,對手由格子矩陣派;預設關閉(逐位不變)")
+    p.add_argument("--rollout-temperature", type=float,
+                   default=TrainConfig().rollout_temperature,
+                   help="rollout softmax溫度 T,採 softmax(logits / T);1.0 為預設,"
+                        "T<1 將分佈壓向argmax動作(預設 %(default)s)")
     p.add_argument("--eval-every", type=int, default=TrainConfig().eval_every,
                    help="每幾輪評測一次,0 為停用(預設 %(default)s)")
     p.add_argument("--eval-games", type=int, default=TrainConfig().eval_games,
@@ -989,6 +1003,7 @@ def _config_from_args(args):
                          if k.strip())
                    if args.eval_pool else None),
         balanced_schedule=args.balanced_schedule,
+        rollout_temperature=args.rollout_temperature,
         eval_every=args.eval_every,
         eval_games=args.eval_games,
         max_kl_anchor=(args.max_kl_anchor if args.max_kl_anchor is not None
@@ -1004,7 +1019,8 @@ def _config_from_args(args):
     )
     ppo_cfg = ppo_mod.Config(epochs=args.epochs, minibatch=args.minibatch,
                              clip=args.clip, actor_lr=args.actor_lr,
-                             value_lr=args.value_lr, kl_coef=args.kl_coef)
+                             value_lr=args.value_lr, kl_coef=args.kl_coef,
+                             temperature=args.rollout_temperature)
     return cfg, ppo_cfg
 
 

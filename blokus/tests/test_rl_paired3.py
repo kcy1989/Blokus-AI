@@ -230,7 +230,9 @@ def test_the_rl_blocks_clear_every_block_already_registered():
                           ("stage RL i50k v2 train", 7_170_000, 7_199_999),
                           ("stage RL i50k v2 eval", 7_540_000, 7_540_999),
                           ("stage RL o50k v2 train", 7_550_000, 7_579_999),
-                          ("stage RL o50k v2 eval", 7_590_000, 7_590_999)):
+                          ("stage RL o50k v2 eval", 7_590_000, 7_590_999),
+                          ("stage RL t05 train", 7_889_000, 7_918_999),
+                          ("stage RL t05 eval", 7_919_000, 7_919_999)):
         for other, olo, ohi in list(P.RESERVED_RANGES) + list(P.OWN_RANGES):
             if other == label:
                 continue
@@ -258,6 +260,29 @@ def test_the_rl_blocks_are_accepted_by_the_block_guard_when_claimed():
     with pytest.raises(ValueError) as exc:
         P.reject_reserved_seeds(7_200_000, 7_200_499, own=train)
     assert "stage RL students" in str(exc.value)
+
+
+def test_the_t05_rows_are_registered_exactly_and_claimable():
+    """The T=0.5 run's two rows, spelled out as literals.
+
+    The training row covers 30,000 seeds (60 rounds x 500 games), the
+    evaluation row covers 1,000 seeds for the single acceptance look.
+    """
+    got = {label: (lo, hi) for label, lo, hi in P.RESERVED_RANGES}
+    assert got["stage RL t05 train"] == (7_889_000, 7_918_999)
+    assert got["stage RL t05 eval"] == (7_919_000, 7_919_999)
+
+    train = ("stage RL t05 train", 7_889_000, 7_918_999)
+    ev = ("stage RL t05 eval", 7_919_000, 7_919_999)
+    assert P.reject_reserved_seeds(7_889_000, 7_918_999, own=train) == []
+    assert P.reject_reserved_seeds(7_919_000, 7_919_999, own=ev) == []
+    # nobody else may claim either row
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_889_000, 7_918_999)
+    assert "stage RL t05 train" in str(exc.value)
+    with pytest.raises(ValueError) as exc:
+        P.reject_reserved_seeds(7_919_000, 7_919_999, own=train)
+    assert "stage RL t05 eval" in str(exc.value)
 
 
 def test_the_v2_h_rows_are_registered_exactly_and_claimable():

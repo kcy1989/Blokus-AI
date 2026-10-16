@@ -421,6 +421,23 @@ RL_H100K_EVAL2_SPAN = 1_000
 RL_H100K_EVAL2_BLOCK = ("stage RL h100k eval2", RL_H100K_EVAL2_SEED_BASE,
                         RL_H100K_EVAL2_SEED_BASE + RL_H100K_EVAL2_SPAN - 1)
 
+# plan10 §16 (2026-10-16 decree), the temperature T=0.5 single-variable run:
+# 60 rounds x 500 games = 30,000 training games from a cold start on
+# `rl_h1000_30k` (step_000035.pt, accumulated step 95), under the balanced
+# schedule and the same twelve-seat pool the h100k run used. Cold start means
+# round 1 draws `seed_base` itself, so the base sits at the floor of the row it
+# claims. The acceptance evaluation is one 1,000-game paired argmax look on
+# fresh seeds, scored against the start. Diagnostic softmax is also run on the
+# same 1,000 seeds but is not part of the criterion.
+RL_T05_SEED_BASE = 7_889_000
+RL_T05_BLOCK = ("stage RL t05 train", RL_T05_SEED_BASE,
+                RL_T05_SEED_BASE + 30_000 - 1)
+
+RL_T05_EVAL_SEED_BASE = 7_919_000
+RL_T05_EVAL_SPAN = 1_000
+RL_T05_EVAL_BLOCK = ("stage RL t05 eval", RL_T05_EVAL_SEED_BASE,
+                     RL_T05_EVAL_SEED_BASE + RL_T05_EVAL_SPAN - 1)
+
 # Bases `_claimed_train_block` matches on when the run's `seed_base` is not
 # inside the row it is entitled to claim. The first three are runs that
 # resumed at a round above 1, so their bases are arithmetic rather than
@@ -437,7 +454,8 @@ TRAIN_ANCHOR_BLOCKS = ((RL_V2_H_SEED_BASE, RL_V2_H_BLOCK),
                        (RL_H50K_V2_SEED_BASE, RL_H50K_V2_BLOCK),
                        (RL_I50K_V3_SEED_BASE, RL_I50K_V3_BLOCK),
                        (RL_H50K_V4_SEED_BASE, RL_H50K_V4_BLOCK),
-                       (RL_H100K_SEED_BASE, RL_H100K_BLOCK))
+                       (RL_H100K_SEED_BASE, RL_H100K_BLOCK),
+                       (RL_T05_SEED_BASE, RL_T05_BLOCK))
 
 DEFAULT_TEMPERATURE = 1.0
 LEARNER_MODE = "softmax"
@@ -745,7 +763,7 @@ def play_game(keys, seat_nets, seed, device=None,
                 action = _sample_from_masked(logits[0], streams[owner],
                                              temperature)
             log_prob, _entropy = log_prob_entropy(
-                logits, torch.tensor([action]))
+                logits / temperature, torch.tensor([action]))
         cols = _state_columns(state)
         ep.own_bits.append(cols["own_bits"])
         ep.hand_bits.append(cols["hand_bits"])
