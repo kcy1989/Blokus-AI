@@ -194,6 +194,16 @@ paired_diff > 0  且  paired_diff ≥ 1.3 × paired_se
 
 證據檔：`step_000155_argmax.json`、`step_000155_softmax.json`。
 
+### 訓練後補跑（單元測試與全套，2026-10-16 訓練完成後補跑）
+
+| 項 | 結果 |
+|---|---|
+| 新單元測試 `test_t05_first_ratio_dev_below_threshold` (tests/test_rl_train.py) | passed — T=0.5 下 first_ratio_dev = 0.0 < 1e-6 |
+| 全套測試 `pytest tests/ -q -n 8` (OMP/MKL/OPENBLAS=1) | **1116 passed** |
+| `python -m ai --check` | 綠 |
+
+此補跑在訓練完成後執行，不影響 §5 判準（判準已預先寫死且於訓練前註冊）。
+
 ---
 
 ## 10. 入池流程（僅通過 §5 後）
