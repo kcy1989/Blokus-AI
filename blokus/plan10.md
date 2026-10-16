@@ -142,7 +142,7 @@ AI 回報並停下等裁示:
 ## 5. 評測判準(預先寫死,一次定案)
 
 - **評測對象**:訓練後的最終模型(如 `step_000100.pt`)vs 起點對照(如 `step_000040.pt`)。
-- **評測規格**:新註冊 FREE 種子段,**1000 局**,預設七人格池,同 specs 配對。`paired_diff = mean(reward_current − reward_start)`。
+- **評測規格**:新註冊 FREE 種子段,**1000 局**,對手池為: [wolf, chess, fox, hunter, optimizer, builder, intruder, rl_b1000_50k, rl_i1000_37.5k, rl_o1000_50k_v3, rl_h1000_30k],同 specs 配對。`paired_diff = mean(reward_current − reward_start)`。
 
 ### 通過條件(主判準:argmax 單模式)
 ```
