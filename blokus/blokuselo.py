@@ -186,38 +186,28 @@ def rate(games, anchor=None, max_iter=20000, tol=1e-9):
 
 def rate_with_seat_effects(games, anchor=None, max_iter=20000, tol=1e-9,
                            init_mu=None):
-    """Plackett-Luce MLE with seat-position effects.
+    """Joint Plackett-Luce MLE with seat-position effects.
 
     Same ranking model as `rate()`, plus a seat-position additive term on the
     log-strength: strength(player p at seat s) = exp(mu[p] + beta[s]),
-    seat 3 = baseline (beta[3] = 0 fixed).
+    seat 3 = baseline (beta[3] = 0 fixed).  mu and beta are fitted jointly by
+    Newton-Raphson on the full Hessian (single MLE, not two-stage).
 
-    Two-stage estimation:
-      1. mu from `rate()` (or init_mu if provided)
-      2. beta by gradient ascent with mu fixed (concave subproblem)
+    Identifiability: one player (anchor) is pinned to mu = 0; only strength
+    *differences* are identifiable.  A weak Gaussian prior (sigma 2.0) on mu
+    keeps the Hessian invertible for players with few games; beta has no prior.
 
     Input: list of games, each a list of (player_key, seat_position, rank)
            seat_position in {0,1,2,3}, lower rank = better.
     Output: ({player_key: (mu, sigma)}, {seat_position: (effect, se)}).
+      Seat SE comes from the joint Hessian inverse diagonal.
     """
     players = sorted({p for g in games for p, _s, _r in g})
     n = len(players)
     if n == 0:
         return {}, {}
     index = {p: i for i, p in enumerate(players)}
-
     anchor_idx = index[anchor] if anchor and anchor in index else 0
-
-    # Step 1: mu from rate() (or init_mu if provided)
-    if init_mu is not None:
-        mu = [init_mu.get(p, 0.0) for p in players]
-        mu[anchor_idx] = 0.0
-    else:
-        rate_result = rate([[(p, r) for p, _s, r in g] for g in games],
-                           anchor=anchor)
-        mu = [rate_result[p][0] for p in players]
-
-    beta = [0.0, 0.0, 0.0]  # seat 3 baseline = 0
 
     # Pre-process games: list of groups, each group is list of (player_idx, seat)
     processed_games = []
@@ -226,6 +216,27 @@ def rate_with_seat_effects(games, anchor=None, max_iter=20000, tol=1e-9,
         for p, s, r in g:
             by_rank.setdefault(r, []).append((index[p], s))
         processed_games.append([by_rank[r] for r in sorted(by_rank)])
+
+    # Parameter vector: free mu (nf) + beta[0], beta[1], beta[2]
+    free = [i for i in range(n) if i != anchor_idx]
+    fpos = {i: k for k, i in enumerate(free)}
+    nf = len(free)
+    n_beta = 3
+    m = nf + n_beta
+
+    mu = [0.0] * n
+    if init_mu is not None:
+        for p in players:
+            mu[index[p]] = init_mu.get(p, 0.0)
+        mu[anchor_idx] = 0.0
+    else:
+        rate_result = rate([[(p, r) for p, _s, r in g] for g in games],
+                           anchor=anchor)
+        for p in players:
+            mu[index[p]] = rate_result[p][0]
+    beta = [0.0, 0.0, 0.0]
+
+    inv_pv = 1.0 / _PRIOR_VAR
 
     def str_val(p_idx, seat):
         b = beta[seat] if 0 <= seat < 3 else 0.0
@@ -236,59 +247,170 @@ def rate_with_seat_effects(games, anchor=None, max_iter=20000, tol=1e-9,
             return 1e-300
         return math.exp(val)
 
-    def compute_beta_grad():
-        """Gradient w.r.t. beta only (mu fixed)."""
-        grad = [0.0] * 3
+    def accumulate():
+        """Grad and Hessian of joint log-posterior over m params.
+
+        Params 0..nf-1: free mu; params nf..nf+2: beta 0..2.
+        """
+        grad = [-inv_pv * mu[i] for i in free] + [0.0] * n_beta
+        hess = [[0.0] * m for _ in range(m)]
+        for i in range(nf):
+            hess[i][i] = -inv_pv  # weak Gaussian prior on mu
+
         for groups in processed_games:
             remaining = set((p, s) for grp in groups for p, s in grp)
-            S_values = []
             for grp in groups:
-                s_r = sum(str_val(p, s) for p, s in remaining)
-                S_values.append(s_r)
-                remaining -= set((p, s) for p, s in grp)
-            remaining = set((p, s) for grp in groups for p, s in grp)
-            for gi, grp in enumerate(groups):
-                group_size = len(grp)
-                S_i = S_values[gi]
-                in_g = set(p for p, _s in grp)
-                if S_i <= 0.0:
-                    remaining -= set((p, s) for p, s in grp)
+                in_g = set(grp)
+                a_in = {item: str_val(item[0], item[1]) for item in in_g}
+                s_g = sum(a_in.values())
+                a_rem = {item: str_val(item[0], item[1]) for item in remaining}
+                s_r = sum(a_rem.values())
+                if s_g <= 0.0 or s_r <= 0.0:
+                    remaining -= in_g
                     continue
-                inv_sr = 1.0 / S_i
-                remaining_list = sorted(remaining)
-                str_vals = {p: str_val(p, s) for p, s in remaining_list}
-                for p, s in remaining_list:
-                    e = str_vals[p]
-                    if p in in_g:
-                        g = 1.0 - group_size * e * inv_sr
-                    else:
-                        g = -group_size * e * inv_sr
-                    if s < 3:
-                        grad[s] += g * e
-                remaining -= set((p, s) for p, s in grp)
-        return grad
+                inv_sg = 1.0 / s_g
+                inv_sr = 1.0 / s_r
+                inv_sg2 = inv_sg * inv_sg
+                inv_sr2 = inv_sr * inv_sr
 
-    # Optimize beta (mu fixed) via gradient ascent with backtracking
-    for iteration in range(max_iter):
-        grad_b = compute_beta_grad()
-        gnorm = math.sqrt(sum(g * g for g in grad_b))
+                # Wg[j], Wr[j]: sum of a * dc/dtheta_j over in_g / remaining
+                Wg = [0.0] * m
+                Wr = [0.0] * m
+                for j in range(nf):
+                    p = free[j]
+                    ain = 0.0
+                    arn = 0.0
+                    for (pp, ss) in in_g:
+                        if pp == p:
+                            ain = a_in[(pp, ss)]
+                            break
+                    for (pp, ss) in remaining:
+                        if pp == p:
+                            arn = a_rem[(pp, ss)]
+                            break
+                    Wg[j] = ain
+                    Wr[j] = arn
+                for bs in range(n_beta):
+                    Wg[nf + bs] = sum(a_in[(pp, ss)] for (pp, ss) in in_g if ss == bs)
+                    Wr[nf + bs] = sum(a_rem[(pp, ss)] for (pp, ss) in remaining if ss == bs)
+
+                # Gradient
+                for j in range(m):
+                    grad[j] += Wg[j] * inv_sg - Wr[j] * inv_sr
+
+                # Hessian: dense -W W^T / s^2 part
+                for j in range(m):
+                    wgj = Wg[j]
+                    wrj = Wr[j]
+                    row = hess[j]
+                    for l in range(m):
+                        row[l] += (-wgj * Wg[l] * inv_sg2
+                                   + wrj * Wr[l] * inv_sr2)
+
+                # Sparse Q part: +Qg*inv_sg - Qr*inv_sr
+                # mu-mu diagonal (player p)
+                for j in range(nf):
+                    p = free[j]
+                    ap_in = 0.0
+                    ap_rem = 0.0
+                    for (pp, ss) in in_g:
+                        if pp == p:
+                            ap_in = a_in[(pp, ss)]
+                            break
+                    for (pp, ss) in remaining:
+                        if pp == p:
+                            ap_rem = a_rem[(pp, ss)]
+                            break
+                    hess[j][j] += ap_in * inv_sg - ap_rem * inv_sr
+                # mu(p) - beta(s): Q = a_p if (p, s) present
+                for j in range(nf):
+                    p = free[j]
+                    for bs in range(n_beta):
+                        qin = a_in.get((p, bs), 0.0)
+                        qrem = a_rem.get((p, bs), 0.0)
+                        hess[j][nf + bs] += qin * inv_sg - qrem * inv_sr
+                        hess[nf + bs][j] += qin * inv_sg - qrem * inv_sr
+                # beta(s) - beta(s): Q = sum over seat s
+                for bs in range(n_beta):
+                    hess[nf + bs][nf + bs] += Wg[nf + bs] * inv_sg - Wr[nf + bs] * inv_sr
+
+                remaining -= in_g
+
+        return grad, hess
+
+    def solve(A, b):
+        mm = len(b)
+        M = [list(row) + [b[i]] for i, row in enumerate(A)]
+        for col in range(mm):
+            piv = max(range(col, mm), key=lambda r: abs(M[r][col]))
+            if abs(M[piv][col]) < 1e-12:
+                return None
+            M[col], M[piv] = M[piv], M[col]
+            pv = M[col][col]
+            for r in range(col + 1, mm):
+                f = M[r][col] / pv
+                for c in range(col, mm + 1):
+                    M[r][c] -= f * M[col][c]
+        x = [0.0] * mm
+        for r in range(mm - 1, -1, -1):
+            s = M[r][mm]
+            for c in range(r + 1, mm):
+                s -= M[r][c] * x[c]
+            x[r] = s / M[r][r]
+        return x
+
+    def invert(A):
+        mm = len(A)
+        M = [list(row) + [1.0 if i == j else 0.0 for j in range(mm)]
+             for i, row in enumerate(A)]
+        for col in range(mm):
+            piv = max(range(col, mm), key=lambda r: abs(M[r][col]))
+            if abs(M[piv][col]) < 1e-12:
+                return None
+            M[col], M[piv] = M[piv], M[col]
+            pv = M[col][col]
+            for c in range(mm + mm):
+                M[col][c] /= pv
+            for r in range(mm):
+                if r != col:
+                    f = M[r][col]
+                    for c in range(mm + mm):
+                        M[r][c] -= f * M[col][c]
+        return [row[mm:] for row in M]
+
+    for _ in range(max_iter):
+        grad, hess = accumulate()
+        gnorm = math.sqrt(sum(g * g for g in grad))
         if gnorm < tol:
             break
-        step = 0.0001
+        neg_h = [[-v for v in row] for row in hess]
+        delta = solve(neg_h, grad)
+        if delta is None:
+            break
+        step = 1.0
+        mu_old = mu[:]
         beta_old = beta[:]
-        improved = False
-        for _ls in range(60):
-            for s in range(3):
-                beta[s] = beta_old[s] + step * grad_b[s]
-            grad_b2 = compute_beta_grad()
-            gnorm2 = math.sqrt(sum(g * g for g in grad_b2))
+        for _ls in range(40):
+            for k, i in enumerate(free):
+                mu[i] = mu_old[i] + step * delta[k]
+            for bs in range(n_beta):
+                beta[bs] = beta_old[bs] + step * delta[nf + bs]
+            grad2, _ = accumulate()
+            gnorm2 = math.sqrt(sum(g * g for g in grad2))
             if gnorm2 < gnorm:
-                improved = True
                 break
             step *= 0.5
-        if not improved:
+        else:
+            mu = mu_old
             beta = beta_old
             break
+
+    grad, hess = accumulate()
+    neg_h = [[-v for v in row] for row in hess]
+    inv = invert(neg_h)
+    if inv is None:
+        raise ArithmeticError(
+            "joint Hessian is singular at the MLE; cannot compute SE")
 
     mu_result = {}
     for p in players:
@@ -296,10 +418,14 @@ def rate_with_seat_effects(games, anchor=None, max_iter=20000, tol=1e-9,
         if i == anchor_idx:
             mu_result[p] = (0.0, 0.0)
         else:
-            mu_result[p] = (mu[i], math.sqrt(_PRIOR_VAR))
+            k = fpos[i]
+            var = inv[k][k]
+            mu_result[p] = (mu[i], math.sqrt(max(var, 1e-9)))
 
     seat_result = {}
     for s in range(3):
-        seat_result[s] = (beta[s], math.sqrt(_PRIOR_VAR))
+        k = nf + s
+        var = inv[k][k]
+        seat_result[s] = (beta[s], math.sqrt(max(var, 1e-9)))
 
     return mu_result, seat_result
