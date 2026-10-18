@@ -1227,10 +1227,10 @@ def test_sidebar_rows_follow_the_turn_order():
     u.label = real
     # The name column of each row carries either the player name or a
     # personality name.
-    names = {ui.seat_label(k) for k in u.game.owner_key.values()}
+    names = {ui.seat_label_elo(k) for k in u.game.owner_key.values()}
     named = sorted(((r.top, t) for t, r in rects if t in names))
     assert len(named) == 4, named
-    expected = [ui.seat_label(u.game.owner_key[o]) for o in order]
+    expected = [ui.seat_label_elo(u.game.owner_key[o]) for o in order]
     assert [n for _top, n in named] == expected, (expected, named)
 
 

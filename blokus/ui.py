@@ -28,6 +28,13 @@ DESKTOP_MARGIN = 48
 # user can still push past it with '+'.
 AUTO_FIT_CAP = (1920, 1080)
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+RATINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai", "ratings.json")
+_ELO_BY_KEY = {}
+try:
+    with open(RATINGS_PATH, encoding="utf-8") as _fh:
+        _ELO_BY_KEY = {s["key"]: s["elo"] for s in json.load(_fh)["seats"]}
+except (OSError, ValueError, KeyError):
+    _ELO_BY_KEY = {}
 
 # A fresh seat screen: one person, three chess players, every colour random.
 # Chosen so that pressing start without touching anything still reproduces the
@@ -69,6 +76,18 @@ def seat_label(key):
     if key in ai.registry.keys():
         return I[ai.registry.label_key(key)]
     return PERSONA_ZH.get(key, key)
+
+
+def seat_label_elo(key):
+    """座位名稱，AI 席位後跟 Elo（整數，十位數）。
+
+    例如 "rl_h1000_30k (1172)"。人類與隨機 AI 無 Elo，原樣回傳。
+    ratings.json 載入失敗時 Elo 字典為空，原樣回傳 seat_label。
+    """
+    label = seat_label(key)
+    if key in _ELO_BY_KEY:
+        return "%s (%d)" % (label, round(_ELO_BY_KEY[key]))
+    return label
 
 
 def seat_desc(key):
@@ -774,7 +793,7 @@ class UI:
         return rows
 
     def contestant_name(self, key):
-        return seat_label(key)
+        return seat_label_elo(key)
 
     def contestant_color(self, key):
         """A leaderboard row's swatch.
@@ -992,7 +1011,7 @@ class UI:
             self.ai_pending = False
             self.ai_move = None
             if mv is None:
-                self.toast("%s %s" % (seat_label(self.game.owner_key[owner]),
+                self.toast("%s %s" % (seat_label_elo(self.game.owner_key[owner]),
                                        I["auto_pass"]))
                 self.game.act_pass()
             else:
@@ -1325,7 +1344,7 @@ class UI:
                                     pygame.SRCALPHA)
                 hl.fill((255, 255, 255, 22))
                 surf.blit(hl, (0, y - int(round(5 * s))))
-            name = seat_label(self.game.owner_key[i])
+            name = seat_label_elo(self.game.owner_key[i])
             pygame.draw.rect(self.screen, color,
                              pygame.Rect(x0, y + int(round(8 * s)), sw, sw))
             self.label(name, name_x, y, 22,
@@ -1348,11 +1367,11 @@ class UI:
             pygame.draw.rect(surf, (70, 76, 88), bar, 1)
 
         ty = base_y + 4 * row_h + int(round(10 * s))
-        self.label("%s：%s" % (I["turn"], seat_label(self.game.owner_key[owner])),
+        self.label("%s：%s" % (I["turn"], seat_label_elo(self.game.owner_key[owner])),
                    x0, ty, 20, (225, 225, 232))
         if not self.game.is_human(owner) and self.ai_pending and not self.ai_ready:
             oc = self.game.colors[owner]
-            self.label("%s %s %s…" % (seat_label(self.game.owner_key[owner]),
+            self.label("%s %s %s…" % (seat_label_elo(self.game.owner_key[owner]),
                                       COLOR_LABELS[oc], I["thinking"]),
                        x0, ty + int(round(34 * s)), 17, COLORS[oc])
         # The sidebar is only as tall as the board, so secondary rows are
@@ -1567,7 +1586,7 @@ class UI:
             self.label(I["seat_fmt"].format(seat + 1, corner_zh(seat)),
                        panel.x, y + int(round(6 * s)), 18, (210, 214, 222))
             opt = rows["%d:option" % seat]
-            self.draw_choice(opt, seat_label(key))
+            self.draw_choice(opt, seat_label_elo(key))
             desc = seat_desc(key)
             if desc:
                 self.label(desc, opt.x, y + int(round(50 * s)), 14,
@@ -1625,7 +1644,7 @@ class UI:
                 continue
             key = bid.split(":", 1)[1]
             if what == "option":
-                caption, chosen = seat_label(key), key == self.seat_keys[seat]
+                caption, chosen = seat_label_elo(key), key == self.seat_keys[seat]
             else:
                 caption = COLOR_LABELS.get(key, key)
                 chosen = key == self.seat_colours[seat]
@@ -1660,7 +1679,7 @@ class UI:
         if win is None:
             msg, wcol = I["win_draw"], (235, 220, 120)
         else:
-            msg = I["win_any"].format(seat_label(self.game.owner_key[win]))
+            msg = I["win_any"].format(seat_label_elo(self.game.owner_key[win]))
             wcol = COLORS[self.game.colors[win]]
         y = self._row(msg, x, y, 20, wcol, inner)
         y = self._row(I["less_is_better"], x, y, 12, (120, 126, 136), inner)
