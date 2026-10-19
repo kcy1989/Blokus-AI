@@ -23,6 +23,9 @@ OWNER_BY_CORNER = {pos: owner for owner, pos in OWNER_CORNER.items()}
 CLOCKWISE_OWNERS = tuple(OWNER_BY_CORNER[c] for c in
                           (CORNERS[0], CORNERS[1], CORNERS[3], CORNERS[2]))
 assert sorted(CLOCKWISE_OWNERS) == [0, 1, 2, 3]
+# The four corners bound the seat count: engine loops that hardcode 4 are really
+# walking this cycle, so the two must agree or those loops silently miss a seat.
+assert len(CLOCKWISE_OWNERS) == SEATS
 PLAYER_OWNER = 0
 
 COLORS = {
