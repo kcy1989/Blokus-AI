@@ -13,9 +13,11 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-import match
-from blokuselo import rate
-import seats as seats_mod
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import match  # noqa: E402
+from blokuselo import rate  # noqa: E402
+import seats as seats_mod  # noqa: E402
 
 SEED = 20261016
 N_WORKERS = 12
@@ -312,8 +314,8 @@ def main():
     print("    causing s_r = sum(exp(mu) over empty set) = 0.")
     print("  - Original data: randomized seat draw allowed duplicate keys within")
     print("    one game (e.g., two 'hunter' seats). Fix: dedupe keys per game")
-    print("    (4 distinct seats) and guard s_r<=0 / s_g<=0 in blokuselo.py.")
-    print("\nblokuselo.py tests: 8 passed (verified below).")
+    print("    (4 distinct seats) and guard s_r<=0 / s_g<=0 in blokuselo/__init__.py.")
+    print("\nblokuselo tests: 8 passed (verified below).")
 
     # ============================================================
     # Item 6: Consistency with plan9

@@ -16,9 +16,11 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-import match
-from blokuselo import rate
-import seats as seats_mod
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import match  # noqa: E402
+from blokuselo import rate  # noqa: E402
+import seats as seats_mod  # noqa: E402
 
 SEED = 20261016
 N_WORKERS = 12

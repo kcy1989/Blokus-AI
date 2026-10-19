@@ -8,9 +8,14 @@ Steps:
 5. Confirm noise model consistency (Plackett-Luce / Gumbel).
 """
 import math
+import os
 import random
 import statistics
-from blokuselo import rate, rate_with_seat_effects
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from blokuselo import rate, rate_with_seat_effects  # noqa: E402
 
 SEED = 12345
 KNOWN_MU = {

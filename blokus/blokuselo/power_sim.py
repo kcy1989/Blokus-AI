@@ -9,9 +9,14 @@ Fixed version:
 - Reports actual games per seat.
 """
 import math
+import os
 import random
 import statistics
-from blokuselo import rate_with_seat_effects
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from blokuselo import rate_with_seat_effects  # noqa: E402
 
 SEEDS = list(range(50000, 50020))  # 20 seeds
 K_ELO = 173.7178

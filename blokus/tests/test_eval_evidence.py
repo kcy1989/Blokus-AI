@@ -185,7 +185,7 @@ def test_every_pair_file_is_internally_consistent():
     """b and i too: the definition used for the new file is the old definition.
 
     Recomputing the two committed 2026-10-06 files from their own per-game rows
-    is how the formulas in `pair0k.py` are checked against history rather than
+    is how the formulas in `tools/pair0k.py` are checked against history rather than
     against themselves - if the new file used a different standard error or a
     different orientation, this would fail on b or i first.
     """

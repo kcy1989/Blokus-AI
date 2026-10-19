@@ -131,7 +131,7 @@ commit / command)—— 第三方不存在,記為事實,不補、不改訓練端
 | `openings-12-i.json` | 12 席 | `rl_i1000_20k`(`--adhoc`) |
 | `openings-four20k.json` | 15 席 | 無(`paired-v1`,四生互比) |
 
-由根目錄的 `openings.py` 產生:與批次檔同一套 `paired_streams` / `subject_draw` /
+由 `tools/openings.py` 產生:與批次檔同一套 `paired_streams` / `subject_draw` /
 `setup_seats` 排局,錄下每席**前 10 手選塊**後即停局(不計 pass,`play_match` 的
 `on_move` 本來就只在落子時呼叫)。seed `20261005`、3,000 局、argmax。
 
@@ -152,8 +152,8 @@ commit / command)—— 第三方不存在,記為事實,不補、不改訓練端
     --pool rl_h1000_0k,rl_o1000_0k,rl_b1000_0k,rl_i1000_0k,hunter,optimizer,builder,intruder,fox,chess,wolf,rl_h1000_20k \
     --out <新檔名>.json.gz
 
-# 開局分布(openings.py,同排局,第 10 手停局)
-.venv-rl/bin/python openings.py --seed 20261005 --games 3000 --mode argmax \
+# 開局分布(tools/openings.py,同排局,第 10 手停局)
+.venv-rl/bin/python tools/openings.py --seed 20261005 --games 3000 --mode argmax \
     --stop-after 10 --subject rl_h1000_20k \
     --pool rl_h1000_0k,rl_o1000_0k,rl_b1000_0k,rl_i1000_0k,hunter,optimizer,builder,intruder,fox,chess,wolf,rl_h1000_20k \
     --out <新檔名>.json
@@ -183,7 +183,7 @@ commit / command)—— 第三方不存在,記為事實,不補、不改訓練端
     --out <新檔名>.json.gz
 ```
 
-`openings.py` 同理:當時的命令帶 `--adhoc KEY=data/rl_*1000/step_000040.pt`,
+`tools/openings.py` 同理:當時的命令帶 `--adhoc KEY=data/rl_*1000/step_000040.pt`,
 註冊後去掉即可。
 
 **兩套等價的實測**(2026-10-09,20 局、seed `20261005`、argmax、同池同 subject,

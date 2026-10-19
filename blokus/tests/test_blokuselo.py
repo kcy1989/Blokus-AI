@@ -1,4 +1,4 @@
-"""Tests for blokuselo.py: BlokusElo pure-Python Plackett-Luce engine.
+"""Tests for the blokuselo package: BlokusElo pure-Python Plackett-Luce engine.
 
 Synthetic-player generation uses a point-noise model (theta + Normal(0, sd)),
 independent of the Plackett-Luce fitter: results are generated first, then

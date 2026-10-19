@@ -21,7 +21,7 @@ nothing after the Nth selection is part of the measurement.
 
 Usage (the twelve-seat batch shape, one student per run):
 
-    .venv-rl/bin/python openings.py \
+    .venv-rl/bin/python tools/openings.py \
         --pool rl_h1000_0k,rl_o1000_0k,rl_b1000_0k,rl_i1000_0k,hunter,optimizer,builder,intruder,fox,chess,wolf,rl_h1000_20k \
         --subject rl_h1000_20k --seed 20261005 --games 3000 --mode argmax \
         --stop-after 10 --device cuda \
@@ -32,7 +32,7 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import match  # noqa: E402
 import seats  # noqa: E402

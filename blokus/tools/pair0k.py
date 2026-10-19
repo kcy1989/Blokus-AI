@@ -27,7 +27,7 @@ opponent or colour moved.
 
 Usage:
 
-    .venv-rl/bin/python pair0k.py \
+    .venv-rl/bin/python tools/pair0k.py \
         --student rl_o1000_0k --pool no_imitation \
         --games 200 --seed 6100000 --device cuda \
         --out eval/imitation/rl_o1000_0k-pair-no_imitation.json
@@ -41,7 +41,7 @@ import os
 import statistics
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import match  # noqa: E402
 import rl.imitation as I  # noqa: E402

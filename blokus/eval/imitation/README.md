@@ -948,7 +948,7 @@ literal 假定不存在的東西),所以池必須寫成明確名單。
 ## `rl_o1000_0k` 的成對量測(2026-10-09 補做,檔名刻意不同)
 
 **檔案**:`eval/imitation/rl_o1000_0k-pair-no_imitation.json`
-**產生腳本**:根目錄 `pair0k.py`(入庫,可重跑)
+**產生腳本**:`tools/pair0k.py`(入庫,可重跑)
 
 ### 為什麼檔名不是 `rl_o1000_0k-pair.json`
 
@@ -1009,7 +1009,7 @@ b、i 的寫法是:「hc_1000 的四項與 `/tmp/kilo/hc1000.pkl` 的記錄**逐
 ### 重跑
 
 ```bash
-.venv-rl/bin/python pair0k.py \
+.venv-rl/bin/python tools/pair0k.py \
     --student rl_o1000_0k --pool no_imitation --games 200 --seed 6100000 \
     --device cuda --out <新檔名>.json
 ```
