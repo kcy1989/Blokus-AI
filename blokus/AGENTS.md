@@ -271,7 +271,7 @@ sha256 斷言因此重新納入測試**（`test_every_registered_checkpoint_hash
 
 ```bash
 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-    .venv-rl/bin/python -m pytest tests/ -q -n 8   # 1031 項，約 300 秒
+    .venv-rl/bin/python -m pytest tests/ -q -n 8   # 1149 項，約 330–390 秒
 ```
 
 **三個環境變數不是可選的。** 2026-10-10 實測：少了它們，純 `-n 8` 兩次都卡死在
@@ -364,3 +364,48 @@ bytecode，`assert len(CLOCKWISE_OWNERS) == SEATS` 當場觸發。常數反證�
 - 已知近似（例如 `fillable_closure` 只是上界）要寫在註解裡當作已知代價。
 - 提交前跑完整測試；`.gitignore` 已排除 `__pycache__`、`.pytest_cache`、
   `records.json`、`settings.json`。
+
+## 八、倉庫結構（血統分組）
+
+2026-10-19 重整：根目錄只留**核心模組 + 入口 + 三份文件**（`README.md`、
+`AGENTS.md`、`REFACTOR_BASELINE.md`），其餘按主題收進子目錄。
+
+```
+blokus/
+  board.py config.py engine.py game.py gamelog.py layout.py main.py
+  pieces.py records.py seats.py ui.py match.py bench_engine.py
+  blokuselo/    評分引擎（= 原 blokuselo.py）＋校準／診斷
+  tools/        benchmark、跨引擎檢查、ui_shots、pair0k、openings...
+  docs/plans/   原 plan*.md（13 份）
+  docs/reports/ 原 reports/
+  data/         訓練資料，依血統分組（README.md 入版控）
+  eval/         評測證據，依血統分組（README.md 入版控）
+  tests/ ai/ rl/
+```
+
+- `eval/` 與 `data/` **同構**，都以 h / i / o / b 四個學習者血統為主軸，四個學習者
+  共同的 run 放 `shared/`。b 沒有專屬 `eval/b/`，它的證據在 `shared/` 內。
+- `blokuselo.py` 搬成 `blokuselo/__init__.py`，**位元組不變**——`ai/ratings.json`
+  的 `blokuselo_sha256` 對的就是這份檔。改名或改內容都會讓那個雜湊失去對應檔案。
+- `bench_engine.py` **留在根目錄**：7 個測試 `from bench_engine import ...`，
+  `tests/test_bench_engine.py` 的 `SCRIPT` 指向它，且檔名寫進已提交 manifest 的 key。
+- 舊路徑對照一律**追加**在 `eval/RENAMES.md`，不覆寫既有表格。
+
+### 改血統路徑要同步的四處
+
+搬一個 `data/` 或 `eval/` 目錄時，這四處要一起改，少一處就會有東西指向不存在的路徑：
+
+1. **載入路徑的權威**：`ai/registry.json` 的 `checkpoint`（檔案層）與 `source`
+   （訓練來源）。`seats.rl_checkpoint`／`imitation_checkpoint` 只是它的讀者。
+2. **席位表**：`seats.py` 的 `RL_SEATS`（字面路徑）與 `IMITATION_CHECKPOINT_DIR`。
+3. **程式 default 與測試釘死的路徑**：`rl/paired3.py` 的 `DATA_DIR`、
+   `rl/rl_train.py` 的 `INIT_CHECKPOINT`、`rl/train.py` 的 `--data-dir`／`--out-dir`、
+   `rl/collect.py` 與 `rl/caches.py` 的讀者，以及 `tests/` 內以字面路徑檢查存在／
+   gitignore 的斷言。
+4. **守衛與 README**：`tests/conftest.py` 的 `GUARD_PATTERNS`（`data/imitation/*`、
+   `data/rl/*`）與 `data/README.md`／`eval/README.md` 的血統清單。
+
+搬檔順序固定：**先 `md5sum` 全樹留底 → 搬 → 改引用 → 最後才移除舊路徑 → 再驗一次
+md5**（`data/` 幾乎全未追蹤，git 不提供 undo）。`.gitignore` 的 `data/` 區塊多在
+一層時要**同時**反白父目錄（`!data/imitation/`）再排除內容，否則 `data/*` 命中
+`data/imitation`，底下的 negation 全部無效——這是 2026-10-19 整頓時踩到的坑。

@@ -37,7 +37,7 @@ python3 main.py              # 開始遊戲（pygame 視窗）
 python3 match.py --games 100 # 全 AI 聯賽 100 局，結果寫進排行榜
 python3 match.py --games 20 --dry   # 只跑不寫檔
 python3 match.py --games 100 --reset  # 先清空排行榜再跑
-.venv-rl/bin/python -m pytest tests/ -q -n 8   # 跑測試（約 160–175 秒，601 項）
+.venv-rl/bin/python -m pytest tests/ -q -n 8   # 跑測試（約 5–6 分鐘，1149 項）
 ```
 
 > 測試要用 `.venv-rl`（torch 與 `pytest-xdist` 裝在那裡），不是系統的 `python3`。
@@ -334,6 +334,7 @@ A 組 5,000 對的平均名次差為 **−0.0817**、95% 區間 [−0.1086, −0
 ```
 main.py      進入點：pygame 初始化、事件迴圈、60 FPS
   └── ui.py          介面：棋盤繪製、手牌互動、排行榜顯示、訊息提示
+         └── layout.py     16:9 視窗與三欄幾何（從 ui.py 抽出）
          └── game.py        遊戲狀態機 SETUP → PLAYING → GAME_OVER
               ├── board.py    棋盤：格網、放置合法性、連通區塊
               ├── pieces.py   棋塊定義、旋轉生成、手牌管理
@@ -342,11 +343,17 @@ main.py      進入點：pygame 初始化、事件迴圈、60 FPS
 match.py     全 AI 聯賽工具（不影響玩家對局流程）
   └── game.py, records.py
 records.py   排行榜：每個人格的平均分與平均餘格
+gamelog.py   人類對局的資料集（`data/humanlog/`）
+seats.py     席位模型：選項、顏色、輪轉；權重載入路徑的讀者
 engine.py    純 Python 的規則引擎：400-bit 狀態、旋轉、合法步、正規化視圖
 rl/          模仿學習的實驗骨架（見「rl/ 套件」）
-tools/       量測與驗證腳本（benchmark、跨引擎檢查）
-bench_engine.py  F 階段的跨層量測
-tests/       30 個檔案，601 項測試
+blokuselo/   評分引擎（Plackett-Luce）與校準／診斷腳本
+tools/       量測與驗證腳本（benchmark、跨引擎檢查、ui_shots、pair0k、openings）
+bench_engine.py  F 階段的跨層量測（7 個測試直接 import 它，留在根目錄）
+docs/        plans/ 計畫文件、reports/ 量測報告
+data/        訓練資料與檢查點，依學習者血統分組（見 data/README.md）
+eval/        評測證據，依學習者血統分組（見 eval/README.md）
+tests/       58 個 .py 檔，1149 項測試
 ```
 
 資料流是單向的：`ui.py` 畫出 `game.py` 的狀態，玩家操作呼叫 `game.act()`，
@@ -365,8 +372,12 @@ tests/       30 個檔案，601 項測試
 | `board.py` | `Board` 類別：格網、`empty_bits`／`owner_bits`、`Reach`、連通區塊、合法性判定 |
 | `pieces.py` | 21 種棋塊、旋轉去重、手牌容器 |
 | `game.py` | 回合狀態、開局角位規則、順時針輪轉、勝負判定 |
+| `gamelog.py` | 人類對局寫成 `data/humanlog/` 的 JSONL |
+| `seats.py` | 席位選項、顏色分配、輪轉；讀 `ai/registry.json` 與權重路徑 |
+| `layout.py` | 16:9 視窗與面板／棋盤／手牌三欄幾何 |
 | `engine.py` | 與 `board.py` 平行的另一份規則實作，用不可變的 `State` 描述整局 |
 | `records.py` | 排行榜持久化（`records.json`） |
+| `blokuselo/` | 純 Python 的 Plackett-Luce 評分器，加校準與診斷腳本 |
 | `ai/` | AI 套件，見下一節 |
 | `rl/` | 模仿學習實驗骨架，見下 |
 
@@ -670,7 +681,7 @@ AI 要在幾百毫秒內對 21 種棋塊、數千個候選做決策，所以每�
 ## 測試
 
 ```bash
-.venv-rl/bin/python -m pytest tests/ -q -n 8    # 601 項，約 160–175 秒
+.venv-rl/bin/python -m pytest tests/ -q -n 8    # 1149 項，約 5–6 分鐘
 ```
 
 **不要用 `-n 12` 或更高。** `test_rl_env.py` 有模組層級的快取，每個 worker 各自
