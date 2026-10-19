@@ -37,6 +37,7 @@
 | `h/50k_v4` | h | 229M | — | — | 可刪（最終未入池；r35 僅作後續起點） |
 | `h/100k` | h | 581M | `rl_h1000_100k` | `ai/checkpoints/rl_h1000_100k/step_000200.pt` | 保留（席位來源） |
 | `h/t05` | h | 337M | — | — | 可刪（T=0.5 run 未入池） |
+| `h/plan9_step1_backup` | h | 5.5M | — | — | 待裁決（見下；非 run，是改名前的安全備份） |
 | `i/20k` | i | 224M | `rl_i1000_20k` | `ai/checkpoints/rl_i1000_20k/step_000040.pt` | 保留（席位來源） |
 | `i/20k_par` | i | 19M | — | — | 可刪（掃描變體） |
 | `i/20k_seq` | i | 19M | — | — | 可刪（掃描變體） |
@@ -56,6 +57,12 @@
 
 「可刪」是**候選**，不是本輪已刪。刪除前要確認對應的 `eval/` 證據不需要重放；席位來源
 （保留欄）在席位仍載入時不得刪。
+
+`h/plan9_step1_backup/` 不是訓練 run，是 plan9 步驟 1（`rl_1000_20k → rl_h1000_20k`
+純改名）前留下的**安全備份**：內含改名前的 `records.json`（排行榜 key 仍是舊拼法
+`rl_1000_20k`）與 `step_000040.pt`（與 `h/20k/step_000040.pt` md5 相同的權重副本）。
+2026-10-19 整頓時從 `data/plan9_step1_backup/` 搬進來，檔名與內容不變（兩個檔的 md5
+逐檔一致：`55dd6a54…`、`9e788eab…`），全 repo 只有本檔引用它。是否刪除仍待裁決。
 
 ## 不動的檔與其他殘檔
 
@@ -77,7 +84,7 @@
 | `rl_h50k_v4_train.log` | `rl/h/50k_v4/rl_h50k_v4_train.log` | `c4372a5e…` |
 | `rl_i50k_v3_train.log` | `rl/i/50k_v3/rl_i50k_v3_train.log` | `b5cd83ea…` |
 
-**刪除候選（待裁決，本輪未動）**：`plan9_step1_backup/`（5.5M）。
+`data/plan9_step1_backup/` 已於同日搬成 `data/rl/h/plan9_step1_backup/`（見上表）。
 
 ### 24 個 `imit_*.npz` 為什麼留在根層
 
