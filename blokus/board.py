@@ -1,7 +1,7 @@
 """20x20 board: grid, placement, connectivity, scoring."""
 from typing import NamedTuple
 
-from config import B, N, CORNERS
+from config import B, N, CORNERS, SEATS
 
 # Column guards for the bitmask dilations below. Without them `mask >> 1` on an
 # x=0 square would land on (y-1, 19) and `mask << 1` on an x=19 square on
@@ -101,9 +101,9 @@ class Board:
     def __init__(self):
         self.grid = [-1] * N
         self.empty_bits = ALL
-        self.owner_bits = [0, 0, 0, 0]
-        self.corner_regions = [[frozenset() for _ in range(4)] for _ in range(4)]
-        self.borders = [[frozenset() for _ in range(4)] for _ in range(4)]
+        self.owner_bits = [0] * SEATS
+        self.corner_regions = [[frozenset() for _ in range(4)] for _ in range(SEATS)]
+        self.borders = [[frozenset() for _ in range(4)] for _ in range(SEATS)]
 
     def can_place(self, x, y, cells, owner, must_cover=None, reach=None):
         """Legality choke point.
@@ -204,7 +204,7 @@ class Board:
         the player-facing score any more: a game is scored on the squares a
         player failed to place, tracked by `Game.remaining_cells`.
         """
-        for o in range(4):
+        for o in range(SEATS):
             for ci, (cx, cy) in enumerate(CORNERS):
                 reg = self.connected_region(cx, cy, o)
                 br = set(reg)
