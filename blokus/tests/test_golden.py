@@ -36,9 +36,23 @@ def test_every_case_has_a_recorded_game():
 
 
 def test_the_baseline_records_where_it_came_from():
-    """The file is only meaningful next to the commit it was recorded from."""
-    assert META["generated_from_head"]
-    assert META["generated_at_utc"]
+    """The file is only meaningful next to the commit it was recorded from.
+
+    The date is checked for *shape*, never for its value: a regenerated
+    baseline has a different timestamp and must still pass, otherwise the
+    test would have to be edited every time the file is (legitimately)
+    refreshed. Only existence, type and format are pinned.
+    """
+    from datetime import datetime
+
+    head = META["generated_from_head"]
+    assert isinstance(head, str) and head, head
+
+    stamp = META["generated_at_utc"]
+    assert isinstance(stamp, str) and stamp, stamp
+    parsed = datetime.fromisoformat(stamp)      # raises if not ISO 8601
+    assert parsed.tzinfo is not None, "the timestamp must be timezone-aware"
+
     assert META["cases"] == len(CASES)
     assert META["plies"] == sum(len(g["moves"]) for g in GAMES.values())
 
