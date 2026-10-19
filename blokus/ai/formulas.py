@@ -643,6 +643,7 @@ def board_feats(grid):
             continue
         for n in NEIGH[p]:
             if grid[n] == -1:
+                # Explicit sum, not sum(nc[n]): the builtin measured 4-7% slower (REFACTOR_BASELINE.md).
                 total = nc[n][0] + nc[n][1] + nc[n][2] + nc[n][3]
                 for o in range(SEATS):
                     defend[o][p] += total - nc[n][o]
