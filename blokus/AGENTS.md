@@ -376,7 +376,7 @@ blokus/
   pieces.py records.py seats.py ui.py match.py bench_engine.py
   blokuselo/    評分引擎（= 原 blokuselo.py）＋校準／診斷
   tools/        benchmark、跨引擎檢查、ui_shots、pair0k、openings...
-  docs/plans/   原 plan*.md（13 份）
+  docs/plans/   原 plan*.md（12 份）
   docs/reports/ 原 reports/
   data/         訓練資料，依血統分組（README.md 入版控）
   eval/         評測證據，依血統分組（README.md 入版控）
