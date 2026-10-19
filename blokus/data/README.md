@@ -65,7 +65,7 @@
 | `match/` | runtime；`match.DEFAULT_OUT_DIR` 指向它 |
 | `manifest.json` | 原始資料集 manifest（用途未查明） |
 | `records_pre_hc2.json`、`records_pre_rl.json` | 舊 `records.json` 快照（用途未查明） |
-| `imit_train_*.npz`、`imit_valid_*.npz` | H 階段的 imitation 分片，留在根層 |
+| `imit_train_*.npz`、`imit_valid_*.npz` | H 階段 imitation 分片，留在根層（見下） |
 
 三個訓練日誌已於 2026-10-19 搬進各自的 run 目錄，檔名不變，搬動前後 md5 逐檔一致：
 
@@ -76,3 +76,21 @@
 | `rl_i50k_v3_train.log` | `rl/i/50k_v3/rl_i50k_v3_train.log` | `b5cd83ea…` |
 
 **刪除候選（待裁決，本輪未動）**：`plan9_step1_backup/`（5.5M）。
+
+### 24 個 `imit_*.npz` 為什麼留在根層
+
+`data/imit_train_*.npz` 與 `data/imit_valid_*.npz` 共 24 檔（12 個 train 分片、種子段
+1,000,000；12 個 valid 分片、種子段 2,000,000），合計 6,011,986 bytes。它們**不屬於
+h / i / o / b 任何單一血統**：是 H 階段 `rl/collect.py` 產出的 imitation 分片，跨血統
+共用同一套命名，所以沒有可以歸進去的血統目錄。三個留在根層的理由：
+
+1. **有已提交證據在盤點它們**：`docs/reports/g_raw.json` 的 `disk.files` 以**裸檔名**
+   記下每一個檔與大小（`imit_train_1000000_1000166.npz`: 440284 …，合計 6,011,986
+   bytes）。搬動會讓那份盤點描述的目錄內容對不上。
+2. **程式的產出預設就在根層**：`rl/collect.py` 的 `--out` 預設是 `DATA_DIR =
+   os.path.join(HERE, "data")`，重跑仍會生成在 `data/` 根層；把現有檔搬走會立刻與
+   程式預設不一致。
+3. **計畫文件以這個路徑當範例**：`docs/plans/plan3.md:227` 寫 `data/imit_train_…npz`。
+
+因此這 24 檔**不可隨任一血統一起刪除**（例如「刪掉 h 的 v2 分支」不涵蓋它們）。要動
+就整批另案處理，並同步 `rl/collect.py` 的 `--out` 預設與 `g_raw.json` 的說明。
