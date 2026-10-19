@@ -1,19 +1,19 @@
 # 階段 H-C2 報告：修正 latch 後重生成模仿資料並重訓
 
-報告全文在本檔，原始數字在 `reports/hc2_raw.json`，資料與檢查點在 `data/hc1/`、
-`data/hc2/`（皆已 gitignore）。
+報告全文在本檔，原始數字在 `reports/hc2_raw.json`，資料與檢查點在 `data/imitation/hc1/`、
+`data/imitation/hc2/`（皆已 gitignore）。
 
 程式碼基準：**`51d26d7`**（plan7-A，「Latch stuck seats exactly」）。
-`data/hc1/manifest.json` 記 `commit=51d26d7, dirty=false`，資料與訓練都能追回這一個 commit。
+`data/imitation/hc1/manifest.json` 記 `commit=51d26d7, dirty=false`，資料與訓練都能追回這一個 commit。
 
 本階段回答一個問題：**把 `stuck` 鎖定改為精確之後，重新生成模仿資料並重訓，會不會
 付出或換到可測得的強度？**
 
 ---
 
-## 1. 資料：`data/hc1` 與 `data/hb1` 只差 `stuck` 一欄
+## 1. 資料：`data/imitation/hc1` 與 `data/imitation/hb1` 只差 `stuck` 一欄
 
-規格逐項取自 `data/hb1/manifest.json`，**種子區段也完全相同**
+規格逐項取自 `data/imitation/hb1/manifest.json`，**種子區段也完全相同**
 （train 6000000–6029378、valid 6100000–6101545、workers 12）。
 因此兩份資料之間唯一的變數就是 latch 本身。
 
@@ -83,7 +83,7 @@
 
 ---
 
-## 2. 訓練：`data/hc2`
+## 2. 訓練：`data/imitation/hc2`
 
 設定與 H-B2 只差三項，其餘全部沿用（27 通道、batch 256、AdamW wd 1e-4、峰值 1e-3、
 終點 1e-5、fp32、單一固定種子 20260903、64 通道 × 6 區塊）：
@@ -160,7 +160,7 @@ warmup 維持 500 步。
 
 ## 4. 結論
 
-1. 修掉 latch 少報之後，`data/hc1` 的 `stuck` 欄位第一次與規則**零不符**，
+1. 修掉 latch 少報之後，`data/imitation/hc1` 的 `stuck` 欄位第一次與規則**零不符**，
    而資料的其餘 13 個欄位與 H-B1 逐位元相同 —— 這是一次乾淨的單變數實驗。
 2. H-C2 在 10,000 步內驗證損失單調降到 0.9768，無過擬合，無發散。
 3. **評測上三個 H-C2 檢查點與舊 H-B2 step_002000 無法區分。**
@@ -176,7 +176,7 @@ warmup 維持 500 步。
 
 ## 5. 與 `plan7.md` 指示不符之處
 
-1. **`--prefix hb1`**：`rl/caches.shard_order()` 寫死 `startswith("hb1_")`。若 `data/hc1`
+1. **`--prefix hb1`**：`rl/caches.shard_order()` 寫死 `startswith("hb1_")`。若 `data/imitation/hc1`
    用 `hc1_` 前綴，`Resident` 讀不到資料。改用 `--prefix hb1` 讓檔名與 hb1 一致，
    資料集靠**目錄名**區分。未改共用程式碼。
 2. **一併建了 `labels_view.npy`**：指示第 3 點只寫 `legalactions.npz`，但 `Trainer`
@@ -184,7 +184,7 @@ warmup 維持 500 步。
 3. **`rl.caches.build_legal_cache` / `build_label_cache` 無法使用**：兩者的 pool worker
    是閉包，而 `pool.map` 即使在 `fork` start method 下也要 pickle 函式物件，實測拋
    `AttributeError: Can't pickle local object ...<locals>.one`。改寫為模組層級 worker，
-   並**先對 `data/hb1` 重建兩個快取做驗證**：`labels_view.npy` 相同，
+   並**先對 `data/imitation/hb1` 重建兩個快取做驗證**：`labels_view.npy` 相同，
    `legalactions.npz` 的 flat/offsets/counts/shards/rows 全部相同
    （240,569,093 索引），確認產物格式與 H-B2 訓練時所完全一致。
 4. **評測用薄驅動呼叫 `match.main()`**：`match.py` 的 CLI 沒有 `--checkpoint-dir`
@@ -198,4 +198,4 @@ warmup 維持 500 步。
 6. **評測輸出全部寫入 `/tmp`**，`data/match/` 維持 3 檔未動。
 7. **repo 程式碼零改動**：本階段只新增本檔與 `reports/hc2_raw.json`。
    全套 `-n 8` 仍 **764 passed**（262.6 s）。
-8. **`data/` 檔案數 142 → 230**（`data/hc1` 75 檔、`data/hc2` 13 檔，其餘不變）。
+8. **`data/` 檔案數 142 → 230**（`data/imitation/hc1` 75 檔、`data/imitation/hc2` 13 檔，其餘不變）。

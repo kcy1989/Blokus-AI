@@ -46,7 +46,7 @@ h 的 20k 已在名冊上,o / b / i 的 20k 未入名冊,靠 `--adhoc KEY=PATH` 
 
 | 欄位 | 值 |
 | --- | --- |
-| 訓練檔 | `data/rl_o1000/step_000040.pt` 等;md5 `b0f7c122…` / `0a8c0341…` / `430c28cb…` |
+| 訓練檔 | `data/rl/o/20k/step_000040.pt` 等;md5 `b0f7c122…` / `0a8c0341…` / `430c28cb…` |
 | 入庫檔 | `ai/checkpoints/rl_<x>1000_20k/step_000040.pt`;sha256 `272b2edf…` / `63aeb600…` / `3db862d3…` |
 | `history` | 「模仿 1000 步 + 單打 20k」 |
 | `train_seed` | **`7200000`(int,種子基底)**;範圍 **`7200000–7219999`** |
@@ -60,7 +60,7 @@ h 的 20k 已在名冊上,o / b / i 的 20k 未入名冊,靠 `--adhoc KEY=PATH` 
 commit / command)—— 第三方不存在,記為事實,不補、不改訓練端。
 
 > **在 `records.json` 補上這些欄位之前,三個 20k 的 provenance 以本檔與
-> `data/rl_*1000/MANIFEST.json` 為準。**
+> `data/rl/{h,i,o,b}/20k/MANIFEST.json` 為準。**
 
 **與計畫「7 人格池」的差異**:
 
@@ -173,7 +173,7 @@ commit / command)—— 第三方不存在,記為事實,不補、不改訓練端
 .venv-rl/bin/python match.py --games 3000 --seed 20261005 --paired-rng \
     --subject rl_o1000_20k --mode argmax --gzip --dry \
     --pool rl_h1000_0k,rl_o1000_0k,rl_b1000_0k,rl_i1000_0k,hunter,optimizer,builder,intruder,fox,chess,wolf,rl_o1000_20k \
-    --adhoc rl_o1000_20k=data/rl_o1000/step_000040.pt \
+    --adhoc rl_o1000_20k=data/rl/o/20k/step_000040.pt \
     --out <新檔名>.json.gz
 
 # (乙) 註冊後(現在) —— 去掉 --adhoc,其餘逐字相同
@@ -183,7 +183,7 @@ commit / command)—— 第三方不存在,記為事實,不補、不改訓練端
     --out <新檔名>.json.gz
 ```
 
-`tools/openings.py` 同理:當時的命令帶 `--adhoc KEY=data/rl_*1000/step_000040.pt`,
+`tools/openings.py` 同理:當時的命令帶 `--adhoc KEY=data/rl/{h,i,o,b}/20k/step_000040.pt`,
 註冊後去掉即可。
 
 **兩套等價的實測**(2026-10-09,20 局、seed `20261005`、argmax、同池同 subject,

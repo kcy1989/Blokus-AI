@@ -44,7 +44,7 @@ rl_h1000_20k, rl_i1000_50k, rl_o1000_20k, rl_b1000_50k
 ### 2-1 `rl_i1000_50k`：違反 plan10 §1 第 3 項，經裁示保留
 
 `rl_i1000_50k` 是學習者**從同一個 `rl_i1000_20k` 訓練出來的 50k**
-（registry `source: data/multi/i/step_000100.pt`），正是 §1-3 舉的
+（registry `source: data/rl/shared/four-at-once/i/step_000100.pt`），正是 §1-3 舉的
 「訓練 h20k→50k 時池內有 h50k」那個形況，屬**明文禁止**。
 
 **經使用者明確裁示保留，理由：它是實際遊戲池的對手。**
@@ -163,8 +163,8 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 | 頻率 | `--eval-every 5` → rounds 45, 50, …, 100（12 次） |
 | 局數 / 種子 | 100 局，`stage RL validation` = 7,100,000–7,100,999 |
 | 模式 | argmax |
-| **錨點** | **`--anchor ai/checkpoints/rl_i1000_20k/step_000040.pt`**（**不是**預設的 `data/hc2/step_001000.pt` 0k） |
-| 輸出 | `data/rl_i1000_v2/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**，內容是上面那個錨點） |
+| **錨點** | **`--anchor ai/checkpoints/rl_i1000_20k/step_000040.pt`**（**不是**預設的 `data/imitation/hc2/step_001000.pt` 0k） |
+| 輸出 | `data/rl/i/20k_v2/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**，內容是上面那個錨點） |
 
 > **這條曲線只是曲線，不入 §4 判準，不得作為入池理由。**
 > 欄名 `hc_1000` 是 0k 退役前留下來的歷史欄名，改名會把一份基線切成兩段；
@@ -263,7 +263,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 ```
 
 **唯讀的依據（已查碼）**：`rl/rl_train.py` 全檔唯一寫入是 `save_checkpoint`，
-其路徑一律來自 `checkpoint_paths(out_dir)` = `data/rl_i1000_v2/`；
+其路徑一律來自 `checkpoint_paths(out_dir)` = `data/rl/i/20k_v2/`；
 `rl/rollout.py` 這層只有 `load_policy` / `torch.load`，無 `torch.save`。
 `Game.setup_seats(..., checkpoint_dir=None)` → `seats.build_brain` 讀 registry
 `checkpoint`，只讀。
@@ -276,16 +276,16 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 
 | | 值 |
 |---|---|
-| 訓練目錄 | `data/rl_i1000_v2/`（已由 `.gitignore:80` 的 `data/*` 忽略） |
-| 佈置 | `cp data/rl_i1000/step_000040.pt data/rl_i1000_v2/latest.pt`，**sha256 逐位相等後才啟動** |
+| 訓練目錄 | `data/rl/i/20k_v2/`（已由 `.gitignore:80` 的 `data/*` 忽略） |
+| 佈置 | `cp data/rl/i/20k/step_000040.pt data/rl/i/20k_v2/latest.pt`，**sha256 逐位相等後才啟動** |
 | 產出 | `step_000041.pt` … `step_000100.pt` + `latest.pt` / `current.pt` / `rounds.jsonl` / `eval.jsonl` |
-| 不碰 | `data/rl_i1000/`、`data/multi/`、`data/multi_rb80/`、`data/rl_h50k_v2/`、`ai/checkpoints/` 內既有檔 |
+| 不碰 | `data/rl/i/20k/`、`data/rl/shared/four-at-once/`、`data/rl/shared/four-at-once-rb80/`、`data/rl/h/50k_v2/`、`ai/checkpoints/` 內既有檔 |
 
 ### 起點檢查點
 
 | 項 | 值 |
 |---|---|
-| 路徑 | `ai/checkpoints/rl_i1000_20k/step_000040.pt`（來源 `data/rl_i1000/step_000040.pt`） |
+| 路徑 | `ai/checkpoints/rl_i1000_20k/step_000040.pt`（來源 `data/rl/i/20k/step_000040.pt`） |
 | sha256 | `3db862d34fbe48943621e373d29adc456016c12675daf86133abf0460518c9d0`（實測 = registry） |
 | `round` / `step` | 40 / 40 |
 | **`entropy_reference`** | **1.394941998852624** |
@@ -299,7 +299,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 ```bash
 python -m rl.rl_train \
   --resume \
-  --out data/rl_i1000_v2 \
+  --out data/rl/i/20k_v2 \
   --games 30000 --per-round 500 \
   --seed-base 7150000 \
   --n-procs 8 \
@@ -315,7 +315,7 @@ python -m rl.rl_train \
 | 項 | 條件 | 實測 |
 |---|---|---|
 | 訓練 rollout | 500 局、11 席池、softmax、`n_procs=8` | **58.2 s（8.59 局/s）** |
-| update | 500 局 batch、cuda | **32.49 s**（取自 `data/rl_i1000/rounds.jsonl` 40 輪平均） |
+| update | 500 局 batch、cuda | **32.49 s**（取自 `data/rl/i/20k/rounds.jsonl` 40 輪平均） |
 | 評測 | 200 局、11 席池、argmax、`n_procs=4` | **≈ 4.7 局/s**（current 42.1 s、ref 43.0 s） |
 
 | | 計算 | 時間 |

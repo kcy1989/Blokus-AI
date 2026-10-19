@@ -132,18 +132,18 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 
 **六個模仿席位已於 plan9 任務四退出名册**（2026-10-10）：`rl_h1000_0k`（舊名
 `hc_1000`）、`hc_2000`、`hc_10000`，以及三個 1000 步學生
-`rl_{o,b,i}1000_0k`。它們**仍然是磁碟上的檔**（`data/hc2/` 與 `data/imit_*/`），
+`rl_{o,b,i}1000_0k`。它們**仍然是磁碟上的檔**（`data/imitation/hc2/` 與 `data/imitation/imit_*/`），
 `match.py --adhoc KEY=PATH` 仍然可以把其中一個綁成席位來重放舊證據；不能的是把它們
 當常規池選項、preset 或 `--subject`。`imitation_only` preset 同時退役，所以 preset
 只剩 `all`（11）／`no_imitation`（7 個人格）／`rl_only`（4 個訓練策略）。
 
 **四個 0k 權重的版本控制跟著收口**（同一任務的第二個提交）：`ai/checkpoints/` 下
 的四份 0k 副本刪除（刪之前逐位 md5 比對過，與 `data/` 原件完全相同），`.gitignore`
-加回四條反白，把 `data/hc2/step_001000.pt` 與 `data/imit_{o,b,i}1000/step_001000.pt`
+加回四條反白，把 `data/imitation/hc2/step_001000.pt` 與 `data/imit_{o,b,i}1000/step_001000.pt`
 納入版控 —— 它們是這些權重**唯一**還在版本控制裡的副本，`rl/` 的測試與舊證據重放都開
 這些檔。已提交的證據裡 `checkpoint` / `control_checkpoint` 欄**不改**（那也是證據），
 `tests/test_eval_evidence.py` 讀檔時經 `RETIRED_0K_PATHS` 對照到 `data/` 再算 md5。
-`data/hc2/step_002000.pt` / `step_010000.pt` 兩行反白維持原狀。
+`data/imitation/hc2/step_002000.pt` / `step_010000.pt` 兩行反白維持原狀。
 
 ### 訓練策略名稱的兩段數字單位不同
 
@@ -152,7 +152,7 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 
 | 片段 | 單位 | 意義 |
 | --- | --- | --- |
-| `h` | — | 0k 起點的老師是 `hunter` 人格（`data/hc1/manifest.json` 記 `teacher = hunter`） |
+| `h` | — | 0k 起點的老師是 `hunter` 人格（`data/imitation/hc1/manifest.json` 記 `teacher = hunter`） |
 | `1000` | **模仿步數** | 0k 版 `rl_h1000_0k` 的模仿訓練步數，**不是** 1,000 局 |
 | `20k` | **RL 局數** | PPO 單打 20,000 **局**（40 輪 × 500 局），**不是** 20 個模仿步 |
 
@@ -163,7 +163,7 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 （`rl_1000_20k` → `rl_h1000_20k`）：`hc_1000` 跟著 `rl_h1000_0k` 一起退出名册，
 兩個拼法都不再解析，舊的 `records.json` 列原樣保留、照樣讀得到。
 
-權重檔本身沒有改名：`data/rl1/step_000040.pt` 的檔名編碼的是**第幾輪**，不是策略
+權重檔本身沒有改名：`data/rl/h/20k/step_000040.pt` 的檔名編碼的是**第幾輪**，不是策略
 名稱。
 
 ### `records.json` 的 `commit` 欄位是「訓練出這些權重的程式碼版本」
@@ -178,7 +178,7 @@ Blokus 是經典的版圖佔領遊戲，四人共用 20x20 的棋盤，每人一
 `rl/rl_train.py` 兩者都沒記（checkpoint 的 blob、`rounds.jsonl`、`eval.jsonl` 都沒有
 commit 欄位）。
 
-從 git 歷史可以把訓練時段（2026-10-05 07:34–08:28，由 `data/rl1/` 各檔的 mtime 決定）
+從 git 歷史可以把訓練時段（2026-10-05 07:34–08:28，由 `data/rl/h/20k/` 各檔的 mtime 決定）
 夾到唯一的 commit `82bfadf`：該時段內沒有任何 commit，前一個 commit 是 `82bfadf`
 （10-05 01:12），下一個是 `1f91b04`（10-05 08:56）。**但這是推論，不是紀錄**——沒有
 任何東西能證明當時工作樹是乾淨的，而 reflog 只記 HEAD 移動、不記工作樹內容。按本專案
@@ -189,7 +189,7 @@ commit 欄位）。
 commit 與 dirty 記進 checkpoint。那是訓練程式碼，屬於之後動訓練時要一起處理的事。
 
 **三個學生的 20k（`rl_o1000_20k` / `rl_b1000_20k` / `rl_i1000_20k`）的 `commit`
-同樣留 `null`**（使用者裁決 2026-10-09）。它們的 `data/rl_*1000/MANIFEST.json` 確實
+同樣留 `null`**（使用者裁決 2026-10-09）。它們的 `data/rl/{h,i,o,b}/20k/MANIFEST.json` 確實
 記了 `commit = 88c8a18f…`，但那是開跑時 `git rev-parse HEAD` 的結果，**沒有記工作樹
 是否乾淨**，按同一個標準（`code_hash()` 的那句註解）不足以識別訓練資料，所以**不採用**。
 同日定案的其他欄位：`history` = 「模仿 1000 步 + 單打 20k」、`train_seed` =
@@ -198,7 +198,7 @@ commit 與 dirty 記進 checkpoint。那是訓練程式碼，屬於之後動訓�
 `true`。**這些欄位本次尚未寫進 `records.json`**：`Records._load` 只保留 `games > 0`
 的列，三個 20k 從未對局，寫了下次載入就整條消失（`rows()` 已為「先給 provenance 再
 對局」留了過濾，持久化沒跟上 —— 見 AGENTS 待辦）。在那之前，**三個 20k 的
-provenance 以 `eval/shared/0k-to-20k/README.md` 與各 `data/rl_*1000/MANIFEST.json` 為準**。
+provenance 以 `eval/shared/0k-to-20k/README.md` 與各 `data/rl/{h,i,o,b}/20k/MANIFEST.json` 為準**。
 
 ### 權重式
 
@@ -503,11 +503,11 @@ import 就被拒絕，錯誤訊息指名那個 key。
 
 | key | 來源（`source`，仍在 `data/`） | 載入路徑（`checkpoint`，已入版控） | sha256（來源 == 目的地） |
 |---|---|---|---|
-| `rl_h1000_20k` | `data/rl1/step_000040.pt` | `ai/checkpoints/rl_h1000_20k/step_000040.pt` | `e1dc6230…4801636` |
-| `rl_h1000_0k` | `data/hc2/step_001000.pt` | `ai/checkpoints/rl_h1000_0k/step_001000.pt` | `fc0052d3…cd11b74` |
-| `rl_o1000_20k` | `data/rl_o1000/step_000040.pt` | `ai/checkpoints/rl_o1000_20k/step_000040.pt` | `272b2edf…c1ad90` |
-| `rl_b1000_20k` | `data/rl_b1000/step_000040.pt` | `ai/checkpoints/rl_b1000_20k/step_000040.pt` | `63aeb600…1daa6a` |
-| `rl_i1000_20k` | `data/rl_i1000/step_000040.pt` | `ai/checkpoints/rl_i1000_20k/step_000040.pt` | `3db862d3…18c9d0` |
+| `rl_h1000_20k` | `data/rl/h/20k/step_000040.pt` | `ai/checkpoints/rl_h1000_20k/step_000040.pt` | `e1dc6230…4801636` |
+| `rl_h1000_0k` | `data/imitation/hc2/step_001000.pt` | `ai/checkpoints/rl_h1000_0k/step_001000.pt` | `fc0052d3…cd11b74` |
+| `rl_o1000_20k` | `data/rl/o/20k/step_000040.pt` | `ai/checkpoints/rl_o1000_20k/step_000040.pt` | `272b2edf…c1ad90` |
+| `rl_b1000_20k` | `data/rl/b/20k/step_000040.pt` | `ai/checkpoints/rl_b1000_20k/step_000040.pt` | `63aeb600…1daa6a` |
+| `rl_i1000_20k` | `data/rl/i/20k/step_000040.pt` | `ai/checkpoints/rl_i1000_20k/step_000040.pt` | `3db862d3…18c9d0` |
 
 三個學生的 `step_000040.pt` 入庫前做了**兩方雜湊核對**：檔案本身 vs 32 個驗收批次
 `adhoc` payload 記的 md5（每個 key 各 14 筆）**逐筆相同** —— o `b0f7c122…`、
@@ -516,12 +516,12 @@ anchor / seed / commit / command），所以「三方一致」的第三方不存
 不補、不改訓練端（使用者裁決 2026-10-09）。
 
 複製前後逐檔 `sha256` 比對通過才繼續；`hc_2000` / `hc_10000` 依裁決 B **不搬**，
-`checkpoint` 仍是 `data/hc2/step_002000.pt` / `step_010000.pt`。
+`checkpoint` 仍是 `data/imitation/hc2/step_002000.pt` / `step_010000.pt`。
 
-**`.gitignore` 是過渡狀態，不是終點。** 已撤銷 `!data/hc2/step_001000.pt` 與
-`!data/rl1/step_000040.pt`（並 `git rm --cached`，檔留在磁碟上），所以那兩份
+**`.gitignore` 是過渡狀態，不是終點。** 已撤銷 `!data/imitation/hc2/step_001000.pt` 與
+`!data/rl/h/20k/step_000040.pt`（並 `git rm --cached`，檔留在磁碟上），所以那兩份
 `data/` 副本不再入版控 —— 乾淨 clone 靠 `ai/checkpoints/`。
-`!data/hc2/step_002000.pt` 與 `!data/hc2/step_010000.pt` **保留**：這兩個檔是
+`!data/imitation/hc2/step_002000.pt` 與 `!data/imitation/hc2/step_010000.pt` **保留**：這兩個檔是
 `hc_2000` / `hc_10000` 僅有的權重，撤了就會讓乾淨 clone 連 `--pool hc_2000` 都開
 不了。**階段 6 把它們設成 `enabled: false` 之後要回來處理這兩行**，那時它們既不
 在常規池也不該佔版控。
@@ -530,7 +530,7 @@ anchor / seed / commit / command），所以「三方一致」的第三方不存
 `run_league(2, seed=20260928)`，輸出逐字相同（md5
 `8166309cdcddb098bdc4c5b8233d6fcc`，`diff` 無輸出）—— 改的是檔案從哪裡來，
 不是檔案是什麼。同一次比對也記錄了真正被開啟的權重檔：兩棵樹只差
-`data/hc2/step_001000.pt` → `ai/checkpoints/rl_h1000_0k/step_001000.pt`，其餘
+`data/imitation/hc2/step_001000.pt` → `ai/checkpoints/rl_h1000_0k/step_001000.pt`，其餘
 逐位元相同。
 
 ### 選棋流水線
@@ -986,9 +986,9 @@ EOF
 | `test_registry_json::test_an_anchor_that_is_not_registered_is_refused` | `_validate_roster` 對缺席 anchor raise | **除檔**（裁決 3）。校驗整段刪除，函式體確認只有 anchor 一項檢查 |
 | `test_registry_json::test_the_json_lists_the_checkpoints_in_step_order` | 模仿家族的列序等於 `IMITATION_KEYS` 的列序 | 改為 `test_the_imitation_family_is_empty`：家族空了就沒有第二邊可比，改釘「空」本身。`IMITATION_KEYS` 表由 `test_seats::test_the_hc2_chain_still_points_at_hc2_files` 接手 |
 | `test_registry_json::test_every_imitation_key_step_is_its_checkpoint_filename_step` | 每個模仿 key 的 `checkpoint` 檔名解析回它的 step | **除檔**：迴圈在空家族上是空真，留下來只會讓人以為還在驗什麼 |
-| `test_registry_json::test_a_checkpoint_name_that_is_not_a_step_file_raises` | monkeypatch `registry_checkpoint` 回一個不合慣例的路徑 → `imitation_step` raise | **除檔**：被驗的解析讀的是 registry 的 `checkpoint` 欄，而模仿席位已經沒有那一欄。檔名慣例的另一半（`step_%06d.pt` 且檔案真的在）改由 `test_seats::test_the_hc2_chain_still_points_at_hc2_files` 對 `data/hc2` 的三個檔驗 |
+| `test_registry_json::test_a_checkpoint_name_that_is_not_a_step_file_raises` | monkeypatch `registry_checkpoint` 回一個不合慣例的路徑 → `imitation_step` raise | **除檔**：被驗的解析讀的是 registry 的 `checkpoint` 欄，而模仿席位已經沒有那一欄。檔名慣例的另一半（`step_%06d.pt` 且檔案真的在）改由 `test_seats::test_the_hc2_chain_still_points_at_hc2_files` 對 `data/imitation/hc2` 的三個檔驗 |
 | `test_registry_json::test_ai_checkpoints_holds_nothing_unpublished` | `ai/checkpoints/` 內容 == 已註冊的 `ai/checkpoints/` 路徑 | **過渡態**：四個 0k 副本在本提交仍在磁碟上（刪除是同一任務的第二個提交）。改成 `已註冊 ∪ PENDING_REMOVAL`，`PENDING_REMOVAL` 是四個檔名的字面清單，並多斷言它與已註冊集合不相交。第二個提交連檔帶清單一起刪 |
-| `test_seats::test_the_checkpoint_seats_are_the_hc2_run` | 每個 H-C2 step 經 `registry.entry` 對上 `source` / `checkpoint` | 改為 `test_the_hc2_chain_still_points_at_hc2_files`：registry 沒有那些列了，改釘「`IMITATION_STEPS` / `IMITATION_KEYS` / `IMITATION_CHECKPOINT_DIR` 仍指向 `data/hc2` 的三個檔」＋「三個名字都不再是席位」（`kind_of` / `imitation_step` / `imitation_checkpoint` 一律 raise）。這是**放寬**：原本還驗 `source` 欄與 sha256 對應關係，那欄已隨列刪除；換來的是「退休後沒有靜默路徑」這條新性質 |
+| `test_seats::test_the_checkpoint_seats_are_the_hc2_run` | 每個 H-C2 step 經 `registry.entry` 對上 `source` / `checkpoint` | 改為 `test_the_hc2_chain_still_points_at_hc2_files`：registry 沒有那些列了，改釘「`IMITATION_STEPS` / `IMITATION_KEYS` / `IMITATION_CHECKPOINT_DIR` 仍指向 `data/imitation/hc2` 的三個檔」＋「三個名字都不再是席位」（`kind_of` / `imitation_step` / `imitation_checkpoint` 一律 raise）。這是**放寬**：原本還驗 `source` 欄與 sha256 對應關係，那欄已隨列刪除；換來的是「退休後沒有靜默路徑」這條新性質 |
 | `test_seats::test_every_option_is_one_of_the_three_kinds_of_contestant` | `imitation_step` 對六個模仿席位解出 `[1000,1000,1000,1000,2000,10000]` | 改為斷言 `families["imitation"] == []` 且 `imitating == []`。**放寬**：step 解析那條不再在這驗，改由 H-C2 鏈測試對檔名驗 |
 | `test_seats::test_every_network_seat_is_actually_in_the_repository` | 逐個 `imitation_checkpoint(imitation_key(s))` 走 `git check-ignore` | 只留四個 `rl_checkpoint`。**收窄，但性質更準**：這條測的是「`build_brain` 會開的檔必須在版本控制裡」，而 `build_brain` 現在只會開訓練策略的檔 |
 | `test_seats::test_random_ai_draws_from_the_automated_options_only` | `any(is_imitation_key(k))` 為真 | 改為「為假」＋逐個斷言七個退休名不在池內 |
@@ -998,13 +998,13 @@ EOF
 | `test_match_pool` 的混合清單測試 | 用 `hc_2000` / `hc_10000` 當「preset 之外再加一個」的範例 | 全部換成 `rl_h1000_20k` / `rl_o1000_20k`：仍然在 `no_imitation` 之外、仍然是已註冊席位，範例想說的事（聯集、去重、順序與輸入無關）一項不變 |
 | `test_match_pool::test_a_repeated_option_keeps_two_distinct_places` | 單一選項池、種子 3 → 名次 `[1,2,3,4]` 且餘格四個都不同 | 換成 `rl_h1000_20k` 之後種子 3 會平手（名次 `[1,1,3,4]`）。改斷言「四列不因選項相同而合併」＋把並列規則（名次 = 嚴格更好的席位數 + 1）從餘格重述。**放寬**：不再要求四個名次互異，因為那是當時那副權重碰巧的結果，不是性質 |
 | `test_match_pool::test_each_seat_row_carries_its_own_rank_and_points` | 名次集合從 1 起**無缺口** | 同上，改為並列規則重述。**修正**：無缺口在有平手時本來就不成立（競賽排名會跳號），先前只是那局沒平手 |
-| `test_match_pool::test_literal_replays_a_batch_committed_before_the_sort` | `--subject hc_1000` 直接可用 | 補 `--adhoc hc_1000=data/hc2/step_001000.pt`。**這是裁決 7 要的形狀**：舊證據的席位用 `--adhoc` 綁回來，其餘逐位比對不變 |
+| `test_match_pool::test_literal_replays_a_batch_committed_before_the_sort` | `--subject hc_1000` 直接可用 | 補 `--adhoc hc_1000=data/imitation/hc2/step_001000.pt`。**這是裁決 7 要的形狀**：舊證據的席位用 `--adhoc` 綁回來，其餘逐位比對不變 |
 | `test_match_pool::test_a_literal_run_keeps_the_batch_spelling_and_normalises_the_leaderboard` | `--pool hc_1000` → 排行榜長出 `rl_h1000_0k` 列 | 換成唯一還活著的別名 `rl_1000_20k` → `rl_h1000_20k`。**性質不變**（批次保留 caller 拼法、排行榜寫正規名）；用 `hc_1000` 會變成在測 `--adhoc` 而不是別名 |
 | `test_seat_alias_hc.py` 整檔 | 兩個拼法是同一席位：都解析、都載同一份權重、寫入會併到新名 | **整檔改寫**（裁決 4）：改成「兩個舊拼寫**都**不在名册」——不在 `keys()`、不在 `automated_options()`、不在任何 pool、不是別名、`kind_of`/`expand_pool` raise；`canonical_key` 對它們原樣回傳，所以舊 `records.json` 列讀得到、新寫入也留在原名下。原來那幾條（同一份權重、同一手棋、write-through 併列）測的席位已不存在，連同斷言一起退場；權重相同這件事由兩邊的 md5 與 `test_eval_evidence` 繼續釘 |
 | `test_ui_smoke::test_a_leaderboard_row_under_the_old_key_is_named_in_chinese` | `seat_label("hc_1000") == seat_label("rl_h1000_0k")` 且不是鍵名 | 改為「退休鍵原樣印出、不炸也不空」。別名沒了，就沒有中文名可給；不變的性質是「排行榜印檔案裡的鍵，且對不認識的鍵有定義良好的行為」 |
 | `test_ui_smoke` 的重複選項三條測試 | 用 `hc_10000` / `hc_2000` 當兩個同選項的席位 | 換成 `rl_o1000_20k` / `rl_b1000_20k`，斷言一字未改 |
 | `test_match_paired_rng` 的四條 | `hc_1000` 當「人格 ↔ 網絡」邊界的另一端、`S.build_brain("hc_1000", …)` | 換成 `rl_h1000_20k`：仍然是已註冊的訓練策略、仍然「建構時不從 rng 抽牌」，不對稱照樣存在 |
-| `tests/test_{ppo,rl_policy,rl_train,rl_imitation,rl_rollout}.py` 模組頭 | `CHECKPOINT_DIR = dirname(imitation_checkpoint(imitation_key(1000)))` | 改為 `seats.IMITATION_CHECKPOINT_DIR`（就是 `data/hc2`，第二個提交把它納入版控）。四個會「開一局」的模組各加一個 module-scoped 的 `bind_retired_0k`：`seats.register_adhoc("rl_h1000_0k", …)`——與 `match.py --adhoc` 同一個呼叫，所以測試走的是支援路徑而不是私有後門 |
+| `tests/test_{ppo,rl_policy,rl_train,rl_imitation,rl_rollout}.py` 模組頭 | `CHECKPOINT_DIR = dirname(imitation_checkpoint(imitation_key(1000)))` | 改為 `seats.IMITATION_CHECKPOINT_DIR`（就是 `data/imitation/hc2`，第二個提交把它納入版控）。四個會「開一局」的模組各加一個 module-scoped 的 `bind_retired_0k`：`seats.register_adhoc("rl_h1000_0k", …)`——與 `match.py --adhoc` 同一個呼叫，所以測試走的是支援路徑而不是私有後門 |
 
 同次新增：`test_registry_json::test_the_imitation_family_is_empty`、
 `test_seats::test_the_hc2_chain_still_points_at_hc2_files`、
@@ -1263,13 +1263,13 @@ run 中的某一輪」。
 
 | 新席位 | 檔名 | 來源（round 輸出） | 驗收 |
 |---|---|---|---|
-| `rl_h1000_30k` | `step_000060.pt`（40 + 20） | `data/rl_h50k_v3/step_000020.pt` | +0.052220（1.477 × se）vs `rl_h1000_20k` |
-| `rl_i1000_37.5k` | `step_000075.pt`（40 + 35） | `data/rl_i50k_v3/step_000035.pt` | +0.065620（1.597 × se）vs `rl_i1000_20k` |
+| `rl_h1000_30k` | `step_000060.pt`（40 + 20） | `data/rl/h/50k_v3/step_000020.pt` | +0.052220（1.477 × se）vs `rl_h1000_20k` |
+| `rl_i1000_37.5k` | `step_000075.pt`（40 + 35） | `data/rl/i/50k_v3/step_000035.pt` | +0.065620（1.597 × se）vs `rl_i1000_20k` |
 
 **兩顆檔名都按累計 step 數**（plan10 §0）：起點是 step 40，所以 round 20 叫
 `step_000060.pt`、round 35 叫 `step_000075.pt`；`sha256` 與 run 內的原始輸出
-逐位相同，發佈前已驗。h 的副本放在 `data/rl_h1000_30k/` 而不是原 run 目錄，
-因為 `data/rl_h50k_v3/step_000060.pt` 已經被同一條 run 的 round 60 輸出佔用
+逐位相同，發佈前已驗。h 的副本放在 `data/rl/h/30k/` 而不是原 run 目錄，
+因為 `data/rl/h/50k_v3/step_000060.pt` 已經被同一條 run 的 round 60 輸出佔用
 （那顆是没过線的 50k 候選）。
 
 **重算命令**（新值由這支命令在本提交的樹上產出；舊值即上一節的「新值」，
@@ -1429,8 +1429,8 @@ git commit -m "Remove the four 50k seats"
 - **GOLDEN 會自動回到十一 key 池的那份**，因為舊值就寫在 `fe9cb59` 裡，
   revert 即還原，**不需要再重採**。
 - `eval/shared/four-at-once/` 的三個快照**不退**：它們是訓練本身的證據，
-  與席位在不在名册無關。要重現就照快照裡的 sha256 找 `data/multi/` 的檔。
-- `data/multi/` 本來就 gitignored，不受影響。
+  與席位在不在名册無關。要重現就照快照裡的 sha256 找 `data/rl/shared/four-at-once/` 的檔。
+- `data/rl/shared/four-at-once/` 本來就 gitignored，不受影響。
 
 ---
 
@@ -1661,10 +1661,10 @@ plan9a「README 必須記錄」原第 4 項「舊三模仿者移出常規池(使
 
 | key | 步數 | 權重來源 |
 | --- | --- | --- |
-| `rl_h1000_0k` | 1000 | `data/hc2`（H-C2，老師 hunter） |
-| `rl_o1000_0k` / `rl_b1000_0k` / `rl_i1000_0k` | 1000 | 各自 `data/imit_*`（optimizer / builder / intruder） |
-| `hc_2000` | 2000 | `data/hc2` |
-| `hc_10000` | 10000 | `data/hc2` |
+| `rl_h1000_0k` | 1000 | `data/imitation/hc2`（H-C2，老師 hunter） |
+| `rl_o1000_0k` / `rl_b1000_0k` / `rl_i1000_0k` | 1000 | 各自 `data/imitation/imit_*`（optimizer / builder / intruder） |
+| `hc_2000` | 2000 | `data/imitation/hc2` |
+| `hc_10000` | 10000 | `data/imitation/hc2` |
 
 即四個 1000 步席位來自三份不同訓練，與 2000／10000 步混編在同一個 preset 裡。
 
@@ -1683,7 +1683,7 @@ plan9a「README 必須記錄」原第 4 項「舊三模仿者移出常規池(使
 
 ### `hc_2000` / `hc_10000` 在乾淨 clone 的現況（plan9a 階段 9 的已知取捨）
 
-兩者權重在 `data/hc2/`，靠 `.gitignore` 的 `!` 反白**入版控**，所以乾淨 clone
+兩者權重在 `data/imitation/hc2/`，靠 `.gitignore` 的 `!` 反白**入版控**，所以乾淨 clone
 **目前可跑** `--pool hc_2000` 與 `--pool hc_10000`。plan9a 待清理項目 (a) 若
 執行（撤兩行反白 + `git rm --cached`），兩者會退出版控，屆時依賴它們的證據只剩
 本檔與測試中的數字 —— **可讀、不可重跑**。
@@ -1705,11 +1705,11 @@ plan9a 階段 9 要求逐批核對「是否有歷史結果因改名或搬遷而�
 | `rl_b1000_0k-pair.json` / `rl_i1000_0k-pair.json` | md5 `394d9d1c55e82569f4016ad201ac6672` / `ff777cb422d1f7e8ba8cfdd173bd9eb5`，與 `eval/imitation/README.md` 記錄逐字一致；subject 皆為已發布 key | **是**（權重已發布；成對機制在套件內；**僅指可重算，未實際執行**） | **未驗證** —— 只驗了逐局檔 md5 與記錄一致（檔案未變），本次**未重算統計數字** |
 | `rl_o1000_0k` 的 200 局統計 | `eval/imitation/` **沒有** o 的逐局檔；訓練曲線未播種（上一節） | **是**（`rl_o1000_0k` 權重已發布，現行程式可載入；**僅指可另跑新批次，未實際執行**）；訓練曲線另不可重放 | **無法比對** —— 原逐局檔不在 repo，無從對照 |
 | `docs/reports/hc2_raw.json` 四組 5000 局（種子 910001–910004） | 四個 option 名 `step_2000`（兩組）、`step_5000`、`step_10000` 現在 `expand_pool(..., "literal")` **全部** `ValueError: unknown --pool item`（舊名已廢止，由 `test_match_pool` 釘住） | **原指令一律不可原樣跑**；逐組如下 | **四組本次都未跑出比對**；逐組如下 |
-| ├ hc2 `step_002000`（910001） | 權重 `data/hc2/step_002000.pt` **已入版控**（`git ls-files --error-unmatch` 通過） | **是**（option 改寫成 `hc_2000` + literal 順序，同一檔案） | **未驗證** —— 未實際跑出並比對數字 |
-| ├ hc2 `step_005000`（910002） | `data/hc2/step_005000.pt` **未入版控**；名冊沒有任何 key 指向 5000 步 | **否**：乾淨 clone 無權重，且沒有席位能表達它 | **無法重現**（不可執行） |
-| ├ hc2 `step_010000`（910003） | `data/hc2/step_010000.pt` **已入版控** | **是**（option 改寫成 `hc_10000` + literal 順序） | **未驗證** —— 未實際跑出並比對數字 |
-| └ hb2 `step_002000`（910004，舊 H-B2） | `data/hb2/step_002000.pt` **未入版控**；H-B2 席位已被 H-C2 取代，名冊無此 key | **否**：乾淨 clone 無權重，且沒有席位能表達它 | **無法重現**（不可執行） |
-| `data/rl1/eval.jsonl` 的 `hc_1000` 欄 | 欄名按裁決**維持**（改名會把同一條基線切成兩欄，見 AGENTS）；對應權重 `rl_h1000_0k` 與 `rl_h1000_20k` 都已發布 | —（讀檔項目：可讀、可續寫，不改名） | 不適用 |
+| ├ hc2 `step_002000`（910001） | 權重 `data/imitation/hc2/step_002000.pt` **已入版控**（`git ls-files --error-unmatch` 通過） | **是**（option 改寫成 `hc_2000` + literal 順序，同一檔案） | **未驗證** —— 未實際跑出並比對數字 |
+| ├ hc2 `step_005000`（910002） | `data/imitation/hc2/step_005000.pt` **未入版控**；名冊沒有任何 key 指向 5000 步 | **否**：乾淨 clone 無權重，且沒有席位能表達它 | **無法重現**（不可執行） |
+| ├ hc2 `step_010000`（910003） | `data/imitation/hc2/step_010000.pt` **已入版控** | **是**（option 改寫成 `hc_10000` + literal 順序） | **未驗證** —— 未實際跑出並比對數字 |
+| └ hb2 `step_002000`（910004，舊 H-B2） | `data/imitation/hb2/step_002000.pt` **未入版控**；H-B2 席位已被 H-C2 取代，名冊無此 key | **否**：乾淨 clone 無權重，且沒有席位能表達它 | **無法重現**（不可執行） |
+| `data/rl/h/20k/eval.jsonl` 的 `hc_1000` 欄 | 欄名按裁決**維持**（改名會把同一條基線切成兩欄，見 AGENTS）；對應權重 `rl_h1000_0k` 與 `rl_h1000_20k` 都已發布 | —（讀檔項目：可讀、可續寫，不改名） | 不適用 |
 | `records.json` 舊列 | `test_a_records_row_under_the_old_key_still_reads` | —（讀檔項目：可讀、不重寫、不合併） | 不適用 |
 
 本表收錄受改名或搬遷影響的證據；其他報告檔（`docs/reports/h0`–`h1`、`g`、`f_prime`、
@@ -1760,5 +1760,5 @@ plan9a 階段 9 要求逐批核對「是否有歷史結果因改名或搬遷而�
 - **`rl/rl_train.py` 寫出的檢查點裡 `name` / `init_checkpoint` 是殘留欄位**。
   `NAME` 與 `INIT_CHECKPOINT` 是 h 版時代的常數，學生跑出來的檔也會蓋上
   `rl_1000_20k` 與 hc_2000 路徑；三個學生（plan9 步驟 3）的真實 name、init、
-  anchor、seed-base、commit 以各自 `data/rl_<x>1000/MANIFEST.json` 為準
+  anchor、seed-base、commit 以各自 `data/rl/<x>/20k/MANIFEST.json` 為準
   （使用者裁決 2026-10-08）。

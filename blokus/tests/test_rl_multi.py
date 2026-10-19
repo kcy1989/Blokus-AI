@@ -171,7 +171,7 @@ def test_the_default_seed_path_is_byte_identical_to_the_published_run():
     the default answer moved at all, every number the 50k evidence rests on
     would stop describing the games it was recorded on - so the golden here is
     not invented, it is read back out of the published step-100 round row in
-    `data/multi/rounds.jsonl`, including the opponent schedule that row logged.
+    `data/rl/shared/four-at-once/rounds.jsonl`, including the opponent schedule that row logged.
     """
     specs = multi.make_table_specs(100)
     assert specs[0].seed == 7_300_990

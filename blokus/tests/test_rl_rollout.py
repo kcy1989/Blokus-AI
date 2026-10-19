@@ -15,7 +15,7 @@ So most of this file is about determinism, from three directions:
   * this loop's opponents against `match.py`'s, move for move, which is what
     makes this a rollout *of the same game* rather than a similar one.
 
-Every test needs `data/hc2/step_001000.pt` and skips without it, the same
+Every test needs `data/imitation/hc2/step_001000.pt` and skips without it, the same
 bargain `tests/test_rl_imitation.py` strikes. `n_procs=4` is the slowest thing
 here, so it is used once and on four episodes.
 """

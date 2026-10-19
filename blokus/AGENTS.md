@@ -135,7 +135,7 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   （7 人格 + 4 個 20k），`imitation_only` preset 同時退役（`POOL_NAMES` 只剩
   `all` / `no_imitation` / `rl_only`），`family: imitation` 的列數是 0，
   `seats._IMITATION_KEYS` 因而是空的 —— `kind_of` 對任何退休名都 raise。
-  **權重沒有刪**：`data/hc2/` 與 `data/imit_*/` 的檔全留，舊證據要重放就用
+  **權重沒有刪**：`data/imitation/hc2/` 與 `data/imitation/imit_*/` 的檔全留，舊證據要重放就用
   `match.py --adhoc KEY=PATH` 綁回來（`tests/test_match_pool.py` 的
   `test_literal_replays_a_batch_committed_before_the_sort` 就是這個形狀）。
   `seats.IMITATION_STEPS` / `IMITATION_KEYS` / `IMITATION_CHECKPOINT_DIR` 仍描述
@@ -148,9 +148,9 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   **兩個拼法都不再解析**（`canonical_key` 原樣回傳），由
   `tests/test_seat_alias_hc.py` 釘住；舊 `records.json` 列原樣保留、照樣讀得到。
 - **`rl/rl_train.py` 的 eval 列名維持 `hc_1000`，且只當檔案層引用。**
-  `INIT_CHECKPOINT` / `ANCHOR_CHECKPOINT` 指向 `data/hc2/step_001000.pt`，
+  `INIT_CHECKPOINT` / `ANCHOR_CHECKPOINT` 指向 `data/imitation/hc2/step_001000.pt`，
   `("hc_1000", anchor_path)` 與 `net.key = "hc_1000"` 是為了與既有
-  `data/rl1/eval.jsonl` 的序列連續——同一條基線改名會被切成兩段。plan9 任務四
+  `data/rl/h/20k/eval.jsonl` 的序列連續——同一條基線改名會被切成兩段。plan9 任務四
   **只加註解**標明「0k 已退役、僅檔案層引用」，行為一字未動（裁決）。`rl/rollout.py`
   的 `seat_for` 與 `rl/imitation.py` 的 `key=None` 回退則改成**明確報錯**：退休名
   不再是席位，寧可在这里說清楚，也不要讓 `Game.setup_seats` 稍後用一句
@@ -159,7 +159,7 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   （0k 版 `rl_h1000_0k`，舊名 `hc_1000`），`20k` 是**RL 局數**（40 輪 × 500 局）。
   同一個名字裡混用兩種單位，寫報告或設終止條件時不要讀錯。
 - **`RL_SEATS` 是 `(key, 檔案)` 的表，不是「步數 + 目錄」。** H-C2 一個目錄一個
-  命名慣例，步數就能定位檔案；`data/rl1` 沒有——那裡的 `step_000040.pt` 是第 40
+  命名慣例，步數就能定位檔案；`data/rl/h/20k` 沒有——那裡的 `step_000040.pt` 是第 40
   輪，不是模仿步數，而 `latest.pt` 是會動的靶。**指向某個訓練輪次的具體檔案**，
   這是讓聯賽結果還有意義的必要摩擦。`tests/test_seats.py` 有測「表裡每個檔案
   都真的存在」——漏掉的話，症狀會出現在第一次開局，看起來像訓練壞了。
@@ -234,10 +234,10 @@ import 只做結構驗證（含 **`enabled` 與 `selectable` 必須一致**，�
 import 上。**階段 4 已把 `rl_h1000_20k`、`rl_h1000_0k` 搬進 `ai/checkpoints/`，
 sha256 斷言因此重新納入測試**（`test_every_registered_checkpoint_hashes_as_recorded`）；
 **plan9 發布（2026-10-09）又把三個學生的 20k 搬進同一目錄並註冊**
-（`rl_o1000_20k`／`rl_b1000_20k`／`rl_i1000_20k`，來源 `data/rl_*1000/step_000040.pt`
+（`rl_o1000_20k`／`rl_b1000_20k`／`rl_i1000_20k`，來源 `data/rl/{h,i,o,b}/20k/step_000040.pt`
 留磁碟不入版控）。**plan9 任務四**（2026-10-10）把四個 0k 席位退出名册，
 `all` 池 17 → 11，`ai/checkpoints/` 只剩四個 20k；四個 0k 副本連同
-`data/hc2/step_001000.pt` 與 `data/imit_*/step_001000.pt` 的版控歸屬由同一任務的
+`data/imitation/hc2/step_001000.pt` 與 `data/imitation/imit_*/step_001000.pt` 的版控歸屬由同一任務的
 **第二個提交**處理（刪 `ai/checkpoints` 副本、`.gitignore` 反白把 `data/` 原件
 納入版控），第一個提交裡 `test_ai_checkpoints_holds_nothing_unpublished` 因此有一個
 字面的 `PENDING_REMOVAL` 過渡清單。
@@ -258,7 +258,7 @@ sha256 斷言因此重新納入測試**（`test_every_registered_checkpoint_hash
   符合 `step_%06d.pt`，`test_network_entries_name_the_files_the_seats_load` 釘住這點。
 - **`.gitignore` 是過渡狀態，plan9 任務四的第二個提交收口**：`step_002000.pt` /
   `step_010000.pt` 的反白**保留**（檔仍在版控，只是不再是任何席位的載入路徑）；
-  `step_001000.pt` 與 `data/imit_*/step_001000.pt` 會加回反白 —— 0k 席位退場、
+  `step_001000.pt` 與 `data/imitation/imit_*/step_001000.pt` 會加回反白 —— 0k 席位退場、
   `ai/checkpoints/` 的副本刪除之後，`data/` 原件是這些權重唯一還在版本控制裡的
   位置，而舊證據重放與 `rl/` 的測試都要開它們。**在那個提交之前，這四個檔只存在
   於磁碟**（gitignored），這是刻意的一提交寬限期，不是疏漏。

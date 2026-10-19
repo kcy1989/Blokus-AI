@@ -12,7 +12,7 @@
 | 起點 | `ai/checkpoints/rl_o1000_20k/step_000040.pt`（`sha256 272b2edf35e9…`） |
 | 目標局數 | 累計 **50k** 方向：新增 **30,000** 局 |
 | 訓練後名字 | `rl_o1000_50k_v3` |
-| 輸出目錄 | `data/rl_o50k_v3/`（新；`.gitignore` 的 `data/*` 已覆蓋） |
+| 輸出目錄 | `data/rl/o/50k_v3/`（新；`.gitignore` 的 `data/*` 已覆蓋） |
 | 證據目錄 | `eval/o/v3/`（本檔所在） |
 | 判準 | argmax 單模式配對優於起點（見 §5） |
 
@@ -243,7 +243,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 | 局數/種子 | 100 局，`stage RL validation` = 7,100,000–7,100,999 |
 | 模式 | argmax |
 | 錨點 | **`--anchor ai/checkpoints/rl_o1000_20k/step_000040.pt`**（不是 0k） |
-| 輸出 | `data/rl_o50k_v3/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**，該欄實際內容是 `rl_o1000_20k`） |
+| 輸出 | `data/rl/o/50k_v3/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**，該欄實際內容是 `rl_o1000_20k`） |
 | 對手 | 預設七人格（`eval_specs` 不帶池、不帶平衡排程——這是 `2da0390` 釘住的行為） |
 
 > **這條曲線只是曲線。不入 §5 判準、不得作為入池理由。**
@@ -268,14 +268,14 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 ```
 階段 0（開訓前）  對四檔各算 sha256，比對上表逐字相同；不同則停
                  另跑 python -m ai --check
-                 佈置 data/rl_o50k_v3/，驗起點檔 sha256 = 272b2edf…
+                 佈置 data/rl/o/50k_v3/，驗起點檔 sha256 = 272b2edf…
 階段 1（開訓後）  再算一次，四個 sha256 與階段 0 逐位相等
                  任一不同 → 凍結席被寫 → 訓練作廢，停下等裁示
                  另跑 python -m ai --check
 ```
 
 唯讀依據：`rl/rl_train.py` 的唯一寫入來自 `save_checkpoint`，路徑一律在
-`data/rl_o50k_v3/`；`rl/rollout.py` 對池席只有 `load_policy` / `torch.load`。
+`data/rl/o/50k_v3/`；`rl/rollout.py` 對池席只有 `load_policy` / `torch.load`。
 
 ---
 
@@ -287,7 +287,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 python -m rl.rl_train \
   --init ai/checkpoints/rl_o1000_20k/step_000040.pt \
   --anchor ai/checkpoints/rl_o1000_20k/step_000040.pt \
-  --out data/rl_o50k_v3 \
+  --out data/rl/o/50k_v3 \
   --games 30000 --per-round 500 \
   --seed-base 7620000 \
   --balanced-schedule \
@@ -314,7 +314,7 @@ dry-run 的 `seeds` 行對案 B 是準的：`7620000..7649999` 正是實際取�
 
 ### 不碰
 
-`data/rl_o1000/`、`data/rl_o50k_v2/`、`data/multi*/`、`ai/checkpoints/`
+`data/rl/o/20k/`、`data/rl/o/50k_v2/`、`data/rl/shared/four-at-once*/`、`ai/checkpoints/`
 既有檔、`records.json`（訓練全程不寫）。
 
 ---
@@ -400,7 +400,7 @@ dry-run 的 `seeds` 行對案 B 是準的：`7620000..7649999` 正是實際取�
 |---|---|
 | key | `rl_o1000_50k_v3`（命名定稿，改名 = 重排常規池，禁止） |
 | published | `ai/checkpoints/rl_o1000_50k_v3/step_000060.pt`，sha256 `0868776ef18ad2b3e2e00878fe0cf87fd2202ef47dcd9dde8e96f86e7db1154d`（與 `data/` 原件逐位相等後才複製） |
-| source | `data/rl_o50k_v3/step_000060.pt`（維持 gitignored） |
+| source | `data/rl/o/50k_v3/step_000060.pt`（維持 gitignored） |
 | pools | `["all", "rl_only"]`：`all` 15→**16**、`rl_only` 8→**9**、`no_imitation` 7 不變 |
 | 訓練池 | **不擴張**——§3 的 10 席字面清單維持原樣，`rl/multi.FIXED_POOL` 也不動 |
 | 常規池重排 | 見主 README「GOLDEN 重採（v3 入池）」：GOLDEN_POOL 15→16 key，三個 GOLDEN 種子全重採 |

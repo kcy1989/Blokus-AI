@@ -9,7 +9,7 @@
 **沒有修改任何受保護的檔案。** 唯一被修改的既有檔案是 `rl/smoke_gpu.py`
 （`plan4.md` 只允許為 H0-0 而改）、`reports/g_report.md`（只在末尾**附加**
 「勘誤」一節）、`reports/g_raw.json`（本階段**未修改**，見下方說明）與
-`.gitignore`（本階段**未修改**，因為 `data/` 早已整個被忽略，`data/h0/` 自動
+`.gitignore`（本階段**未修改**，因為 `data/` 早已整個被忽略，`data/imitation/h0/` 自動
 涵蓋）。所有既有測試檔未動。
 
 ---
@@ -612,9 +612,9 @@ v1 的第一手從不佈局要的 Z5，而是 F5 或 Y5。
 | 檔案 | 原因 |
 | --- | --- |
 | `reports/g_raw.json` | 允許「加入重測後的欄位」，但重測屬於 H0-0，寫進 `reports/g_report.md` 的勘誤與 `reports/h0_raw.json` 已足夠；為了不動既有原始資料而略過 |
-| `.gitignore` | `data/` 早已整個被忽略，`data/h0/` 自動涵蓋 |
+| `.gitignore` | `data/` 早已整個被忽略，`data/imitation/h0/` 自動涵蓋 |
 
-### `data/h0/`（不進 commit）
+### `data/imitation/h0/`（不進 commit）
 
 | 檔案 | 大小 | 內容 |
 | --- | --- | --- |
@@ -623,12 +623,12 @@ v1 的第一手從不佈局要的 Z5，而是 F5 或 Y5。
 | `raw_phase1.json` | 33,839 bytes | 第一階段的彙總與判定 |
 | `raw_expanded.json` | 34,124 bytes | 合併後的彙總與判定 |
 
-`data/` 已在 `.gitignore` 中（階段 G 加入），故 `data/h0/` 自動不進 commit。
+`data/` 已在 `.gitignore` 中（階段 G 加入），故 `data/imitation/h0/` 自動不進 commit。
 重現指令：
 
 ```bash
 .venv-rl/bin/python rl/paired.py --pairs-a 2000 --pairs-b 1000 --workers 12 \
-    --expand --out data/h0/pairs_expanded.jsonl --json data/h0/raw_expanded.json
+    --expand --out data/imitation/h0/pairs_expanded.jsonl --json data/imitation/h0/raw_expanded.json
 ```
 
 ### 驗收清單

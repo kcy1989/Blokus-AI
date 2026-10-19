@@ -9,11 +9,11 @@
 | 參數 | 值 |
 |---|---|
 | 學習者 | 風格 **h**（hunter），單一學習者，其餘對手全部凍結 |
-| 起點 | `data/rl_h50k_v4/step_000035.pt`（v4 run 的 round 35；**訓練檢查點，非名冊席位**），sha256 **`a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c`** |
+| 起點 | `data/rl/h/50k_v4/step_000035.pt`（v4 run 的 round 35；**訓練檢查點，非名冊席位**），sha256 **`a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c`** |
 | 起點累計 step | **95**（v4 run 的起點 `rl_h1000_30k` step 60 + 35 輪）= **47,500 局** |
 | 目標局數 | 累計 **125k**：新增 **30,000** 局 |
 | 訓練後席位名 | 待 §5 判準後裁示（本 run 先不入池） |
-| 輸出目錄 | `data/rl_t05/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
+| 輸出目錄 | `data/rl/h/t05/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
 | 證據目錄 | `eval/h/t05/`（本檔所在） |
 | 判準 | argmax **單次** 1000 局配對優於起點（見 §5） |
 | 溫度 | **T = 0.5**（rollout softmax 採 `softmax(logits / T)`；PPO rescore 與更新同分母） |
@@ -161,7 +161,7 @@ paired_diff > 0  且  paired_diff ≥ 1.3 × paired_se
 | 項 | 值 |
 |---|---|
 | 輪數完成 | 60 / 60 |
-| 最終檢查點 | `data/rl_t05/step_000060.pt` → 複製為 `step_000155.pt`（累加 step 95+60=155） |
+| 最終檢查點 | `data/rl/h/t05/step_000060.pt` → 複製為 `step_000155.pt`（累加 step 95+60=155） |
 | `step_000155.pt` sha256 | `67b1cd7823536004de9beb10e9ffe1b47fba6fdb462644d911bd55c8c949855d` |
 | 起點 sha256 | `a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c` |
 | 所有凍結席 sha256 | 階段 0 與階段 1 逐位相等（驗訓練期間未動） |
@@ -255,11 +255,11 @@ o 全 7 對手 delta 皆為正；t 全 7 對手 delta 皆為負；h 全 7 對手
 ### 評測規格
 
 - **被測檢查點**（5 個獨立檢查點）：
-  1. v4 r35（`data/rl_h50k_v4/step_000035.pt`，累加 step 95，一次，同時作 h_start 與 t_start）
-  2. h_final（`data/rl_h100k/step_000200.pt`，累加 step 200）
+  1. v4 r35（`data/rl/h/50k_v4/step_000035.pt`，累加 step 95，一次，同時作 h_start 與 t_start）
+  2. h_final（`data/rl/h/100k/step_000200.pt`，累加 step 200）
   3. o_start（`ai/checkpoints/rl_o1000_20k/step_000040.pt`，step 40）
   4. o_final（`ai/checkpoints/rl_o1000_50k_v3/step_000060.pt`，step 60）
-  5. t_final（`data/rl_t05/step_000155.pt`，累加 step 155）
+  5. t_final（`data/rl/h/t05/step_000155.pt`，累加 step 155）
 
 - **評測池**：完整 12 席，不移除任何席位：
   `rl_h1000_30k, rl_b1000_50k, rl_i1000_37.5k, rl_o1000_50k_v3, rl_h1000_20k, rl_b1000_20k, rl_i1000_20k, rl_o1000_20k, hunter, optimizer, wolf, intruder`
@@ -273,11 +273,11 @@ o 全 7 對手 delta 皆為正；t 全 7 對手 delta 皆為負；h 全 7 對手
 
 | 被測檢查點 | 檔案 | 對手席位數 | 是否含自身 | 含自身的席位 |
 |---|---|---|---|---|
-| v4 r35 | `data/rl_h50k_v4/step_000035.pt` | 12 | 否 | — |
-| h_final | `data/rl_h100k/step_000200.pt` | 12 | 否 | — |
+| v4 r35 | `data/rl/h/50k_v4/step_000035.pt` | 12 | 否 | — |
+| h_final | `data/rl/h/100k/step_000200.pt` | 12 | 否 | — |
 | o_start | `ai/checkpoints/rl_o1000_20k/step_000040.pt` | 12 | **是** | rl_o1000_20k |
 | o_final | `ai/checkpoints/rl_o1000_50k_v3/step_000060.pt` | 12 | **是** | rl_o1000_50k_v3 |
-| t_final | `data/rl_t05/step_000155.pt` | 12 | 否 | — |
+| t_final | `data/rl/h/t05/step_000155.pt` | 12 | 否 | — |
 
 - **檢查點與池內重疊說明**：o_start 與池內 rl_o1000_20k 為同一檔案；o_final 與池內 rl_o1000_50k_v3 為同一檔案。兩者面對的池平均強度不同，o 線差值不作純進步量，**o 線間距可能被壓縮**。
 

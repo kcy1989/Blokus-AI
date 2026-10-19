@@ -181,7 +181,7 @@ paired_diff > 0   且   paired_diff ≥ 1.0 × paired_se
 | 局數 / 種子 | 100 局，`stage RL validation` = 7,100,000–7,100,999 |
 | 模式 | argmax |
 | **錨點** | **`--anchor ai/checkpoints/rl_o1000_20k/step_000040.pt`**（**不是**預設的 0k） |
-| 輸出 | `data/rl_o50k_v2/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**） |
+| 輸出 | `data/rl/o/50k_v2/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**） |
 
 > **這條曲線只是曲線，不入 §4 判準，不得作為入池理由。**
 > 欄名 `hc_1000` 是 0k 退役前留下的歷史欄名，改名會把一份基線切成兩段；
@@ -256,7 +256,7 @@ chess, wolf`）：
    即 `7,530,000..7,559,999`，**這不是實際取用的種子**。
    實際是 rounds 41..100 → **`7,550,000..7,579,999`**（見 §3）。
    resume 的 run 這行一律錯位，是既有顯示瑕疵。
-2. **`anchor` 行**印的是模組常數 `ANCHOR_CHECKPOINT`（`data/hc2/step_001000.pt`），
+2. **`anchor` 行**印的是模組常數 `ANCHOR_CHECKPOINT`（`data/imitation/hc2/step_001000.pt`），
    **不是**實際傳入的 `--anchor`（`_dry_run` 收不到 `anchor_path`）。
    實際接線已實測確認 `main()` → `train(anchor_path=args.anchor)` →
    `evaluate(..., anchor_path)`。
@@ -282,14 +282,14 @@ chess, wolf`）：
 ```
 階段 0（開訓前）  對四檔各算 sha256，比對上表逐字相同；不同則停
                  另跑 python -m ai --check
-                 佈置 data/rl_o50k_v2/latest.pt，驗 sha256 = 272b2edf…
+                 佈置 data/rl/o/50k_v2/latest.pt，驗 sha256 = 272b2edf…
 階段 1（開訓後）  再算一次，四個 sha256 與階段 0 逐位相等
                  任一不同 → 凍結席被寫 → 訓練作廢，停下等裁示
                  另跑 python -m ai --check
 ```
 
 **唯讀的依據（已查碼）**：`rl/rl_train.py` 全檔唯一寫入是 `save_checkpoint`，
-路徑一律來自 `checkpoint_paths(out_dir)` = `data/rl_o50k_v2/`；
+路徑一律來自 `checkpoint_paths(out_dir)` = `data/rl/o/50k_v2/`；
 `rl/rollout.py` 只有 `load_policy` / `torch.load`，無 `torch.save`。
 
 ---
@@ -300,17 +300,17 @@ chess, wolf`）：
 
 | | 值 |
 |---|---|
-| 訓練目錄 | `data/rl_o50k_v2/`（新；`.gitignore:80` 的 `data/*` 已覆蓋） |
-| 佈置 | `cp data/rl_o1000/step_000040.pt data/rl_o50k_v2/latest.pt`，**sha256 逐位相等後才啟動** |
+| 訓練目錄 | `data/rl/o/50k_v2/`（新；`.gitignore:80` 的 `data/*` 已覆蓋） |
+| 佈置 | `cp data/rl/o/20k/step_000040.pt data/rl/o/50k_v2/latest.pt`，**sha256 逐位相等後才啟動** |
 | 產出 | `step_000041.pt` … `step_000100.pt` + `latest.pt` / `current.pt` / `rounds.jsonl` / `eval.jsonl` |
 | 證據目錄 | `eval/o/v2/`（本檔所在） |
-| **不碰** | `data/rl_o1000/`、`data/multi/`、`data/multi_rb80/`、`data/rl_i1000_v2/`、`data/rl_h50k_v2/`、`ai/checkpoints/` 內既有檔 |
+| **不碰** | `data/rl/o/20k/`、`data/rl/shared/four-at-once/`、`data/rl/shared/four-at-once-rb80/`、`data/rl/i/20k_v2/`、`data/rl/h/50k_v2/`、`ai/checkpoints/` 內既有檔 |
 
 ### 起點檢查點
 
 | 項 | 值 |
 |---|---|
-| 路徑 | `ai/checkpoints/rl_o1000_20k/step_000040.pt`（來源 `data/rl_o1000/step_000040.pt`） |
+| 路徑 | `ai/checkpoints/rl_o1000_20k/step_000040.pt`（來源 `data/rl/o/20k/step_000040.pt`） |
 | sha256 | `272b2edf35e9157ed137a33787ceb5fc736c62f785c304cb6abfa2a273c1ad90`（實測 = registry） |
 | `round` / `step` | 40 / 40 |
 | **`entropy_reference`** | **1.3728407901876114** |
@@ -324,7 +324,7 @@ chess, wolf`）：
 ```bash
 python -m rl.rl_train \
   --resume \
-  --out data/rl_o50k_v2 \
+  --out data/rl/o/50k_v2 \
   --games 30000 --per-round 500 \
   --seed-base 7530000 \
   --n-procs 8 \
@@ -340,7 +340,7 @@ python -m rl.rl_train \
 | 項 | 條件 | 實測 |
 |---|---|---|
 | **rollout** | 500 局、本池 11 席、softmax、`n_procs=8` | **57.3 s（8.73 局/s）** |
-| **update** | 取自 `data/rl_o1000/rounds.jsonl` 40 輪平均 | **33.29 s** |
+| **update** | 取自 `data/rl/o/20k/rounds.jsonl` 40 輪平均 | **33.29 s** |
 | 每輪合計 | | **90.6 s** |
 
 | | 計算 | 時間 |

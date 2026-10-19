@@ -73,7 +73,7 @@ DATA_DIR = os.path.join(HERE, "data")
 # was measured on.
 #
 # plan9 step 2b correction (2026-10-06): these two constants were 1_000_000 /
-# 2_000_000 for a while, which does **not** reproduce `data/hc1`. That dataset -
+# 2_000_000 for a while, which does **not** reproduce `data/imitation/hc1`. That dataset -
 # and therefore `hc_1000`, and therefore `rl_h1000_20k` - was collected from
 # 6,000,000 / 6,100,000. The manifest's own shard list says so:
 # `hb1_train_6000000_6000508.npz` / `hb1_valid_6100000_6100128.npz`. Reading the
@@ -102,7 +102,7 @@ BENCHMARK_MAX_GAMES = 96          # 4 games x 24 permutations, its defaults
 # copy of the list would be free to drift from the first.
 PERSONALITY_KEYS = tuple(ai.personality_keys())
 
-# The teacher when `--teacher` is not given, which is the one `data/hc1`
+# The teacher when `--teacher` is not given, which is the one `data/imitation/hc1`
 # - and therefore `hc_1000`, and therefore `rl_h1000_20k` - was built with.
 TEACHER = "hunter"
 
@@ -140,7 +140,7 @@ def controller_weights(teacher):
 
 # Kept for the default, so a caller that wants "the one this repository used"
 # does not have to remember the string. `controller_weights(TEACHER)` is the
-# table `data/hc1` was collected with.
+# table `data/imitation/hc1` was collected with.
 CONTROLLER_WEIGHTS = controller_weights(TEACHER)
 CONTROLLER_KEYS = tuple(k for k, _w in CONTROLLER_WEIGHTS)
 CONTROLLER_TOTAL = sum(w for _k, w in CONTROLLER_WEIGHTS)
@@ -779,7 +779,7 @@ def main(argv=None):
     ap.add_argument("--prefix", default="imit")
     ap.add_argument("--teacher", default=TEACHER,
                     help="which personality supplies the moves being recorded; "
-                         "one of the seven. Default %r, which is what data/hc1 "
+                         "one of the seven. Default %r, which is what data/imitation/hc1 "
                          "was collected with." % TEACHER)
     ap.add_argument("--json", default=None,
                     help="write the summary statistics here")

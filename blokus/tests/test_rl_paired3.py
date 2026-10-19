@@ -187,7 +187,7 @@ def test_the_plan_reserved_ranges_are_the_ones_written_down():
 # whatever the manifests say, which is the failure mode RESERVED_RANGES'
 # own comment warns about - a guard that imports the thing it polices.
 EXPECTED_ADDED = (
-    # data/hb1/manifest.json and data/hc1/manifest.json: 60 train shards
+    # data/imitation/hb1/manifest.json and data/imitation/hc1/manifest.json: 60 train shards
     # 6,000,000..6,029,378, 12 valid shards 6,100,000..6,101,545, identical in
     # both runs, so one entry covers both.
     ("H-B1/H-C1 imitation train", 6_000_000, 6_029_378),

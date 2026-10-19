@@ -2,7 +2,7 @@
 write down?
 
 One run is 50,000 steps of batch 256, which is 12.8 million samples, about 10.7
-epochs over `data/hb1/`. Checkpoints every 2,000 steps - 25 of them - each
+epochs over `data/imitation/hb1/`. Checkpoints every 2,000 steps - 25 of them - each
 carrying weights, optimiser state and the step number, all kept. At step 50,000
 it stops and waits; it does not extend itself.
 
@@ -269,8 +269,8 @@ def run(data_dir, out_dir, steps=None, device=None, seed=None,
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data-dir", default="data/hb1")
-    ap.add_argument("--out-dir", default="data/hb2")
+    ap.add_argument("--data-dir", default="data/imitation/hb1")
+    ap.add_argument("--out-dir", default="data/imitation/hb2")
     ap.add_argument("--steps", type=int, default=50_000)
     ap.add_argument("--loader", default="serial", choices=("serial", "dl"))
     ap.add_argument("--num-workers", type=int, default=4)

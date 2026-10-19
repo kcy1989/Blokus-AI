@@ -8,14 +8,15 @@ a debugging attempt and then quietly depended on.
 
 Two things are watched:
 
-    data/h*      the dataset and checkpoint directories
-    records.json the cumulative leaderboard
+    data/imitation/*  the H-phase datasets and teacher checkpoints
+    data/rl/*         every learner's training output
+    records.json      the cumulative leaderboard
 
-`data/humanlog` and `data/match` are **excluded on purpose**. Both are products
-of the running application rather than of the tests: a human game appends to
-`data/humanlog/`, and an evaluation run drops a batch into `data/match/`. The
-whole reason `data/humanlog` needs naming is that it matches `h*` - `gamelog.LOG_DIR`
-is `data/humanlog` and the guard's own pattern would otherwise sweep it in.
+`data/humanlog` and `data/match` are **not** matched, and that is deliberate:
+both are products of the running application rather than of the tests. A human
+game appends to `data/humanlog/`, and an evaluation run drops a batch into
+`data/match/`; watching either would make the guard fail on ordinary use of the
+application.
 
 **Known limitation.** `records.json` is written by playing a game, not only by
 the tests. A human who plays - or an evaluation run started without `--dry` -
@@ -53,13 +54,17 @@ PROJECT_ROOT = os.environ.get("BLOKUS_DATA_GUARD_ROOT") or \
     os.path.dirname(_HERE)
 
 # Directories under `data/` to watch, as patterns relative to PROJECT_ROOT.
-GUARD_PATTERNS = ("data/h*",)
+# One level deep: the lineage directories are the units that were reordered, and
+# `data/humanlog` / `data/match` sit beside them rather than inside these.
+GUARD_PATTERNS = ("data/imitation/*", "data/rl/*")
 
 # ...and single files.
 GUARD_FILES = ("records.json",)
 
 # Matched by a pattern but deliberately not watched; see the module docstring.
-GUARD_EXCLUDED = ("data/humanlog", "data/match")
+# Empty since the patterns above are narrow enough to exclude the application's
+# own output directories by construction.
+GUARD_EXCLUDED = ()
 
 
 def guard_roots(project_root=None):

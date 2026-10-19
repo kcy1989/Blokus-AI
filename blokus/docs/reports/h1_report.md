@@ -1,6 +1,6 @@
 # 階段 H1 報告：Optimizer v3（強敵差分版）對 v2、v1 的成對對照
 
-報告全文在本檔，原始數字在 `reports/h1_raw.json`，逐 pair 資料在 `data/h1/`（已 gitignore）。
+報告全文在本檔，原始數字在 `reports/h1_raw.json`，逐 pair 資料在 `data/imitation/h1/`（已 gitignore）。
 
 本階段回答的問題：**把第 4 步起的評分從「最大化我的可放選項」改成「最大化我的可放選項減強敵的可放選項」，是否更強？**
 

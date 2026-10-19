@@ -1,8 +1,8 @@
 {
- "checkpoint": "data/imit_i1000/step_001000.pt",
+ "checkpoint": "data/imitation/imit_i1000/step_001000.pt",
  "checkpoint_md5": "d578c5fe7265daae634647d9b615ba59",
  "control": "hc_1000",
- "control_checkpoint": "data/hc2/step_001000.pt",
+ "control_checkpoint": "data/imitation/hc2/step_001000.pt",
  "control_md5": "95dc7c463c69f8d337fde4e3df00097b",
  "modes": {
   "argmax": {
@@ -1227,7 +1227,7 @@
     }
    },
    "hc_1000": {
-    "checkpoint": "data/hc2/step_001000.pt",
+    "checkpoint": "data/imitation/hc2/step_001000.pt",
     "decisions": 3621,
     "entropy_sd_over_decisions": 1.006371453936943,
     "games": 200,
@@ -1265,7 +1265,7 @@
     }
    },
    "student": {
-    "checkpoint": "data/imit_i1000/step_001000.pt",
+    "checkpoint": "data/imitation/imit_i1000/step_001000.pt",
     "decisions": 3598,
     "entropy_sd_over_decisions": 0.8506008294316134,
     "games": 200,
@@ -2506,7 +2506,7 @@
     }
    },
    "hc_1000": {
-    "checkpoint": "data/hc2/step_001000.pt",
+    "checkpoint": "data/imitation/hc2/step_001000.pt",
     "decisions": 3516,
     "entropy_sd_over_decisions": 0.9510706865794117,
     "games": 200,
@@ -2544,7 +2544,7 @@
     }
    },
    "student": {
-    "checkpoint": "data/imit_i1000/step_001000.pt",
+    "checkpoint": "data/imitation/imit_i1000/step_001000.pt",
     "decisions": 3449,
     "entropy_sd_over_decisions": 0.8855183643123311,
     "games": 200,

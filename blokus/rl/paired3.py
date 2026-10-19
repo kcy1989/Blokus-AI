@@ -52,7 +52,7 @@ from rl.opening import (BookTracker, act_to_engine_move, choose_v2,  # noqa: E40
 from rl.v3 import choose_v3, make_brain  # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(HERE, "data", "h1")
+DATA_DIR = os.path.join(HERE, "data", "imitation", "h1")
 
 TESTED_KEY = OPTIMIZER_KEY
 
@@ -80,8 +80,8 @@ SEED_BASE_B_EXPAND = 4_300_000
 # plan8-B0b added the six blocks below, each read off a file rather than taken
 # from the plan text:
 #
-#   * H-B1 and H-C1 are two runs over the *same* seeds - `data/hb1/manifest.json`
-#     and `data/hc1/manifest.json` both report 60 train shards spanning
+#   * H-B1 and H-C1 are two runs over the *same* seeds - `data/imitation/hb1/manifest.json`
+#     and `data/imitation/hc1/manifest.json` both report 60 train shards spanning
 #     6,000,000..6,029,378 and 12 valid shards spanning 6,100,000..6,101,545 -
 #     so one entry covers both and re-collecting one of them cannot silently
 #     reuse the other.
@@ -243,8 +243,8 @@ RESERVED_RANGES = (
     # The two mid-step measurements the user decreed on 2026-10-15, after the
     # criterion run on 7,765,000 came back at -0.036140, below its line, while
     # the same run's in-training curve had peaked at rounds 30-35. They measure
-    # `data/rl_i50k_v3/step_000035.pt` against the start `rl_i1000_20k` and
-    # `data/rl_i50k_v3/step_000030.pt` against `rl_h1000_20k`: is an
+    # `data/rl/i/50k_v3/step_000035.pt` against the start `rl_i1000_20k` and
+    # `data/rl/i/50k_v3/step_000030.pt` against `rl_h1000_20k`: is an
     # intermediate checkpoint stronger than the final one the criterion scored?
     # Both are 1000-game paired argmax runs on the default seven-personality
     # pool and they share this one block, so the two reads share a yardstick
@@ -259,7 +259,7 @@ RESERVED_RANGES = (
     # run, whose in-training curve peaked at rounds 15-20 and whose final
     # weights scored +0.006430, below the criterion's line. One 1000-game
     # paired argmax run on the default seven-personality pool,
-    # `data/rl_h50k_v3/step_000020.pt` against its own start `rl_h1000_20k`.
+    # `data/rl/h/50k_v3/step_000020.pt` against its own start `rl_h1000_20k`.
     # Fresh seeds: the criterion run scored 7,715,000 and the pool-swapped look
     # scored 7,725,000, so this row sits 9,001 above the highest of them. Labels
     # and ranges must stay in step with `rl.rollout.RL_H50K_V2_EVAL3_BLOCK`.
@@ -295,7 +295,7 @@ RESERVED_RANGES = (
     # `rl.rollout.RL_H50K_V4_EVAL2_BLOCK`.
     ("stage RL h50k v4 eval2", 7_806_000, 7_806_999),
     # plan10 (2026-10-15 decree), the h learner's fifth run: a cold start on
-    # `data/rl_h50k_v4/step_000035.pt` - the v4 run's round 35, an unpublished
+    # `data/rl/h/50k_v4/step_000035.pt` - the v4 run's round 35, an unpublished
     # mid-run snapshot whose accumulated step is 95 - under the balanced
     # schedule, 105 rounds = 52,500 games towards `rl_h1000_100k`, so
     # 47,500 + 52,500 = 100,000 and the accumulated name is `step_000200.pt`.

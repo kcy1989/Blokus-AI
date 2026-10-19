@@ -10,10 +10,10 @@ its own test because each fails differently:
     two seats on the same step do not interfere;
   * argmax is deterministic and softmax is a different, still legal, stream.
 
-Every test here needs `data/hc2/step_001000.pt`, which H-C2 produced and which
+Every test here needs `data/imitation/hc2/step_001000.pt`, which H-C2 produced and which
 is tracked. The tests that need it are skipped when it is absent rather than
 failing, because a checkout can still be missing data. H-B2's four
-checkpoints are still in `data/hb2`; they are no longer in the seat pool, so
+checkpoints are still in `data/imitation/hb2`; they are no longer in the seat pool, so
 nothing here names one.
 """
 import os
@@ -127,7 +127,7 @@ def test_the_module_does_not_import_torch():
 
 
 def test_the_seat_pool_lists_the_three_hc2_checkpoints():
-    """The pool is H-C2's three checkpoints, pointed at `data/hc2`.
+    """The pool is H-C2's three checkpoints, pointed at `data/imitation/hc2`.
 
     Step 1000 is named `rl_h1000_0k` - the 0k point of the `rl_h1000` chain,
     which is the same file the retired `hc_1000` spelled - while 2000 and 10000
@@ -136,7 +136,7 @@ def test_the_seat_pool_lists_the_three_hc2_checkpoints():
     directory would pass every key-shape check here and serve networks trained
     on a `stuck` column that disagreed with the rules.
     """
-    assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
+    assert seats.IMITATION_CHECKPOINT_DIR == "data/imitation/hc2"
     assert seats.IMITATION_STEPS == (1000, 2000, 10000)
     assert [seats.imitation_key(s) for s in seats.IMITATION_STEPS] == \
         ["rl_h1000_0k", "hc_2000", "hc_10000"]

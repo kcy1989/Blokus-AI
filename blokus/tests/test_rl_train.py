@@ -16,10 +16,10 @@ exists to prevent.
 The guardrail test matters for the same reason: a run that stops should stop
 *with the round that tripped it saved*, so the numbers are recoverable.
 
-Everything writes under `tmp_path`. No test creates `data/rl1`, and the
+Everything writes under `tmp_path`. No test creates `data/rl/h/20k`, and the
 evaluation test checks that a round's evaluation leaves `records.json` and every
-`data/h*` directory byte-identical - which is the property the B0c guard watches
-for the rest of the project.
+`data/imitation/` and `data/rl/` directory byte-identical - which is the property
+the B0c guard watches for the rest of the project.
 """
 import copy
 import json
@@ -1034,10 +1034,8 @@ def test_the_evaluation_touches_neither_records_json_nor_the_datasets(tmp_path):
 
     def snapshot():
         out = {}
-        for name in sorted(os.listdir(os.path.join(T.PROJECT_DIR, "data"))):
-            if not name.startswith("h") or name == "humanlog":
-                continue
-            root = os.path.join(T.PROJECT_DIR, "data", name)
+        for base in ("imitation", "rl"):
+            root = os.path.join(T.PROJECT_DIR, "data", base)
             for dirpath, _d, files in os.walk(root):
                 for f in files:
                     p = os.path.join(dirpath, f)

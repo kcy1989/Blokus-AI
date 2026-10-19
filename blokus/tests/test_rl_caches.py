@@ -27,7 +27,7 @@ from rl.caches import (COLUMNS, LABEL_CACHE_NAME, LEGAL_CACHE_NAME,  # noqa: E40
                        open_legal_cache, shard_order, states_from_rows)
 from rl.collect import load_shard  # noqa: E402
 
-DATA = os.path.join(ROOT, "data", "hb1")
+DATA = os.path.join(ROOT, "data", "imitation", "hb1")
 HAVE = os.path.isdir(DATA) and os.path.exists(
     os.path.join(DATA, LEGAL_CACHE_NAME))
 needs_data = pytest.mark.skipif(
@@ -231,8 +231,9 @@ def test_shard_arrays_and_resident_agree_on_a_batch():
 
 def _source_shard():
     """One real shard to take miniature rows from, or None if no dataset."""
-    for name in ("hb1", "hco", "hcb", "hci", "hc1"):
-        d = os.path.join(ROOT, "data", name)
+    for sub, name in (("hb1", "hb1"), ("hco", "hco"), ("hcb", "hcb"),
+                      ("hci", "hci"), ("hc1", "hc1")):
+        d = os.path.join(ROOT, "data", "imitation", sub)
         if os.path.isdir(d) and shard_order(d):
             return os.path.join(d, shard_order(d)[0])
     return None

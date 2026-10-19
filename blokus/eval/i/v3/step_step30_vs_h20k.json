@@ -5,7 +5,7 @@
   "reward": 3.00378,
   "seconds": 63.876
  },
- "current_path": "data/rl_i50k_v3/step_000030.pt",
+ "current_path": "data/rl/i/50k_v3/step_000030.pt",
  "current_sha256": "828edbd769a34b90a589fe11c896d08df81c835e2d5d708fa8efa85f8e282485",
  "games": 1000,
  "learner_seat_counts": [

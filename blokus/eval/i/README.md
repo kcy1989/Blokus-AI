@@ -9,7 +9,7 @@
 ```
 rl_i1000_20k  (shared/0k-to-20k)
 ├── v2 run → rl_i1000_50k_v2     未入池（argmax −0.029730，−0.719 se）
-└── v3 run (data/rl_i50k_v3)
+└── v3 run (data/rl/i/50k_v3)
     ├── round 35 → rl_i1000_37.5k   入池（+0.065620，1.597 se）
     └── round 60 → rl_i1000_50k_v3  未入池（argmax −0.036140）
 ```

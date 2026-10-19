@@ -104,7 +104,7 @@ def test_an_empty_pool_is_refused():
 def test_the_retired_step_names_are_refused_rather_than_remapped():
     """H-B2's option names must not resolve to anything.
 
-    The files are still in `data/hb2` and `load_brain` would still open them, so
+    The files are still in `data/imitation/hb2` and `load_brain` would still open them, so
     the only thing standing between a stale `--pool` string and a network trained
     on a `stuck` column that disagreed with the rules is this refusal. A name
     that quietly mapped to a current checkpoint would be worse than either
@@ -760,7 +760,7 @@ def test_literal_replays_a_batch_committed_before_the_sort(tmp_path, adhoc):
     # be bound for this process - which is exactly what `--adhoc` is for, and
     # the same call the ruling's own replay made. The bytes are the ones the
     # batch's `control_checkpoint` names, verified by `test_eval_evidence`.
-    zero_k = os.path.join(_ROOT, "data", "hc2", "step_001000.pt")
+    zero_k = os.path.join(_ROOT, "data", "imitation", "hc2", "step_001000.pt")
     rc = main(["--games", str(n), "--seed", str(payload["seed"]),
                "--pool", ",".join(payload["pool"]),
                "--pool-order", "literal",

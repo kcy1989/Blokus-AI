@@ -5,7 +5,7 @@
   "reward": 3.03568,
   "seconds": 85.628
  },
- "current_path": "data/rl_h50k_v4/step_000100.pt",
+ "current_path": "data/rl/h/50k_v4/step_000100.pt",
  "current_sha256": "608d419c3e5a88eb2b9d24b8b392d6d0c29cb55541ac7a6fcb84a3f8a5eeee35",
  "games": 1000,
  "games_with_repeated_opponent": 193,

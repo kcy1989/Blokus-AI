@@ -58,7 +58,7 @@ gzip -9 eval/imitation/<批次>-games.json      # -> <批次>-games.json.gz
 - 批次檔名的最終格式。
 ## 已執行的批次:plan9 步驟 0.5b
 
-被測對象是 `rl_h1000_20k` 的 20k 最終權重(`data/rl1/step_000040.pt`,
+被測對象是 `rl_h1000_20k` 的 20k 最終權重(`data/rl/h/20k/step_000040.pt`,
 md5 `9e788eab769f74b09cf8855da05afed6`),對照物為 `hc_1000`(其 0k 模仿版)
 與 `hunter`(其人格老師本尊)。
 
@@ -239,10 +239,10 @@ checkpoint,留給之後動訓練程式碼的提交。
 **這一節是事後更正,寫於看見任何學生結果之前。**
 
 plan9 步驟 0 的報告裡,我把 `rl/collect.py` 的預設值 `TRAIN_SEED_BASE = 1_000_000` /
-`VALID_SEED_BASE = 2_000_000` 當成 `data/hc1` 的種子基底寫進報告。**那是錯的。**程式碼
+`VALID_SEED_BASE = 2_000_000` 當成 `data/imitation/hc1` 的種子基底寫進報告。**那是錯的。**程式碼
 裡的常數已經在那次收集之後被改過,讀程式碼讀不出當時用的是什麼。
 
-`data/hc1/manifest.json` 的分片清單記下了當時實際使用的範圍:
+`data/imitation/hc1/manifest.json` 的分片清單記下了當時實際使用的範圍:
 
 ```
 train  : hb1_train_6000000_6000508.npz  ..  hb1_train_6029378_….npz   (60 個分片)
@@ -251,7 +251,7 @@ valid  : hb1_valid_6100000_6100128.npz  ..  hb1_valid_6101545_….npz   (12 個�
 
 **TRAIN base = 6,000,000,VALID base = 6,100,000。**
 
-**為什麼這個更正重要。**`data/hc1` → `hc_1000` → `rl_h1000_20k` 是同一條鏈。步驟 3 規定
+**為什麼這個更正重要。**`data/imitation/hc1` → `hc_1000` → `rl_h1000_20k` 是同一條鏈。步驟 3 規定
 o / b / i 的 RL 要「與 `rl_h1000_20k` 逐項相同」,而 h 版的模仿資料用的是 6,000,000
 基底。若學生用 1,000,000,則「逐項相同」在種子這一項上不成立,而症狀只會出現在訓練
 曲線上,沒有任何東西指向原因。
@@ -288,14 +288,14 @@ o / b / i 的 RL 要「與 `rl_h1000_20k` 逐項相同」,而 h 版的模仿資�
 
 ### 一個尚未解決的差異:資料規模
 
-`data/hc1` 涵蓋約 **29,505 train 局 + 1,420 valid 局**(`total_games` 30,925)。本階段的
+`data/imitation/hc1` 涵蓋約 **29,505 train 局 + 1,420 valid 局**(`total_games` 30,925)。本階段的
 學生資料是 **2,000 + 200 局**,規模約為其 1/15。`hc_1000` 是從 29k 局蒸餾的,學生的 0k
 版會從 2.2k 局蒸餾——**這是 0k 起點之間的實在不對稱**,寫報告時必須說明,不能當成
 「學生的 0k 版與 `hc_1000` 等價」。
 
 ## `teacher_equals_shortlist_first_share` 恆為 1.0:它沒有區分力
 
-步驟 2b 比較了 hunter(`data/hc1`)與 optimizer(試跑)的這個指標,兩者都是 **1.000000**。
+步驟 2b 比較了 hunter(`data/imitation/hc1`)與 optimizer(試跑)的這個指標,兩者都是 **1.000000**。
 **但這不是「兩者性質相近」的證據,而是恆等式。**
 
 四個老師全部是規則型人格,而且都不抽籤:
@@ -310,13 +310,13 @@ intruder    IntruderBrain     mistake_rate=0.00  uses_lookahead=False
 `mistake_rate = 0` 且不抽籤,`choose_move` 恆取 (rescored) shortlist 的第一名,而
 `teacher_move` 記錄的就是那個 action。**所以對這四個老師,這個指標必然是 1.0。**
 
-hunter 的值是**唯讀重算**出來的:`data/hc1` 從未存過 stats,遍歷 72 個分片照
+hunter 的值是**唯讀重算**出來的:`data/imitation/hc1` 從未存過 stats,遍歷 72 個分片照
 `summarise()` 的算法重算,讀到的總列數 1,191,605 與 manifest 的 `total_samples`
 完全相同,確認讀齊。未跑任何新局。
 
 ### 真正可觀察的差異:shortlist 長度——這是步驟 4 的混雜因素
 
-| | hunter(`data/hc1`) | optimizer(試跑) |
+| | hunter(`data/imitation/hc1`) | optimizer(試跑) |
 | --- | --- | --- |
 | 樣本數 | 1,191,605 | 895 |
 | shortlist 長度 mean | **13.62** | **19.64** |
@@ -342,13 +342,13 @@ optimizer 的標籤空間比 hunter 大約 **44%**。**這是步驟 4 必須記�
 5,000 / 10,000,**`hc_1000` 不在受評名單裡**。所以我們手上沒有 `hc_1000` 的 league 分數,
 也就沒有任何比較可以說它「不明顯犯錯」。這是意圖。
 
-`data/hc2/run.json` 的 val 曲線也沒有支持它:val 在 10,000 步內單調下降
+`data/imitation/hc2/run.json` 的 val 曲線也沒有支持它:val 在 10,000 步內單調下降
 (1.3813 → 0.9768),**step 10,000 的 val 最低**,而 `hc_1000` 只是第一個檢查點
 (`checkpoint_every` 由 2,000 調成 1,000 之後就有了)。
 
 ### `hc_1000` 的量測基線(唯讀,200 局)
 
-種子取自 `data/hc1` 的**驗證**範圍 6,100,000–6,101,545,取前 200 個:
+種子取自 `data/imitation/hc1` 的**驗證**範圍 6,100,000–6,101,545,取前 200 個:
 **6,100,000 – 6,100,199**。每局三個對手由七個人格抽出,顏色隨機,與 `rl/collect.py`
 之外的任何量測無關。熵掛在 `ImitationBrain.context`(網路實際推理之處),
 動作索引掛在 `pick_action`,所以 `log_prob_entropy` 的 gather 落在真正走的那一手。
@@ -441,7 +441,7 @@ optimizer 的標籤空間比 hunter 大約 **44%**。**這是步驟 4 必須記�
 > 自以為知道的東西。廢止的部分只有門檻本身,「規則在看到結果之前固定」這條不變。
 
 `0.063 = 3 × 0.021`,而 `0.021` 是 `hc1` 在 **20,000 列驗證集**上觀察到的 train/val 間距
-(`data/hc2/run.json` 的 `validation_rows = 20000`)。學生的驗證集只有約 **7,100 列**
+(`data/imitation/hc2/run.json` 的 `validation_rows = 20000`)。學生的驗證集只有約 **7,100 列**
 (200 局 × 35.6),約 2.8 倍小,驗證雜訊因此約多 √(20000/7100) ≈ **1.68 倍**,
 **固定 0.063 在較小的驗證集上誤觸的機率較高**。
 
@@ -463,7 +463,7 @@ optimizer 的標籤空間比 hunter 大約 **44%**。**這是步驟 4 必須記�
 | --- | --- |
 | 模仿訓練開始之前 | 三條停損門檻寫定(`db25e03`),第三條是「val 持續回升,**或** train/val 間距 > 0.063」 |
 | 訓練完成、曲線讀到之後 | 間距 0.3652 觸發第三條,按規則停下回報 |
-| 同一次回報 | 發現 0.063 **從未對 `data/hc2/run.json` 逐點驗證過** |
+| 同一次回報 | 發現 0.063 **從未對 `data/imitation/hc2/run.json` 逐點驗證過** |
 | 現在 | 廢止該門檻,寫下取代它的規則;**原規則文字保留** |
 
 「規則在看到任何學生結果之前固定」這條要求仍然成立——0.063 確實是在訓練前寫定的。
@@ -513,7 +513,7 @@ hc2 叫做過擬合,可它有 4/10 的檢查點落在自己規則的「過擬合
 
 ### 回頭套用到 `imit_o1000`(事後套用,結果如實記錄)
 
-`data/imit_o1000` 的 val 曲線最低點在 **step 900 = 1.249640**,step 1,000 為
+`data/imitation/imit_o1000` 的 val 曲線最低點在 **step 900 = 1.249640**,step 1,000 為
 **1.308491**:
 
 | | step 900 | step 1,000 | 差 |
@@ -528,7 +528,7 @@ hc2 叫做過擬合,可它有 4/10 的檢查點落在自己規則的「過擬合
 
 ### `rl_o1000_0k` 的決定與記錄
 
-**採用 `data/imit_o1000/step_001000.pt`,不早停。**理由是新規則不觸發(上),而舊規則
+**採用 `data/imitation/imit_o1000/step_001000.pt`,不早停。**理由是新規則不觸發(上),而舊規則
 已廢止(上)。
 
 - **間距 0.3652 是 hc2 同視界(step 1,000)0.1225 的 3.0 倍,傾向輕度過擬合。**
@@ -574,7 +574,7 @@ hc2 叫做過擬合,可它有 4/10 的檢查點落在自己規則的「過擬合
 | **optimizer 單一老師** | 2,000 train + 200 valid | **77.0 秒** |
 | 三個老師合計(實測推算) | 6,600 局 | **約 4 分鐘** |
 
-誤差約 **14 倍**。原因是當時我用 `data/hc1` 的 `wall_seconds = 1064 s / 30,925 局`
+誤差約 **14 倍**。原因是當時我用 `data/imitation/hc1` 的 `wall_seconds = 1064 s / 30,925 局`
 反推,而 hc1 是 12 個 worker 跑 30,925 局的完整規模,把它當成單一老師 2,000 局的成本
 本身就是錯的對比。
 
@@ -630,11 +630,11 @@ hc2 叫做過擬合,可它有 4/10 的檢查點落在自己規則的「過擬合
 
 | 項目 | 值 |
 | --- | --- |
-| 資料 | `data/hcb`(builder 老師,2,000 train + 200 valid 局) |
+| 資料 | `data/imitation/hcb`(builder 老師,2,000 train + 200 valid 局) |
 | 列數 | train **79,444**、valid **7,689**(valid 被 `validation_rows=20000` 取滿) |
 | caches | `legalactions.npz` 79,536,892 bytes、`labels_view.npy` 348,660 bytes,由修好的 `rl.caches.build_*` 建 |
-| 設定 | 與 `data/imit_o1000/step_001000.pt` 的 `settings` **逐欄相同**,訓練腳本載入比對,不同就拒絕執行 |
-| 檢查點 | `data/imit_b1000/step_000100.pt` … `step_001000.pt`(10 個),md5(step 1000)= `297f2189b384f01bc79fcba10f5d3a0c` |
+| 設定 | 與 `data/imitation/imit_o1000/step_001000.pt` 的 `settings` **逐欄相同**,訓練腳本載入比對,不同就拒絕執行 |
+| 檢查點 | `data/imitation/imit_b1000/step_000100.pt` … `step_001000.pt`(10 個),md5(step 1000)= `297f2189b384f01bc79fcba10f5d3a0c` |
 | 耗時 | 99.6 秒 |
 
 ### 訓練程序與 o 的一處差異:torch 從未被播種
@@ -649,7 +649,7 @@ s["lr_schedule_end_step"] = 10_000
 s["checkpoint_every"] = 100
 s["total_steps"] = 1000
 s["seed"] = 20_260_903
-out = T.run("data/hco", "data/imit_o1000", steps=1000, seed=s["seed"],
+out = T.run("data/imitation/hco", "data/imitation/imit_o1000", steps=1000, seed=s["seed"],
             settings=s, loader="serial")
 ```
 
@@ -735,11 +735,11 @@ val 最低點在 **step 1,000 = 1.555218,而它就是最後一個檢查點**—�
 
 | 項目 | 值 |
 | --- | --- |
-| 資料 | `data/hci`(intruder 老師,2,000 train + 200 valid 局) |
+| 資料 | `data/imitation/hci`(intruder 老師,2,000 train + 200 valid 局) |
 | 列數 | train **78,404**、valid **7,601** |
 | caches | `legalactions.npz` 72,010,712 bytes、`labels_view.npy` 344,148 bytes |
-| 設定 | 同樣與 `data/imit_o1000/step_001000.pt` 的 `settings` 逐欄比對,`torch.manual_seed(20260903)` |
-| 檢查點 | `data/imit_i1000/step_000100.pt` … `step_001000.pt`,md5(step 1000)= `d578c5fe7265daae634647d9b615ba59` |
+| 設定 | 同樣與 `data/imitation/imit_o1000/step_001000.pt` 的 `settings` 逐欄比對,`torch.manual_seed(20260903)` |
+| 檢查點 | `data/imitation/imit_i1000/step_000100.pt` … `step_001000.pt`,md5(step 1000)= `d578c5fe7265daae634647d9b615ba59` |
 | 耗時 | 105.1 秒 |
 
 ### 三條門檻
@@ -824,7 +824,7 @@ plan9a 階段 1。0k 檢查點的座位 key 改名,舊名永久作別名。**本
 | --- | --- |
 | 池 | 同一個 11 長度清單,**只有第 7 個位置的字串換掉**。當時池還是註冊表順序,所以同種子的座位、顏色、餘格、名次全部不變 —— **這句在階段 3 之後不再成立**,池改依 key 排序,見下面的「重跑確認」與主 README 的「GOLDEN 重採」 |
 | 別名 | `hc_1000` → `rl_h1000_0k`(`seats.ALIASES`),`--pool` 與 `--subject` 都寫入正式名 |
-| kind | 兩個拼法都是 `KIND_IMITATION`(同一個 `data/hc2/step_001000.pt`),`imitation_only` 仍是 3、`rl_only` 仍是 1、`no_imitation` 仍是 7 |
+| kind | 兩個拼法都是 `KIND_IMITATION`(同一個 `data/imitation/hc2/step_001000.pt`),`imitation_only` 仍是 3、`rl_only` 仍是 1、`no_imitation` 仍是 7 |
 | `records.json` | **未改寫**:`hc_1000` 那 1 局的舊列留著可讀,新的對局寫新 key(計畫要求「舊 key 可讀」) |
 | `eval/imitation/` | 未改寫 |
 
@@ -971,8 +971,8 @@ literal 假定不存在的東西),所以池必須寫成明確名單。
 | schema | 與 b、i **逐欄相同**(12 個頂層欄位、兩個 mode 區塊、四個統計區塊) |
 
 兩個檢查點的位元都與 b/i 當時用的檔相同:`ai/checkpoints/rl_h1000_0k/step_001000.pt`
-與 `data/hc2/step_001000.pt` 同 md5,`ai/checkpoints/rl_o1000_0k/step_001000.pt` 與
-`data/imit_o1000/step_001000.pt` 同 md5。**路徑不同、位元相同**,所以 `checkpoint`
+與 `data/imitation/hc2/step_001000.pt` 同 md5,`ai/checkpoints/rl_o1000_0k/step_001000.pt` 與
+`data/imitation/imit_o1000/step_001000.pt` 同 md5。**路徑不同、位元相同**,所以 `checkpoint`
 欄記的是這次實際載入的路徑。
 
 ### `protocol_check` 改了什麼

@@ -41,10 +41,10 @@ ZERO_K = {"rl_h1000_0k", "rl_o1000_0k", "rl_b1000_0k", "rl_i1000_0k"}
 # reading. Every value is the file that `ai/registry.json` used to name as
 # `source` for that seat.
 RETIRED_0K_PATHS = {
-    "ai/checkpoints/rl_h1000_0k/step_001000.pt": "data/hc2/step_001000.pt",
-    "ai/checkpoints/rl_o1000_0k/step_001000.pt": "data/imit_o1000/step_001000.pt",
-    "ai/checkpoints/rl_b1000_0k/step_001000.pt": "data/imit_b1000/step_001000.pt",
-    "ai/checkpoints/rl_i1000_0k/step_001000.pt": "data/imit_i1000/step_001000.pt",
+    "ai/checkpoints/rl_h1000_0k/step_001000.pt": "data/imitation/hc2/step_001000.pt",
+    "ai/checkpoints/rl_o1000_0k/step_001000.pt": "data/imitation/imit_o1000/step_001000.pt",
+    "ai/checkpoints/rl_b1000_0k/step_001000.pt": "data/imitation/imit_b1000/step_001000.pt",
+    "ai/checkpoints/rl_i1000_0k/step_001000.pt": "data/imitation/imit_i1000/step_001000.pt",
 }
 
 

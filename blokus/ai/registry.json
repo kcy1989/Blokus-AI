@@ -97,14 +97,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_h1000_20k/step_000040.pt",
-      "source": "data/rl1/step_000040.pt",
+      "source": "data/rl/h/20k/step_000040.pt",
       "sha256": "e1dc6230a70d205a89287468c47db6126717f0e9d42369bc1beca31404801636",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_desc_fmt",
-      "note": "PPO from the retired 0k checkpoint over 40 rounds of 500 games. The file is pinned by name: data/rl1/step_000040.pt is round 40, not an imitation step."
+      "note": "PPO from the retired 0k checkpoint over 40 rounds of 500 games. The file is pinned by name: data/rl/h/20k/step_000040.pt is round 40, not an imitation step."
     },
     {
       "key": "rl_o1000_20k",
@@ -112,14 +112,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_o1000_20k/step_000040.pt",
-      "source": "data/rl_o1000/step_000040.pt",
+      "source": "data/rl/o/20k/step_000040.pt",
       "sha256": "272b2edf35e9157ed137a33787ceb5fc736c62f785c304cb6abfa2a273c1ad90",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_optimizer_desc_fmt",
-      "note": "Optimizer's trained policy: PPO from rl_o1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl_o1000's round 40, published here. Provenance is eval/shared/0k-to-20k/README.md plus data/rl_o1000/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
+      "note": "Optimizer's trained policy: PPO from rl_o1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl/o/20k's round 40, published here. Provenance is eval/shared/0k-to-20k/README.md plus data/rl/o/20k/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
     },
     {
       "key": "rl_b1000_20k",
@@ -127,14 +127,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_b1000_20k/step_000040.pt",
-      "source": "data/rl_b1000/step_000040.pt",
+      "source": "data/rl/b/20k/step_000040.pt",
       "sha256": "63aeb6000623cdaec7f1568f99c65135dbcb8eb862b9c637d1f43be6e01daa6a",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_builder_desc_fmt",
-      "note": "Builder's trained policy: PPO from rl_b1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl_b1000's round 40, published here. Provenance is eval/shared/0k-to-20k/README.md plus data/rl_b1000/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
+      "note": "Builder's trained policy: PPO from rl_b1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl/b/20k's round 40, published here. Provenance is eval/shared/0k-to-20k/README.md plus data/rl/b/20k/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
     },
     {
       "key": "rl_i1000_20k",
@@ -142,14 +142,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_i1000_20k/step_000040.pt",
-      "source": "data/rl_i1000/step_000040.pt",
+      "source": "data/rl/i/20k/step_000040.pt",
       "sha256": "3db862d34fbe48943621e373d29adc456016c12675daf86133abf0460518c9d0",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_intruder_desc_fmt",
-      "note": "Intruder's trained policy: PPO from rl_i1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl_i1000's round 40, published here. Provenance is eval/shared/0k-to-20k/README.md plus data/rl_i1000/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
+      "note": "Intruder's trained policy: PPO from rl_i1000_0k over 40 rounds of 500 games (20,000 total). Weights are data/rl/i/20k's round 40, published here. Provenance is eval/shared/0k-to-20k/README.md plus data/rl/i/20k/MANIFEST.json, which records commit 88c8a18 without checking that the tree was clean - so records.json's commit stays null."
     },
     {
       "key": "rl_h1000_50k",
@@ -157,14 +157,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_h1000_50k/step_000100.pt",
-      "source": "data/multi/h/step_000100.pt",
+      "source": "data/rl/shared/four-at-once/h/step_000100.pt",
       "sha256": "eaf6a2ff3b30ffa4e16e9cda1fa885e5d62e17432c03861e7d6f428e92907b49",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_desc50_fmt",
-      "note": "Hunter's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_h1000_20k, so 100 rounds and 50,000 games in total. The file is data/multi/h's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
+      "note": "Hunter's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_h1000_20k, so 100 rounds and 50,000 games in total. The file is data/rl/shared/four-at-once/h's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
     },
     {
       "key": "rl_o1000_50k",
@@ -172,14 +172,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_o1000_50k/step_000100.pt",
-      "source": "data/multi/o/step_000100.pt",
+      "source": "data/rl/shared/four-at-once/o/step_000100.pt",
       "sha256": "9fa7c6781c632705fe9015846a209d891eecab6398c239bf3ad8bafbdfdc00cd",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_optimizer_desc50_fmt",
-      "note": "Optimizer's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_o1000_20k, so 100 rounds and 50,000 games in total. The file is data/multi/o's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
+      "note": "Optimizer's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_o1000_20k, so 100 rounds and 50,000 games in total. The file is data/rl/shared/four-at-once/o's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
     },
     {
       "key": "rl_b1000_50k",
@@ -187,14 +187,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_b1000_50k/step_000100.pt",
-      "source": "data/multi/b/step_000100.pt",
+      "source": "data/rl/shared/four-at-once/b/step_000100.pt",
       "sha256": "ab6ec0a120667bd98a8f0352c7e35b5c6ac1ec17126a433050fdb93be92d09e3",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_builder_desc50_fmt",
-      "note": "Builder's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_b1000_20k, so 100 rounds and 50,000 games in total. The file is data/multi/b's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
+      "note": "Builder's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_b1000_20k, so 100 rounds and 50,000 games in total. The file is data/rl/shared/four-at-once/b's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
     },
     {
       "key": "rl_i1000_50k",
@@ -202,14 +202,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_i1000_50k/step_000100.pt",
-      "source": "data/multi/i/step_000100.pt",
+      "source": "data/rl/shared/four-at-once/i/step_000100.pt",
       "sha256": "ef6ab92bbc11c3ec0c2f02945257a2ba435bfe9b295cb54bf5cb69ea847484a6",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_intruder_desc50_fmt",
-      "note": "Intruder's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_i1000_20k, so 100 rounds and 50,000 games in total. The file is data/multi/i's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
+      "note": "Intruder's trained policy, plan10's four-at-once run at milestone 1: 60 more rounds of 500 games on top of rl_i1000_20k, so 100 rounds and 50,000 games in total. The file is data/rl/shared/four-at-once/i's round 100, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/shared/four-at-once/README.md plus the step_000060/80/100 snapshots."
     },
     {
       "key": "rl_o1000_50k_v3",
@@ -217,14 +217,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_o1000_50k_v3/step_000060.pt",
-      "source": "data/rl_o50k_v3/step_000060.pt",
+      "source": "data/rl/o/50k_v3/step_000060.pt",
       "sha256": "0868776ef18ad2b3e2e00878fe0cf87fd2202ef47dcd9dde8e96f86e7db1154d",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_optimizer_desc50v3_fmt",
-      "note": "Optimizer's trained policy, plan10 v3 under the 2026-10-13 decree: 60 rounds of 500 games cold-started from rl_o1000_20k with --balanced-schedule under a ten-seat pool that no longer held the learner's own start, so 20,000 + 30,000 = 50,000 games in total. The file is data/rl_o50k_v3's round 60, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/o/v3/README.md - acceptance argmax +0.2286 (6.17 se) and fresh-block recheck +0.2187 (5.61 se) over the start, both above 1.3 x paired_se, one look each."
+      "note": "Optimizer's trained policy, plan10 v3 under the 2026-10-13 decree: 60 rounds of 500 games cold-started from rl_o1000_20k with --balanced-schedule under a ten-seat pool that no longer held the learner's own start, so 20,000 + 30,000 = 50,000 games in total. The file is data/rl/o/50k_v3's round 60, published here; the frozen 20k it started from stays a separate seat and the training pool was deliberately not widened with this row. Evidence: eval/o/v3/README.md - acceptance argmax +0.2286 (6.17 se) and fresh-block recheck +0.2187 (5.61 se) over the start, both above 1.3 x paired_se, one look each."
     },
     {
       "key": "rl_h1000_30k",
@@ -232,14 +232,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_h1000_30k/step_000060.pt",
-      "source": "data/rl_h1000_30k/step_000060.pt",
+      "source": "data/rl/h/30k/step_000060.pt",
       "sha256": "ecb2b672ca67661d53f9e10b48c4bddf76739e94bd58a24256a9f990690b2453",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_hunter_desc30k_fmt",
-      "note": "Hunter's trained policy, a mid-run snapshot: round 20 of the balanced cold-start run in data/rl_h50k_v3 (cold-started from rl_h1000_20k, --balanced-schedule, ten-seat pool), so 20,000 + 10,000 = 30,000 games and the accumulated step count 40 + 20 = 60. The file is that run's round-20 output, byte-identical here and in the accumulating-name copy under data/rl_h1000_30k/ - a separate directory because data/rl_h50k_v3/step_000060.pt is already the same run's round-60 output. Acceptance: +0.052220 (1.477 x paired_se) over the start rl_h1000_20k on a fresh block, above 1.3 x se, one look. The run's final weights (the rl_h1000_50k_v2 candidate) scored +0.006430 and were not pooled; the training pool was deliberately not widened with this row. Evidence: eval/h/v2/README.md sections 14 and 17. Status: 待校準."
+      "note": "Hunter's trained policy, a mid-run snapshot: round 20 of the balanced cold-start run in data/rl/h/50k_v3 (cold-started from rl_h1000_20k, --balanced-schedule, ten-seat pool), so 20,000 + 10,000 = 30,000 games and the accumulated step count 40 + 20 = 60. The file is that run's round-20 output, byte-identical here and in the accumulating-name copy under data/rl/h/30k/ - a separate directory because data/rl/h/50k_v3/step_000060.pt is already the same run's round-60 output. Acceptance: +0.052220 (1.477 x paired_se) over the start rl_h1000_20k on a fresh block, above 1.3 x se, one look. The run's final weights (the rl_h1000_50k_v2 candidate) scored +0.006430 and were not pooled; the training pool was deliberately not widened with this row. Evidence: eval/h/v2/README.md sections 14 and 17. Status: 待校準."
     },
     {
       "key": "rl_i1000_37.5k",
@@ -247,14 +247,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_i1000_37.5k/step_000075.pt",
-      "source": "data/rl_i1000_37.5k/step_000075.pt",
+      "source": "data/rl/i/37.5k/step_000075.pt",
       "sha256": "37a000b29247f5c4010486d23b5465c633f71b93b70326364e97533e2dfeb097",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_intruder_desc37.5k_fmt",
-      "note": "Intruder's trained policy, a mid-run snapshot: round 35 of the balanced cold-start run in data/rl_i50k_v3 (cold-started from rl_i1000_20k, --balanced-schedule, ten-seat pool without the learner's own start), so 20,000 + 17,500 = 37,500 games and the accumulated step count 40 + 35 = 75. The file is that run's round-35 output, byte-identical here and in the accumulating-name copy under data/rl_i1000_37.5k/. Acceptance: +0.065620 (1.597 x paired_se) over the start rl_i1000_20k on a fresh block, above 1.3 x se, one look. The run's final weights (the rl_i1000_50k_v3 candidate) scored -0.036140 and were not pooled; the training pool was deliberately not widened with this row. Evidence: eval/i/v3/README.md sections 14 and 15. Status: 待校準."
+      "note": "Intruder's trained policy, a mid-run snapshot: round 35 of the balanced cold-start run in data/rl/i/50k_v3 (cold-started from rl_i1000_20k, --balanced-schedule, ten-seat pool without the learner's own start), so 20,000 + 17,500 = 37,500 games and the accumulated step count 40 + 35 = 75. The file is that run's round-35 output, byte-identical here and in the accumulating-name copy under data/rl/i/37.5k/. Acceptance: +0.065620 (1.597 x paired_se) over the start rl_i1000_20k on a fresh block, above 1.3 x se, one look. The run's final weights (the rl_i1000_50k_v3 candidate) scored -0.036140 and were not pooled; the training pool was deliberately not widened with this row. Evidence: eval/i/v3/README.md sections 14 and 15. Status: 待校準."
     },
     {
       "key": "rl_h1000_100k",
@@ -262,14 +262,14 @@
       "kind": "network",
       "family": "rl",
       "checkpoint": "ai/checkpoints/rl_h1000_100k/step_000200.pt",
-      "source": "data/rl_h100k/step_000200.pt",
+      "source": "data/rl/h/100k/step_000200.pt",
       "sha256": "e57dbf1cf5dbef11a1379e55417c1dc284738f507c15ed609fb839f8948b830a",
       "pools": ["all", "rl_only"],
       "enabled": true,
       "selectable": true,
       "label": "rl_fmt",
       "desc_key": "rl_hunter_desc100k_fmt",
-      "note": "Hunter's trained policy, plan10 §16 (2026-10-16 decree): 105 rounds of 500 games cold-started from v4 r35 (data/rl_h50k_v4/step_000035.pt, accumulated step 95) under --balanced-schedule under a twelve-seat pool that no longer held the learner's own start, so 47,500 + 52,500 = 100,000 games and the accumulated step count 95 + 105 = 200. The file is data/rl_h100k's round-105 output, published here under the accumulating step name step_000200.pt; the frozen v4 r35 it started from stays a separate weight and the training pool was deliberately not widened with this row. Evidence: eval/h/100k/README.md - acceptance argmax +0.008050 (0.207 x paired_se) over the start, below 1.3 x se, one look. Not pooled by the acceptance criterion; pooled by user decree 2026-10-16."
+      "note": "Hunter's trained policy, plan10 §16 (2026-10-16 decree): 105 rounds of 500 games cold-started from v4 r35 (data/rl/h/50k_v4/step_000035.pt, accumulated step 95) under --balanced-schedule under a twelve-seat pool that no longer held the learner's own start, so 47,500 + 52,500 = 100,000 games and the accumulated step count 95 + 105 = 200. The file is data/rl/h/100k's round-105 output, published here under the accumulating step name step_000200.pt; the frozen v4 r35 it started from stays a separate weight and the training pool was deliberately not widened with this row. Evidence: eval/h/100k/README.md - acceptance argmax +0.008050 (0.207 x paired_se) over the start, below 1.3 x se, one look. Not pooled by the acceptance criterion; pooled by user decree 2026-10-16."
     }
   ]
 }

@@ -23,7 +23,7 @@
  "subject": "rl_o1000_20k",
  "adhoc": {
   "rl_o1000_20k": {
-   "path": "data/rl_o1000/step_000040.pt",
+   "path": "data/rl/o/20k/step_000040.pt",
    "md5": "b0f7c1221a1782442d0e14be55ca4c87"
   }
  },

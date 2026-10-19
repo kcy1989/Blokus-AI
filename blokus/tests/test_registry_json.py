@@ -141,8 +141,8 @@ def test_network_entries_name_the_files_the_seats_load():
         assert S.imitation_checkpoint(e["key"]) == e["checkpoint"], e["key"]
         step = S.imitation_step(e["key"])
         # Since plan9a stage 6 `source` is per key, not one constant: H-C2's
-        # three trained in data/hc2, the three students each in their own
-        # data/imit_* run. What every one of them still has to be is a training
+        # three trained in data/imitation/hc2, the three students each in their own
+        # data/imitation/imit_* run. What every one of them still has to be is a training
         # artifact under data/ whose filename matches the published copy - that
         # is what makes the copy a copy. The H-C2 chain keeps the stricter
         # assertion below, because `IMITATION_CHECKPOINT_DIR` is still the run

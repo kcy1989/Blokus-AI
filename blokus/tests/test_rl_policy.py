@@ -1,7 +1,7 @@
 """The RL numerical interface: does it compute the right numbers, and the same
 ones on both devices?
 
-Every test here needs `data/hc2/step_001000.pt`, which is tracked but which a
+Every test here needs `data/imitation/hc2/step_001000.pt`, which is tracked but which a
 checkout can still be missing, so the whole module skips without it - the same
 bargain `tests/test_rl_imitation.py` strikes.
 

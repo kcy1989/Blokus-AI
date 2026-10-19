@@ -455,8 +455,8 @@ def test_one_worker_and_four_workers_produce_the_same_samples(tmp_path):
 def test_the_defaults_reproduce_the_setup_data_hc1_was_collected_with():
     """No flag means the dataset that produced `hc_1000`.
 
-    That chain is worth spelling out: `data/hc1` was collected with the teacher
-    at `hunter`, distilled into `data/hc2/step_001000.pt` (`hc_1000`), and that
+    That chain is worth spelling out: `data/imitation/hc1` was collected with the teacher
+    at `hunter`, distilled into `data/imitation/hc2/step_001000.pt` (`hc_1000`), and that
     checkpoint is the init and the KL anchor for `rl_h1000_20k`. So "the default
     teacher" is not a convenience default - changing it would silently move the
     starting point of every model trained from the hunter line, and the change
@@ -470,9 +470,9 @@ def test_the_defaults_reproduce_the_setup_data_hc1_was_collected_with():
     import rl.collect as C
 
     manifest_path = os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), "data", "hc1", "manifest.json")
+        os.path.abspath(__file__))), "data", "imitation", "hc1", "manifest.json")
     if not os.path.exists(manifest_path):
-        pytest.skip("data/hc1 is not present; its manifest is the reference")
+        pytest.skip("data/imitation/hc1 is not present; its manifest is the reference")
 
     with open(manifest_path, encoding="utf-8") as fh:
         m = json.load(fh)
@@ -584,7 +584,7 @@ def test_the_seed_bases_reproduce_data_hc1():
     """plan9 step 2b: the bases were wrong, and the manifest is what says so.
 
     These two constants were 1_000_000 / 2_000_000 for a while, which collected
-    from a range that is not `data/hc1`'s. The manifest's shard names carry the
+    from a range that is not `data/imitation/hc1`'s. The manifest's shard names carry the
     real bases; the code cannot, because the code is what changed. Pinned here
     so the next edit cannot quietly move the starting point of a dataset and
     have the only symptom be a training curve.
@@ -595,9 +595,9 @@ def test_the_seed_bases_reproduce_data_hc1():
     import rl.collect as C
 
     manifest_path = os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), "data", "hc1", "manifest.json")
+        os.path.abspath(__file__))), "data", "imitation", "hc1", "manifest.json")
     if not os.path.exists(manifest_path):
-        pytest.skip("data/hc1 is not present; its manifest is the reference")
+        pytest.skip("data/imitation/hc1 is not present; its manifest is the reference")
 
     with open(manifest_path, encoding="utf-8") as fh:
         m = json.load(fh)
@@ -613,10 +613,10 @@ def test_the_seed_bases_reproduce_data_hc1():
 
     assert train_lo is not None and valid_lo is not None
     assert C.TRAIN_SEED_BASE == train_lo, (
-        "TRAIN_SEED_BASE is %d but data/hc1's train shards start at %d"
+        "TRAIN_SEED_BASE is %d but data/imitation/hc1's train shards start at %d"
         % (C.TRAIN_SEED_BASE, train_lo))
     assert C.VALID_SEED_BASE == valid_lo, (
-        "VALID_SEED_BASE is %d but data/hc1's valid shards start at %d"
+        "VALID_SEED_BASE is %d but data/imitation/hc1's valid shards start at %d"
         % (C.VALID_SEED_BASE, valid_lo))
 
 

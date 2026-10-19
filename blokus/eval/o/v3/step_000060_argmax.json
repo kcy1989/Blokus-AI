@@ -23,7 +23,7 @@
   233,
   254
  ],
- "current_path": "data/rl_o50k_v3/step_000060.pt",
+ "current_path": "data/rl/o/50k_v3/step_000060.pt",
  "current_sha256": "0868776ef18ad2b3e2e00878fe0cf87fd2202ef47dcd9dde8e96f86e7db1154d",
  "ref_path": "ai/checkpoints/rl_o1000_20k/step_000040.pt",
  "ref_sha256": "272b2edf35e9157ed137a33787ceb5fc736c62f785c304cb6abfa2a273c1ad90",

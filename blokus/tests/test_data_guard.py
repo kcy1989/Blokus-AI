@@ -13,8 +13,8 @@ would pass straight through.
 """
 import os
 
-from conftest import (GUARD_EXCLUDED, diff_snapshots, guard_roots,
-                      render_changes, snapshot, snapshot_roots)
+from conftest import (diff_snapshots, guard_roots, render_changes, snapshot,
+                      snapshot_roots)
 
 
 def write(path, data=b"x", mtime=None):
@@ -138,30 +138,32 @@ def test_it_reports_nothing_when_nothing_moved(tmp_path):
 
 def test_guard_roots_watches_the_dataset_directories_and_the_leaderboard(tmp_path):
     for name in ("h0", "h1", "hb1", "hb2", "hc1", "hc2"):
-        (tmp_path / "data" / name).mkdir(parents=True)
+        (tmp_path / "data" / "imitation" / name).mkdir(parents=True)
+    (tmp_path / "data" / "rl" / "h").mkdir(parents=True)
     write(str(tmp_path / "records.json"), b"{}")
     roots = guard_roots(str(tmp_path))
     for name in ("h0", "h1", "hb1", "hb2", "hc1", "hc2"):
-        assert os.path.join("data", name) in roots
+        assert os.path.join("data", "imitation", name) in roots
+    assert os.path.join("data", "rl", "h") in roots
     assert "records.json" in roots
 
 
-def test_guard_roots_excludes_the_applications_own_output_directories(tmp_path):
-    """`data/humanlog` matches `h*` and would otherwise be swept in.
+def test_guard_roots_ignores_the_applications_own_output_directories(tmp_path):
+    """`data/humanlog` and `data/match` are runtime products, not evidence.
 
-    A human game appends there and an evaluation run drops a batch into
-    `data/match`; watching either would make the guard fail on ordinary use of
-    the application rather than on a test that writes where it should not.
+    A human game appends to `data/humanlog` and an evaluation run drops a batch
+    into `data/match`; watching either would make the guard fail on ordinary use
+    of the application rather than on a test that writes where it should not.
+    Neither sits under a watched pattern, so the exclusion is structural rather
+    than a named opt-out.
     """
-    (tmp_path / "data" / "h0").mkdir(parents=True)
+    (tmp_path / "data" / "imitation" / "h0").mkdir(parents=True)
     (tmp_path / "data" / "humanlog").mkdir(parents=True)
     (tmp_path / "data" / "match").mkdir(parents=True)
     roots = guard_roots(str(tmp_path))
     assert os.path.join("data", "humanlog") not in roots
     assert os.path.join("data", "match") not in roots
-    assert os.path.join("data", "h0") in roots
-    for excluded in GUARD_EXCLUDED:
-        assert not any(r.endswith(excluded) for r in roots)
+    assert os.path.join("data", "imitation", "h0") in roots
 
 
 def test_guard_roots_is_empty_on_a_checkout_without_data(tmp_path):
@@ -169,7 +171,7 @@ def test_guard_roots_is_empty_on_a_checkout_without_data(tmp_path):
 
 
 def test_guard_roots_omits_a_leaderboard_that_is_not_there(tmp_path):
-    (tmp_path / "data" / "h0").mkdir(parents=True)
+    (tmp_path / "data" / "imitation" / "h0").mkdir(parents=True)
     assert "records.json" not in guard_roots(str(tmp_path))
 
 
@@ -178,37 +180,37 @@ def test_guard_roots_omits_a_leaderboard_that_is_not_there(tmp_path):
 def test_snapshot_roots_keys_by_project_relative_path(tmp_path):
     """Two roots holding the same relative name must not collapse into one
     entry, or half the comparison is vacuous."""
-    for root in ("data/hb1", "data/hc1"):
+    for root in ("data/imitation/hb1", "data/imitation/hc1"):
         write(str(tmp_path / root / "manifest.json"), b"{}")
     write(str(tmp_path / "records.json"), b"{}")
-    snap = snapshot_roots(("data/hb1", "data/hc1", "records.json"),
+    snap = snapshot_roots(("data/imitation/hb1", "data/imitation/hc1", "records.json"),
                           str(tmp_path))
     assert sorted(snap) == [
-        os.path.join("data", "hb1", "manifest.json"),
-        os.path.join("data", "hc1", "manifest.json"),
+        os.path.join("data", "imitation", "hb1", "manifest.json"),
+        os.path.join("data", "imitation", "hc1", "manifest.json"),
         "records.json",
     ]
 
 
 def test_a_change_in_any_root_shows_up(tmp_path):
-    for root in ("data/hb1", "data/hc1"):
+    for root in ("data/imitation/hb1", "data/imitation/hc1"):
         write(str(tmp_path / root / "manifest.json"), b"{}")
-    roots = ("data/hb1", "data/hc1")
+    roots = ("data/imitation/hb1", "data/imitation/hc1")
     before = snapshot_roots(roots, str(tmp_path))
-    write(str(tmp_path / "data" / "hc1" / "manifest.json"), b'{"a": 1}')
+    write(str(tmp_path / "data" / "imitation" / "hc1" / "manifest.json"), b'{"a": 1}')
     changes = diff_snapshots(before, snapshot_roots(roots, str(tmp_path)))
     assert len(changes) == 1
-    assert changes[0][1] == os.path.join("data", "hc1", "manifest.json")
+    assert changes[0][1] == os.path.join("data", "imitation", "hc1", "manifest.json")
 
 
 # --------------------------------------------------------- the message
 
 def test_the_failure_message_names_every_change(tmp_path):
-    changes = [("added", os.path.join("data", "hb1", "x.npz"), "5 bytes"),
-               ("removed", os.path.join("data", "hc1", "y.npz"), "7 bytes")]
+    changes = [("added", os.path.join("data", "imitation", "hb1", "x.npz"), "5 bytes"),
+               ("removed", os.path.join("data", "imitation", "hc1", "y.npz"), "7 bytes")]
     text = render_changes(changes)
-    assert os.path.join("data", "hb1", "x.npz") in text
-    assert os.path.join("data", "hc1", "y.npz") in text
+    assert os.path.join("data", "imitation", "hb1", "x.npz") in text
+    assert os.path.join("data", "imitation", "hc1", "y.npz") in text
     assert "added" in text and "removed" in text
 
 

@@ -8,10 +8,10 @@ milestone 1）；單打線最新的入池者是 `rl_h1000_100k`（使用者裁�
 
 ```
 rl_h1000_20k  (shared/0k-to-20k)
-├── v2 run (data/rl_h50k_v3)
+├── v2 run (data/rl/h/50k_v3)
 │   ├── round 20  → rl_h1000_30k        入池（本目錄 v2/ §17–§18）
 │   └── round 60  → rl_h1000_50k_v2     未入池（+0.006430，未過閾值）
-└── v4 run (data/rl_h50k_v4)，起點 rl_h1000_30k step 60
+└── v4 run (data/rl/h/50k_v4)，起點 rl_h1000_30k step 60
     ├── round 35  → 非席位（+0.046100，未過 1.3 se）
     │   ├── t05 run (T=0.5)            未入池
     │   └── 100k run → rl_h1000_100k    入池（裁示；+0.008050）

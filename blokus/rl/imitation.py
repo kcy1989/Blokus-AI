@@ -58,8 +58,8 @@ def default_checkpoint_dir():
     this directory is once again where all three files are - but it is a fact
     about the *run*, not about a seat, and no registered key resolves through
     here. What still belongs to `seats` is *which run* this is - a second
-    hard-coded path is how the pool once said `data/hc2` while this function
-    said `data/hb2`. The import stays inside the function so `rl` still does
+    hard-coded path is how the pool once said `data/imitation/hc2` while this function
+    said `data/imitation/hb2`. The import stays inside the function so `rl` still does
     not depend on the game layer at import time.
     """
     import seats
@@ -467,7 +467,7 @@ def load_brain_at(path, step=None, key=None, device=None, mode=DEFAULT_MODE,
     right shape for H-C2 - one directory, one naming convention, so a step
     identifies a file. A trained policy is the opposite: its identity is the
     file, and the file's name carries a *round*, not an imitation step. Naming it
-    by step would invent a convention it does not follow, and `data/rl1`'s
+    by step would invent a convention it does not follow, and `data/rl/h/20k`'s
     `step_000040.pt` happens to match `checkpoint_path`'s pattern - which is a
     coincidence to rely on for something as permanent as a pool entry.
 

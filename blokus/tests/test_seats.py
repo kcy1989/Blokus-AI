@@ -218,10 +218,10 @@ def test_the_retired_0k_weights_are_still_in_the_repository():
     as a first replay that cannot find its weights.
     """
     retired = [
-        "data/hc2/step_001000.pt",
-        "data/imit_o1000/step_001000.pt",
-        "data/imit_b1000/step_001000.pt",
-        "data/imit_i1000/step_001000.pt",
+        "data/imitation/hc2/step_001000.pt",
+        "data/imitation/imit_o1000/step_001000.pt",
+        "data/imitation/imit_b1000/step_001000.pt",
+        "data/imitation/imit_i1000/step_001000.pt",
     ]
     checked = 0
     for path in retired:
@@ -248,11 +248,11 @@ def test_the_rl_key_prefix_alone_is_not_a_registered_seat():
 
 
 def test_the_hc2_chain_still_points_at_hc2_files():
-    """The training chain is a fact about `data/hc2`, not about the roster.
+    """The training chain is a fact about `data/imitation/hc2`, not about the roster.
 
     H-B2's four checkpoints are still on disk and `load_brain` would still open
     one, so this pins the *source run* as well as the steps: a table that pointed
-    at `data/hb2` would pass every key-shape test above and quietly serve
+    at `data/imitation/hb2` would pass every key-shape test above and quietly serve
     networks trained on the old `stuck` column.
 
     Plan9 task 4 took the registry rows away but not the files, so the shape
@@ -262,7 +262,7 @@ def test_the_hc2_chain_still_points_at_hc2_files():
     still answered `kind_of` would put a retired seat back in the product, and a
     table that forgot the chain would break `rl.imitation`'s own tests.
     """
-    assert seats.IMITATION_CHECKPOINT_DIR == "data/hc2"
+    assert seats.IMITATION_CHECKPOINT_DIR == "data/imitation/hc2"
     assert seats.IMITATION_STEPS == (1000, 2000, 10000)
     assert seats.IMITATION_KEYS == {1000: "rl_h1000_0k", 2000: "hc_2000",
                                     10000: "hc_10000"}

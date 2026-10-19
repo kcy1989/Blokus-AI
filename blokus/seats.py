@@ -70,7 +70,7 @@ HUMAN_LOG_KEY = "human_log"
 # and so is the fact that 10,000 was the last step trained.
 #
 # H-C2 is the run that regenerated the imitation data on the exact-latch engine
-# (docs/reports/hc2_report.md). H-B2's checkpoints are still on disk in `data/hb2`
+# (docs/reports/hc2_report.md). H-B2's checkpoints are still on disk in `data/imitation/hb2`
 # and are still loadable by step number; they are simply no longer *named*, so
 # that a stale key cannot silently resolve to a checkpoint trained on data whose
 # `stuck` column disagreed with the rules.
@@ -83,7 +83,7 @@ HUMAN_LOG_KEY = "human_log"
 # are read by `rl/` (by step + directory) and by a `--adhoc` replay, not by a
 # seat.
 IMITATION_STEPS = (1000, 2000, 10000)
-IMITATION_CHECKPOINT_DIR = "data/hc2"
+IMITATION_CHECKPOINT_DIR = "data/imitation/hc2"
 
 # The option key each H-C2 step is registered under - the direction the
 # training code asks in (`imitation_key(step)`). The other direction, key ->
@@ -103,18 +103,18 @@ IMITATION_KEYS = {1000: "rl_h1000_0k", 2000: "hc_2000", 10000: "hc_10000"}
 # Written out as a table rather than derived, because a trained policy's identity
 # *is* its file. H-C2's three checkpoints live in one directory under one
 # filename convention, so a step number identifies a file and `imitation_key`
-# looks up the name it was registered under. `data/rl1` has no such convention:
+# looks up the name it was registered under. `data/rl/h/20k` has no such convention:
 # `step_000040.pt` there means round 40, not an imitation step, and `latest.pt`
 # is a moving target that would make the pool entry quietly mean a different
 # policy after every retrain. So the file is named, and pinning it is the
 # friction that keeps a league result interpretable.
 #
 # `rl_h1000_20k` = PPO from the 0k checkpoint, 20,000 episodes. The `h` names
-# the personality that 0k model was distilled from: `data/hc1/manifest.json`
+# the personality that 0k model was distilled from: `data/imitation/hc1/manifest.json`
 # records `teacher = hunter`, and the checkpoint's own `init_checkpoint` field
-# records `data/hc2/step_001000.pt` - the file the seat `rl_h1000_0k` plays,
+# records `data/imitation/hc2/step_001000.pt` - the file the seat `rl_h1000_0k` plays,
 # which plan9a stage 1 renamed out of its old `hc_1000` spelling. The training
-# curve is in `data/rl1/rounds.jsonl`, which is where the 40 rounds of 500
+# curve is in `data/rl/h/20k/rounds.jsonl`, which is where the 40 rounds of 500
 # games are.
 #
 # Since plan9a stage 4 the *load* path is `ai/registry.json`'s `checkpoint` -
@@ -124,41 +124,41 @@ IMITATION_KEYS = {1000: "rl_h1000_0k", 2000: "hc_2000", 10000: "hc_10000"}
 # The table itself stays: which option keys are trained policies is still
 # decided here, because that is a fact about the code and not about a file.
 RL_SEATS = (
-    ("rl_h1000_20k", "data/rl1/step_000040.pt"),
-    ("rl_o1000_20k", "data/rl_o1000/step_000040.pt"),
-    ("rl_b1000_20k", "data/rl_b1000/step_000040.pt"),
-    ("rl_i1000_20k", "data/rl_i1000/step_000040.pt"),
+    ("rl_h1000_20k", "data/rl/h/20k/step_000040.pt"),
+    ("rl_o1000_20k", "data/rl/o/20k/step_000040.pt"),
+    ("rl_b1000_20k", "data/rl/b/20k/step_000040.pt"),
+    ("rl_i1000_20k", "data/rl/i/20k/step_000040.pt"),
     # plan10 milestone 1 (2026-10-10): the four learners after 60 more rounds
     # of 500 games each, trained at once under eval/shared/four-at-once/. The
     # path is where the policy was *trained*; `ai/registry.json`'s `checkpoint`
     # is where it is *published* and what `rl_checkpoint` reads. The 20k rows
     # above stay: each 50k policy continues from its own frozen 20k, and both
     # are separate seats so a league can put them against each other.
-    ("rl_h1000_50k", "data/multi/h/step_000100.pt"),
-    ("rl_o1000_50k", "data/multi/o/step_000100.pt"),
-    ("rl_b1000_50k", "data/multi/b/step_000100.pt"),
-    ("rl_i1000_50k", "data/multi/i/step_000100.pt"),
+    ("rl_h1000_50k", "data/rl/shared/four-at-once/h/step_000100.pt"),
+    ("rl_o1000_50k", "data/rl/shared/four-at-once/o/step_000100.pt"),
+    ("rl_b1000_50k", "data/rl/shared/four-at-once/b/step_000100.pt"),
+    ("rl_i1000_50k", "data/rl/shared/four-at-once/i/step_000100.pt"),
     # plan10 v3 (2026-10-14: the o learner's second 50k - cold-started from
     # rl_o1000_20k under the balanced schedule and a ten-seat pool without
     # its own start. Same split as the rows above: the path is where it was
     # trained, ai/registry.json's checkpoint is where it is published, and
     # this table's order is the registry's rl-family order.
-    ("rl_o1000_50k_v3", "data/rl_o50k_v3/step_000060.pt"),
+    ("rl_o1000_50k_v3", "data/rl/o/50k_v3/step_000060.pt"),
     # plan10 (2026-10-15 decree): two mid-run snapshots of the balanced
     # cold-start runs, each the checkpoint its own run's final weights beat on
     # acceptance and each published under the accumulating step count. The path
     # is where the weights live under their accumulated name; the per-run
-    # directories beside them (data/rl_h50k_v3/step_000020.pt,
-    # data/rl_i50k_v3/step_000035.pt) are the raw round outputs the copies are
+    # directories beside them (data/rl/h/50k_v3/step_000020.pt,
+    # data/rl/i/50k_v3/step_000035.pt) are the raw round outputs the copies are
     # byte-identical to, verified by sha256 before publication. Both runs'
     # final weights failed their criteria and are not seats.
-    ("rl_h1000_30k", "data/rl_h1000_30k/step_000060.pt"),
-    ("rl_i1000_37.5k", "data/rl_i1000_37.5k/step_000075.pt"),
+    ("rl_h1000_30k", "data/rl/h/30k/step_000060.pt"),
+    ("rl_i1000_37.5k", "data/rl/i/37.5k/step_000075.pt"),
     # plan10 §16 (2026-10-16): the h learner after 105 more rounds of 500
     # games, cold-started from v4 r35 under the balanced schedule. The path is
     # where the policy was trained; ai/registry.json's checkpoint is where it
     # is published.
-    ("rl_h1000_100k", "data/rl_h100k/step_000200.pt"),
+    ("rl_h1000_100k", "data/rl/h/100k/step_000200.pt"),
 )
 
 # Every alias, the imitation ones and the trained-policy ones alike. This is
@@ -300,7 +300,7 @@ def imitation_checkpoint(key):
     The path used to come from `ai/registry.json`. Plan9 task 4 removed the last
     imitation row, so this now refuses every key - which is the point: an
     imitation seat is not something the product can be set up with any more.
-    The files themselves are back under `data/hc2` (see `IMITATION_STEPS`), and
+    The files themselves are back under `data/imitation/hc2` (see `IMITATION_STEPS`), and
     `rl/` reads them by step and directory rather than through here.
     """
     key = canonical_key(key)

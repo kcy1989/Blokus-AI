@@ -3,7 +3,7 @@
 本目錄收 plan10 **任務二**（四學習者同場訓練）的設計記錄，以及每個里程碑的
 日誌快照。快照寫進 `step_<n>/`，**不覆寫**；重跑一律寫新目錄。
 
-訓練權重在 `data/multi/{h,o,b,i}/`（gitignored）。本目錄只放證據。
+訓練權重在 `data/rl/shared/four-at-once/{h,o,b,i}/`（gitignored）。本目錄只放證據。
 
 ---
 
@@ -96,11 +96,11 @@ LEARNER_KEYS = ("rl_h1000_20k", "rl_o1000_20k", "rl_b1000_20k", "rl_i1000_20k")
 
 ## 6. 存檔與重現
 
-- `data/multi/<learner>/current.pt` — 每步兩次：更新前（給 rollout 讀）與更新後
+- `data/rl/shared/four-at-once/<learner>/current.pt` — 每步兩次：更新前（給 rollout 讀）與更新後
   （給下次 rollout 與 `evaluate()` 讀）。
-- `data/multi/<learner>/latest.pt` — 每步。`--resume` 讀它，四個學習者的步數必須
+- `data/rl/shared/four-at-once/<learner>/latest.pt` — 每步。`--resume` 讀它，四個學習者的步數必須
   一致，否則拒絕起跑。
-- `data/multi/<learner>/step_%06d.pt` — **每 20 步**（plan10「存檔每 10k 局」）。
+- `data/rl/shared/four-at-once/<learner>/step_%06d.pt` — **每 20 步**（plan10「存檔每 10k 局」）。
   編號是**全域步數**，所以 `step_000100.pt` 就是 50k。
 - `eval/shared/four-at-once/step_<n>/` — 里程碑當下三份日誌的快照
   （`rounds.jsonl` / `eval.jsonl` / `milestones.jsonl`），不覆寫。
@@ -116,7 +116,7 @@ LEARNER_KEYS = ("rl_h1000_20k", "rl_o1000_20k", "rl_b1000_20k", "rl_i1000_20k")
 .venv-rl/bin/python -m rl.multi_train --resume         # 從 latest.pt 續跑
 
 # 只重算評測曲線（固定種子集、固定池、argmax、與凍結 20k 成對）
-.venv-rl/bin/python -c "from rl import multi_train as mt; print(mt.evaluate(mt.MultiConfig(), 'data/multi'))"
+.venv-rl/bin/python -c "from rl import multi_train as mt; print(mt.evaluate(mt.MultiConfig(), 'data/rl/shared/four-at-once'))"
 ```
 
 ---
@@ -129,9 +129,9 @@ LEARNER_KEYS = ("rl_h1000_20k", "rl_o1000_20k", "rl_b1000_20k", "rl_i1000_20k")
 | 2 | 座位排列與種子生成 | 24 排列寫死為 `itertools.permutations`；每輪一個種子、24 排列共用（見 §1） |
 | 3 | 固定池抽樣與成對重放 | 有放回抽 3、座位 `i%4`、同種子四次；`play_paired_batch` 一個行程池跑完四個學習者 |
 | 4 | 兩條曲線的格式 | `curves.{table,fixed,merged}` + `per_learner.*.curves`；可比較的那條在 `eval.jsonl` |
-| 5 | 存檔命名 | `data/multi/<learner>/step_<全域步數>.pt`，每 20 步 |
+| 5 | 存檔命名 | `data/rl/shared/four-at-once/<learner>/step_<全域步數>.pt`，每 20 步 |
 | 6 | 凍結席與學習者權重是否隔離 | **隔離**（見 §4），另加每步 sha256 檢查 |
-| 7 | `hc_2000` / `hc_10000` 的權重位置 | `data/hc2/step_002000.pt` / `step_010000.pt`，**在版控內**（`.gitignore` 反白），plan9 任務四起**不是任何席位的載入路徑**。不得刪除 |
+| 7 | `hc_2000` / `hc_10000` 的權重位置 | `data/imitation/hc2/step_002000.pt` / `step_010000.pt`，**在版控內**（`.gitignore` 反白），plan9 任務四起**不是任何席位的載入路徑**。不得刪除 |
 
 ---
 

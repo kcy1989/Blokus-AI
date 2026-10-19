@@ -35,16 +35,21 @@ env/
 # `data/` is regenerable in principle and enormous in practice - the imitation
 # shards, the H-B1/H-C2 datasets and every other training checkpoint - so it is
 # ignored as a whole, which also covers `data/manifest.json`. Its contents are
-# reproduced in `reports/g_report.md`.
+# reproduced in `docs/reports/g_report.md`.
 #
-# **Except the four checkpoints the game can be played against.** A fresh clone
+# The directory is grouped by learner lineage: `data/imitation/` holds the
+# H-phase datasets and teachers, and `data/rl/{h,i,o,b,shared}/` holds each
+# learner's training output. `data/README.md` maps every directory to its
+# lineage and is the one file here that *is* tracked.
+#
+# **Except the six checkpoints the game can be played against.** A fresh clone
 # has to be able to sit down and play, and a seat whose weights are not in the
 # repository is not a seat - it is a name that fails to load on first use.
 #
 # The three lines per directory are not redundant. gitignore cannot re-include a
 # file whose parent *directory* the pattern matched, so a single `data/*` plus
-# `!data/hc2/step_001000.pt` below it is silently dead: `data/*` matches the
-# directory `data/hc2`, and everything under an excluded directory stays
+# `!data/imitation/hc2/step_001000.pt` below it is silently dead: `data/*` matches the
+# directory `data/imitation/hc2`, and everything under an excluded directory stays
 # excluded no matter what follows. The directory has to be un-ignored first,
 # then its contents re-excluded, and only then can the one file be named.
 #
@@ -63,22 +68,32 @@ env/
 # either - they are simply the H-C2 weights the evidence cites, and deleting
 # them was never on the table.
 data/*
-!data/hc2/
-data/hc2/*
-!data/hc2/step_001000.pt
-!data/hc2/step_002000.pt
-!data/hc2/step_010000.pt
-!data/imit_o1000/
-data/imit_o1000/*
-!data/imit_o1000/step_001000.pt
-!data/imit_b1000/
-data/imit_b1000/*
-!data/imit_b1000/step_001000.pt
-!data/imit_i1000/
-data/imit_i1000/*
-!data/imit_i1000/step_001000.pt
-!data/rl1/
-data/rl1/*
+!data/README.md
+
+# The lineage grouping added one level (`data/imitation/...` instead of
+# `data/hc2`), so the parent directory has to be un-ignored before its own
+# contents can be re-excluded - otherwise `data/*` matches `data/imitation` and
+# no negation below can reach inside it. `!data/imitation/` + `data/imitation/*`
+# is that un-ignore/re-ignore pair; the per-checkpoint negations follow.
+!data/imitation/
+data/imitation/*
+!data/imitation/hc2/
+data/imitation/hc2/*
+!data/imitation/hc2/step_001000.pt
+!data/imitation/hc2/step_002000.pt
+!data/imitation/hc2/step_010000.pt
+!data/imitation/imit_o1000/
+data/imitation/imit_o1000/*
+!data/imitation/imit_o1000/step_001000.pt
+!data/imitation/imit_b1000/
+data/imitation/imit_b1000/*
+!data/imitation/imit_b1000/step_001000.pt
+!data/imitation/imit_i1000/
+data/imitation/imit_i1000/*
+!data/imitation/imit_i1000/step_001000.pt
+
+# No counterpart under `data/rl/`: every file there is ignored, so the old
+# `!data/rl1/` + `data/rl1/*` pair had nothing to re-include and is gone.
 
 # Runtime-generated game data (recreated on first play)
 records.json

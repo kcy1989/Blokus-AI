@@ -67,7 +67,7 @@ DEFAULT_OUT_DIR = os.path.join(PROJECT_DIR, "data", "rl1")
 # `hc_1000` spelling) from the roster, so neither names a seat any more - this
 # is a path reference only, and it stays a path because training starts from
 # bytes, not from a seat option. Nothing here resolves it through `seats`.
-INIT_CHECKPOINT = os.path.join("data", "hc2", "step_001000.pt")
+INIT_CHECKPOINT = os.path.join("data", "imitation", "hc2", "step_001000.pt")
 ANCHOR_CHECKPOINT = INIT_CHECKPOINT
 SEED_BASE = rollout_mod.RL_SEED_BASE
 EVAL_SEED_BASE = rollout_mod.RL_SEED_VALID_BASE
@@ -529,7 +529,7 @@ def evaluate(current_path, anchor_path, cfg, device=None):
     """
     specs, _man = eval_specs(cfg)
     rows = {}
-    # "hc_1000" is the *column name* in `data/rl1/eval.jsonl`, not a seat: the
+    # "hc_1000" is the *column name* in `data/rl/h/20k/eval.jsonl`, not a seat: the
     # 0k checkpoint left the roster in plan9 task 4 and this label is kept
     # because renaming it would split one baseline into two columns of history.
     for label, path in (("current", current_path), ("hc_1000", anchor_path)):
@@ -922,7 +922,7 @@ def build_parser():
     p.add_argument("--per-round", type=int, default=TrainConfig().per_round,
                    help="每輪局數(預設 %(default)s)")
     p.add_argument("--out", default=None,
-                   help="檢查點輸出目錄(預設 data/rl1)")
+                   help="檢查點輸出目錄(預設 data/rl/h/20k)")
     p.add_argument("--resume", action="store_true",
                    help="從最後一個完整輪次繼續")
     p.add_argument("--dry-run", action="store_true",
@@ -952,7 +952,7 @@ def build_parser():
                    help="每幾輪評測一次,0 為停用(預設 %(default)s)")
     p.add_argument("--eval-games", type=int, default=TrainConfig().eval_games,
                    help="每次評測局數(預設 %(default)s)")
-    p.add_argument("--init", default=None, help="起始權重(預設 data/hc2/step_001000.pt)")
+    p.add_argument("--init", default=None, help="起始權重(預設 data/imitation/hc2/step_001000.pt)")
     p.add_argument("--anchor", default=None, help="KL 錨點(預設同 --init)")
     p.add_argument("--epochs", type=int, default=ppo_mod.DEFAULT_EPOCHS)
     p.add_argument("--minibatch", type=int, default=ppo_mod.DEFAULT_MINIBATCH)

@@ -4,7 +4,7 @@
 
 ## 比什麼
 
-`data/multi/*/current.pt`（= step 100 = 50k）對自己的凍結 20k
+`data/rl/shared/four-at-once/*/current.pt`（= step 100 = 50k）對自己的凍結 20k
 （`ai/checkpoints/rl_{x}1000_20k/step_000040.pt`），成對。
 
 - 局數：**400**（不是曲線用的 100）
@@ -27,7 +27,7 @@
 
 ## 訊號預期（寫在跑之前）
 
-步驟 2 之前的 100 局曲線（`data/multi/eval.jsonl`）在 step 100 的
+步驟 2 之前的 100 局曲線（`data/rl/shared/four-at-once/eval.jsonl`）在 step 100 的
 `paired_diff`：h −0.2431±0.1440、o −0.1745±0.1467、b +0.0135±0.1547、
 i −0.0484±0.1305 —— **四者皆未達 2 SE**。SE 約 0.13–0.15。
 
@@ -198,14 +198,14 @@ step 60、step 80、step 100 在同一份排程上量，才是區組比較。
 ### 步驟 2 的存檔來源
 
 `evaluate` 讀的是 `out_dir/<learner>/current.pt`，所以兩個里程碑用
-**符號連結**指過去，不複製、不動 `data/multi/`：
+**符號連結**指過去，不複製、不動 `data/rl/shared/four-at-once/`：
 
 ```
-/tmp/kilo/eval_step000060/<l>/current.pt -> data/multi/<l>/step_000060.pt
-/tmp/kilo/eval_step000080/<l>/current.pt -> data/multi/<l>/step_000080.pt
+/tmp/kilo/eval_step000060/<l>/current.pt -> data/rl/shared/four-at-once/<l>/step_000060.pt
+/tmp/kilo/eval_step000080/<l>/current.pt -> data/rl/shared/four-at-once/<l>/step_000080.pt
 ```
 
-四個檔的 sha256 已逐個對過 `data/multi/milestones.jsonl` 的紀錄：
+四個檔的 sha256 已逐個對過 `data/rl/shared/four-at-once/milestones.jsonl` 的紀錄：
 
 | | h | o | b | i |
 |---|---|---|---|---|
@@ -416,7 +416,7 @@ step 80（40k）→ step 100（50k）之間，h 與 o 在 argmax 下落後自己
 
 | | 值 |
 |---|---|
-| 起點 | `data/multi_rb80/<l>/latest.pt` = `data/multi/<l>/step_000080.pt`（四個檔 sha256 已逐個對過 `milestones.jsonl`：`f17bfc964e4a` / `4b01f3bd13b9` / `90bdac55ccdd` / `fa706818073b`） |
+| 起點 | `data/rl/shared/four-at-once-rb80/<l>/latest.pt` = `data/rl/shared/four-at-once/<l>/step_000080.pt`（四個檔 sha256 已逐個對過 `milestones.jsonl`：`f17bfc964e4a` / `4b01f3bd13b9` / `90bdac55ccdd` / `fa706818073b`） |
 | 步數 | `--resume` 81 → 100 |
 | 訓練種子 | **全新**，不在原軌跡用過的種子上：table `7,362,000–7,362,199`、fixed `7,363,000–7,368,199`（`stage RL rb80 table` / `…fixed`，`reject_reserved_seeds` 驗過 FREE） |
 | 存檔 | `--milestone-every 5` → 85、90、95、100 |
@@ -424,9 +424,9 @@ step 80（40k）→ step 100（50k）之間，h 與 o 在 argmax 下落後自己
 | 評測種子 | **7,369,000–7,369,399**（`stage RL rb80 big eval`） |
 | 大尺規評測 | **400 局、argmax、配對自己的 20k** |
 | `--n-procs` | 16 |
-| 輸出 | `data/multi_rb80/`；證據 `eval/shared/four-at-once-rb80/` |
+| 輸出 | `data/rl/shared/four-at-once-rb80/`；證據 `eval/shared/four-at-once-rb80/` |
 
-`data/multi/` 全程只讀。優化器狀態（AdamW 的 `exp_avg` / `exp_avg_sq` / `step`）
+`data/rl/shared/four-at-once/` 全程只讀。優化器狀態（AdamW 的 `exp_avg` / `exp_avg_sq` / `step`）
 與 `entropy_reference` 從 `step_000080.pt` 完整還原，所以 entropy guardrail
 的基準與原軌跡相同。
 
@@ -469,7 +469,7 @@ step 85 / 95 的大尺規評測**不在本次範圍**；要加會先回報，不
 里程碑 85 / 90 / 95 / 100，證據在 `eval/shared/four-at-once-rb80/`。
 種子逐列核對過：首步 table `7,362,000–7,362,009`、fixed `7,363,000–7,363,259`；
 末步 table `7,362,190–7,362,199`、fixed `7,367,940–7,368,199` —— **全程落在新列，與原軌跡零重疊**。
-`data/multi/` 全程未被寫入（仍 60 / 6 列，時間戳 Oct 10 20:23）。
+`data/rl/shared/four-at-once/` 全程未被寫入（仍 60 / 6 列，時間戳 Oct 10 20:23）。
 
 #### 評測（argmax、400 局、排程 7,369,000–7,369,399、配對自己的 20k）
 
@@ -543,7 +543,7 @@ h 在 argmax 下落後自己的 20k，已在**四份**互相獨立的排程上�
 | | 值 |
 |---|---|
 | 管線 | `rl.rl_train` —— 與 0k→20k **同一條**：單一學習者、對 `PERSONALITY_POOL` 七個人格、500 局/輪、softmax rollout + argmax 評測 |
-| 起點 | `data/multi/h/step_000080.pt`（= 40k），`sha256 = f17bfc964e4a…`，**佈置為 `data/rl_h50k_v2/latest.pt`** |
+| 起點 | `data/rl/shared/four-at-once/h/step_000080.pt`（= 40k），`sha256 = f17bfc964e4a…`，**佈置為 `data/rl/h/50k_v2/latest.pt`** |
 | 續訓 | `--resume`，round **81 → 100**（20 輪 × 500 局 = 10,000 局） |
 | 種子 | `seed_base` **7,460,000**；rounds 81..100 實際取 **7,500,000–7,509,999**（`stage RL v2 h train`，已註冊，`reject_reserved_seeds` 驗過 FREE） |
 | `n_procs` | **8**（與 20k 那一輪相同） |
@@ -551,9 +551,9 @@ h 在 argmax 下落後自己的 20k，已在**四份**互相獨立的排程上�
 | 評測種子 | **7,520,000–7,520,999**（`stage RL v2 h eval`，已註冊） |
 | 局數 | **1000**，argmax 一、softmax 一，各自對 h 的 20k 配對 |
 | 配對基準 | `ai/checkpoints/rl_h1000_20k/step_000040.pt`，`sha256 = e1dc6230a70d…` |
-| 輸出 | `data/rl_h50k_v2/`；證據 `eval/rl-multiple-train-v2h/` |
+| 輸出 | `data/rl/h/50k_v2/`；證據 `eval/rl-multiple-train-v2h/` |
 
-`data/multi/` 與 `data/multi_rb80/` **全程只讀**。
+`data/rl/shared/four-at-once/` 與 `data/rl/shared/four-at-once-rb80/` **全程只讀**。
 
 **只跑一條 v2。只比 20k，不比 50k。**
 `rl_h1000_50k`（`ai/checkpoints/rl_h1000_50k/step_000100.pt`，

@@ -9,11 +9,11 @@
 | 參數 | 值 |
 |---|---|
 | 學習者 | 風格 **h**（hunter），單一學習者，其餘對手全部凍結 |
-| 起點 | `data/rl_h50k_v4/step_000035.pt`（v4 run 的 round 35；**訓練檢查點，非名冊席位**），sha256 **`a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c`** |
+| 起點 | `data/rl/h/50k_v4/step_000035.pt`（v4 run 的 round 35；**訓練檢查點，非名冊席位**），sha256 **`a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c`** |
 | 起點累計 step | **95**（v4 run 的起點 `rl_h1000_30k` step 60 + 35 輪）= **47,500 局**；blob 內 `step`/`round` = 35（v4 的輪號），`entropy_reference` = 1.9362780627082377（v4 第 1 輪的值，**本 run 冷啟動重新量**） |
 | 目標局數 | 累計 **100k**：新增 **52,500** 局 |
 | 訓練後席位名 | `rl_h1000_100k`（名冊 18 列與 `RL_SEATS` 均無此 key；`canonical_key` 對未知 key 原樣回傳，以兩表檢查為準） |
-| 輸出目錄 | `data/rl_h100k/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
+| 輸出目錄 | `data/rl/h/100k/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
 | 證據目錄 | `eval/h/100k/`（本檔所在） |
 | 判準 | argmax **單次** 1000 局配對優於起點（見 §5；**softmax 不跑**） |
 | 排程 | **`--balanced-schedule`**，每步 500 局 |
@@ -41,7 +41,7 @@ h 線目前有六個名字指六組權重：
 | `rl_h1000_30k` | v3 run 的 round 20（中段快照） | 已入池（+0.052220／1.477 se vs 20k） |
 | `rl_h1000_50k_v2` | v3 run 的 round 60 | 未過判據、未入池 |
 | `rl_h1000_50k_v4` | 從 30k 出發的 40 輪（round 40 = `step_000100.pt`） | **未過判據、未入池**（−0.017660） |
-| **`data/rl_h50k_v4/step_000035.pt`（本 run 起點）** | v4 run 的 **round 35** | 未入池（對 30k 是 +0.046100，正但未過 1.3 se 線，`eval/h/v4/README.md` §15） |
+| **`data/rl/h/50k_v4/step_000035.pt`（本 run 起點）** | v4 run 的 **round 35** | 未入池（對 30k 是 +0.046100，正但未過 1.3 se 線，`eval/h/v4/README.md` §15） |
 | **`rl_h1000_100k`（本 run）** | 從 round 35 出發的 105 輪 | 本檔的對象 |
 
 → 本 run 的起點是**一條從未入池的中段權重**，不是任何已入池席位。這是與之前每一條 run（起點都是名冊席位）最大的不同，必須在任何報告裡講明：起點自身的實力只被量過一次（+0.046100，未過線）。
@@ -106,7 +106,7 @@ rl_o1000_50k_v3, optimizer, builder, intruder, rl_h1000_20k, rl_h1000_30k
 
 ## 5. 主判準（預先寫死，跑後不改）
 
-**評測對象**：`rl_h1000_100k`（訓練完成後的最終檢查點，檔名 **`step_000200.pt`**，見 §11）vs **起點 `data/rl_h50k_v4/step_000035.pt`**。
+**評測對象**：`rl_h1000_100k`（訓練完成後的最終檢查點，檔名 **`step_000200.pt`**，見 §11）vs **起點 `data/rl/h/50k_v4/step_000035.pt`**。
 
 | 項 | 值 |
 |---|---|
@@ -219,7 +219,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 | 頻率 | `--eval-every 5` → rounds 5, 10, …, 105（**21 次**） |
 | 局數/種子 | 100 局，`stage RL validation` = 7,100,000–7,100,999 |
 | 模式 | argmax |
-| 錨點 | **起點 `data/rl_h50k_v4/step_000035.pt`**（經 `--anchor` 傳入；`eval.jsonl` 的欄名仍是歷史的 `hc_1000`） |
+| 錨點 | **起點 `data/rl/h/50k_v4/step_000035.pt`**（經 `--anchor` 傳入；`eval.jsonl` 的欄名仍是歷史的 `hc_1000`） |
 | **對手池** | **與 §5 判據相同的 11 席**（`wolf, chess, fox, hunter, optimizer, builder, intruder, rl_b1000_50k, rl_i1000_37.5k, rl_o1000_50k_v3, rl_h1000_30k`），**2026-10-15 裁示**；自訂池 → 有放回抽 3 名 |
 
 > **這條曲線只是曲線。不入 §5 判準、不得作為入池理由。**
@@ -241,7 +241,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 | `rl_i1000_37.5k` | `ai/checkpoints/rl_i1000_37.5k/step_000075.pt` | `37a000b29247f5c4010486d23b5465c633f71b93b70326364e97533e2dfeb097` |
 | `rl_h1000_20k` | `ai/checkpoints/rl_h1000_20k/step_000040.pt` | `e1dc6230a70d205a89287468c47db6126717f0e9d42369bc1beca31404801636` |
 | `rl_h1000_30k` | `ai/checkpoints/rl_h1000_30k/step_000060.pt` | `ecb2b672ca67661d53f9e10b48c4bddf76739e94bd58a24256a9f990690b2453` |
-| **起點** | `data/rl_h50k_v4/step_000035.pt` | `a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c` |
+| **起點** | `data/rl/h/50k_v4/step_000035.pt` | `a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c` |
 
 七個格席位是程式碼不是權重，沒有檔可雜湊；它們仍可解析由 `python -m ai --check` 把關。
 
@@ -250,13 +250,13 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 ```
 階段 0（開訓前）  對六檔各算 sha256，比對上表逐字相同；不同則停
                    另跑 python -m ai --check
-                   佈置 data/rl_h100k/，驗起點檔 sha256 = a3060922…
+                   佈置 data/rl/h/100k/，驗起點檔 sha256 = a3060922…
 階段 1（開訓後）  再算一次，六個 sha256 與階段 0 逐位相等
                    任一不同 → 凍結席被寫 → 訓練作廢，停下等裁示
                    另跑 python -m ai --check
 ```
 
-唯讀依據：`rl/rl_train.py` 的唯一寫入來自 `save_checkpoint`，路徑一律在 `data/rl_h100k/`；`rl/rollout.py` 對池席只有 `load_policy` / `torch.load`。
+唯讀依據：`rl/rl_train.py` 的唯一寫入來自 `save_checkpoint`，路徑一律在 `data/rl/h/100k/`；`rl/rollout.py` 對池席只有 `load_policy` / `torch.load`。
 
 ---
 
@@ -266,9 +266,9 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 
 ```bash
 python -m rl.rl_train \
-  --init data/rl_h50k_v4/step_000035.pt \
-  --anchor data/rl_h50k_v4/step_000035.pt \
-  --out data/rl_h100k \
+  --init data/rl/h/50k_v4/step_000035.pt \
+  --anchor data/rl/h/50k_v4/step_000035.pt \
+  --out data/rl/h/100k \
   --games 52500 --per-round 500 \
   --seed-base 7830000 \
   --balanced-schedule \
@@ -284,12 +284,12 @@ python -m rl.rl_train \
 
 `rl_train` 以輪號當 step 號存檔（`step_%06d.pt % round_no`），所以 105 輪的輸出是 `step_000105.pt`。依累加規則：
 
-1. `cp data/rl_h100k/step_000105.pt data/rl_h100k/step_000200.pt`（**逐位副本**，`step_000105.pt` 原檔保留為 round 105 的輸出）。
+1. `cp data/rl/h/100k/step_000105.pt data/rl/h/100k/step_000200.pt`（**逐位副本**，`step_000105.pt` 原檔保留為 round 105 的輸出）。
 2. 驗 `sha256` 兩檔相等，記入本檔 §14。
 3. 發佈 = `ai/checkpoints/rl_h1000_100k/step_000200.pt`（與 data 副本 sha256 相等後才進版控）；registry 的 `checkpoint` 與 `source` 都用 `step_000200.pt`（檔名樣式 `step_%06d.pt` 由 `test_network_entries_name_the_files_the_seats_load` 釘住，仍滿足）。
 4. 驗收證據檔名隨之為 `step_000200_argmax.json`。
 
-（本 run 的 accumulate 名不會撞名：`data/rl_h100k/` 是全新目錄，只有 105 輪輸出。）
+（本 run 的 accumulate 名不會撞名：`data/rl/h/100k/` 是全新目錄，只有 105 輪輸出。）
 
 ### 估計
 
@@ -303,7 +303,7 @@ python -m rl.rl_train \
 
 ### 不碰
 
-`data/rl_h50k_v3/`、`data/rl_h50k_v4/`（含起點檔，**唯讀**）、`data/rl_h1000_30k/`、`data/rl_i1000_37.5k/`、`data/rl_i50k_v3/`、`data/multi*/`、其他 `data/rl_*`、`ai/checkpoints/` 既有檔、`records.json`（訓練全程不寫）。
+`data/rl/h/50k_v3/`、`data/rl/h/50k_v4/`（含起點檔，**唯讀**）、`data/rl/h/30k/`、`data/rl/i/37.5k/`、`data/rl/i/50k_v3/`、`data/rl/shared/four-at-once*/`、其他 `data/rl/`、`ai/checkpoints/` 既有檔、`records.json`（訓練全程不寫）。
 
 ---
 
@@ -351,7 +351,7 @@ python -m rl.rl_train \
 - **訓練側強弱**（全池 12 席，軟實訓）：reward 2.4214（1–10 輪）→ 2.4980 → 2.5612（21–40 輪）→ 2.5527 → 2.5528 → **2.5120（91–105 輪）**；名次 2.43 → 2.31 → 2.35；餘格 14.78 → 13.48 → 14.02。**前 40 輪上移、隨後 65 輪平台、最後 15 輪小幅回落**；單輪最高 2.6653（round 74）。曲線說的是「候選在自己的 12 席訓練池上前段變強、之後持平」。
 - **迴圈內評測**（21 點，100 局，**11 席池**，argmax，current vs 起點）：**1 正 20 負**，diff 範圍 −0.304 ~ +0.012（唯一正點 round 35）。無趨勢：前段（5–30 輪）穩定 −0.20 附近，中後段在 −0.04 ~ −0.30 間震盪。訓練池上的提升（2.42 → 2.55）**沒有**轉換成這個池上的評測提升。
 - **凍結席 sha256**：階段 0 與階段 1 六檔逐位相同（`ab6ec0a1…` / `0868776e…` / `37a000b2…` / `e1dc6230…` / `ecb2b672…` / `a3060922…`），另跑 `python -m ai --check` 兩次皆綠。
-- **檔名對齊**：`data/rl_h100k/step_000105.pt` = `step_000200.pt`（逐位副本），sha256 **`e57dbf1cf5dbef11a1379e55417c1dc284738f507c15ed609fb839f8948b830a`**；評測的 `current_sha256` 即此值。
+- **檔名對齊**：`data/rl/h/100k/step_000105.pt` = `step_000200.pt`（逐位副本），sha256 **`e57dbf1cf5dbef11a1379e55417c1dc284738f507c15ed609fb839f8948b830a`**；評測的 `current_sha256` 即此值。
 - **牆鐘**：rollout 合計 102.4 分、update 合計 53.3 分（另 21 次迴圈內評測不記在 `rounds.jsonl`）。
 - **已知報導缺口**：`reward_by_opponent` 只統計七人格，四個網路席不在其中；訓練側的完整強弱只有 `learner_reward_mean` / `learner_rank_mean`。
 
@@ -422,7 +422,7 @@ python -m rl.rl_train \
 依 §5「未通過：**不入池、不開第二條**」：
 
 - **不寫入** `ai/registry.json`、`seats.py`、`config.py`、兩個測試檔、主 README 的任何一格；`GOLDEN_POOL` 與三個 GOLDEN 種子**不動**（池仍是 18 席）。
-- 權重留在 `data/rl_h100k/`（gitignored）與本檔旁的證據 JSON；**未發佈**、未進版控的 `ai/checkpoints/`。
+- 權重留在 `data/rl/h/100k/`（gitignored）與本檔旁的證據 JSON；**未發佈**、未進版控的 `ai/checkpoints/`。
 - **不續跑、不調參、不開第二條**。重做是新決定，由使用者下，並註明是看過結果後做的。
 - 種子段 `stage RL h100k train` / `stage RL h100k eval` 已由本 run 用過，日後不得再取用。
 
@@ -445,8 +445,8 @@ python -m rl.rl_train \
 
 | 項 | 值 |
 |---|---|
-| 候選（終點） | `data/rl_h100k/step_000200.pt`（sha256 **`e57dbf1cf5dbef11a1379e55417c1dc284738f507c15ed609fb839f8948b830a`**） |
-| 參照（起點） | `data/rl_h50k_v4/step_000035.pt`（sha256 **`a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c`**） |
+| 候選（終點） | `data/rl/h/100k/step_000200.pt`（sha256 **`e57dbf1cf5dbef11a1379e55417c1dc284738f507c15ed609fb839f8948b830a`**） |
+| 參照（起點） | `data/rl/h/50k_v4/step_000035.pt`（sha256 **`a3060922c99df5afe975ba2f5eca77c60d9c701c9ff9aa45767d6a3ce346c55c`**） |
 | 種子段 | **`stage RL h100k eval2` = 7,888,000–7,888,999**（1000 局，全新 FREE 段；註冊前實跑 `reject_reserved_seeds` 回 `[]`） |
 | 對手池（12 席訓練池，字面原序） | `rl_b1000_50k, hunter, rl_i1000_37.5k, wolf, chess, fox, rl_o1000_50k_v3, optimizer, builder, intruder, rl_h1000_20k, rl_h1000_30k` |
 | 排程 | **`balanced=True, round_no=1`**（`rng_seed=7888000`）：學習者座位精確 `[250, 250, 250, 250]`、12 席每席精確出場 **250 次**、格值 `{62, 63}`、每局 3 名對手互異（重複率 0%） |

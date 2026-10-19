@@ -26,15 +26,15 @@
  "subject": null,
  "adhoc": {
   "rl_o1000_20k": {
-   "path": "data/rl_o1000/step_000040.pt",
+   "path": "data/rl/o/20k/step_000040.pt",
    "md5": "b0f7c1221a1782442d0e14be55ca4c87"
   },
   "rl_b1000_20k": {
-   "path": "data/rl_b1000/step_000040.pt",
+   "path": "data/rl/b/20k/step_000040.pt",
    "md5": "0a8c034111693bc7254c9c846e03b55f"
   },
   "rl_i1000_20k": {
-   "path": "data/rl_i1000/step_000040.pt",
+   "path": "data/rl/i/20k/step_000040.pt",
    "md5": "430c28cbbaa1e9b05b661f437780cefb"
   }
  },

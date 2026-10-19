@@ -12,7 +12,7 @@
 | 起點 | `ai/checkpoints/rl_h1000_20k/step_000040.pt`（`sha256 e1dc6230a70d…`，**起點 step = 40**） |
 | 目標局數 | 累計 **50k** 方向：新增 **30,000** 局 |
 | 訓練後席位名 | `rl_h1000_50k_v2` |
-| 輸出目錄 | `data/rl_h50k_v3/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
+| 輸出目錄 | `data/rl/h/50k_v3/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
 | 證據目錄 | `eval/h/v2/`（本檔所在） |
 | 判準 | argmax 單模式配對優於起點（見 §5） |
 | 排程 | **`--balanced-schedule`**，每步 500 局 |
@@ -45,7 +45,7 @@
 
 本 run 與 `rl_o1000_50k_v3`（`eval/o/v3/`）**不是同一個實驗**：學習者不同（h vs o）、池組成不同（本池保留 `rl_h1000_20k`、以 `rl_o1000_50k_v3` 取代 v3o 池中的 `rl_i1000_50k`）、種子段不同、席位名不同。v3o 的 +0.2286 不能當本 run 的先驗或門檻。
 
-本 run 與 `eval/shared/four-at-once/big_eval/` 第六輪（h 單打重走 v2h，`--resume` 自 `data/multi/h/step_000080.pt`、七人格、無平衡排程）也**不可比**：那個計畫從未開跑（`data/rl_h50k_v2/` 只有前置檔、沒有 `rounds.jsonl`），且起點是 multi 的 80 輪檔，**不是**本 run 的起點。
+本 run 與 `eval/shared/four-at-once/big_eval/` 第六輪（h 單打重走 v2h，`--resume` 自 `data/rl/shared/four-at-once/h/step_000080.pt`、七人格、無平衡排程）也**不可比**：那個計畫從未開跑（`data/rl/h/50k_v2/` 只有前置檔、沒有 `rounds.jsonl`），且起點是 multi 的 80 輪檔，**不是**本 run 的起點。
 
 ---
 
@@ -206,7 +206,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 | 局數/種子 | 100 局，`stage RL validation` = 7,100,000–7,100,999 |
 | 模式 | argmax |
 | 錨點 | **`--anchor ai/checkpoints/rl_h1000_20k/step_000040.pt`**（不是 0k） |
-| 輸出 | `data/rl_h50k_v3/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**，該欄實際內容是 `rl_h1000_20k`） |
+| 輸出 | `data/rl/h/50k_v3/eval.jsonl`，欄名 `current` / `hc_1000`（**歷史欄名**，該欄實際內容是 `rl_h1000_20k`） |
 | 對手 | 預設七人格（`eval_specs` 不帶池、不帶平衡排程——這是 `2da0390` 釘住的行為） |
 
 > **這條曲線只是曲線。不入 §5 判準、不得作為入池理由。**
@@ -230,13 +230,13 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 ```
 階段 0（開訓前）  對三檔各算 sha256，比對上表逐字相同；不同則停
                   另跑 python -m ai --check
-                  佈置 data/rl_h50k_v3/，驗起點檔 sha256 = e1dc6230…
+                  佈置 data/rl/h/50k_v3/，驗起點檔 sha256 = e1dc6230…
 階段 1（開訓後）  再算一次，三個 sha256 與階段 0 逐位相等
                   任一不同 → 凍結席被寫 → 訓練作廢，停下等裁示
                   另跑 python -m ai --check
 ```
 
-唯讀依據：`rl/rl_train.py` 的唯一寫入來自 `save_checkpoint`，路徑一律在 `data/rl_h50k_v3/`；`rl/rollout.py` 對池席只有 `load_policy` / `torch.load`。
+唯讀依據：`rl/rl_train.py` 的唯一寫入來自 `save_checkpoint`，路徑一律在 `data/rl/h/50k_v3/`；`rl/rollout.py` 對池席只有 `load_policy` / `torch.load`。
 
 ---
 
@@ -248,7 +248,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 python -m rl.rl_train \
   --init ai/checkpoints/rl_h1000_20k/step_000040.pt \
   --anchor ai/checkpoints/rl_h1000_20k/step_000040.pt \
-  --out data/rl_h50k_v3 \
+  --out data/rl/h/50k_v3 \
   --games 30000 --per-round 500 \
   --seed-base 7680000 \
   --balanced-schedule \
@@ -263,7 +263,7 @@ python -m rl.rl_train \
 
 `rl_train` 以輪號當 step 號存檔（`step_%06d.pt % round_no`），所以 60 輪的輸出是 `step_000060.pt`。依 2026-10-14 裁示的累加規則：
 
-1. `cp data/rl_h50k_v3/step_000060.pt data/rl_h50k_v3/step_000100.pt`（**逐位副本**，`step_000060.pt` 原檔保留為 round 60 的輸出）。
+1. `cp data/rl/h/50k_v3/step_000060.pt data/rl/h/50k_v3/step_000100.pt`（**逐位副本**，`step_000060.pt` 原檔保留為 round 60 的輸出）。
 2. 驗 `sha256` 兩檔相等，記入本檔 §12。
 3. 發佈 = `ai/checkpoints/rl_h1000_50k_v2/step_000100.pt`（與 data 副本 sha256 相等後才進版控）；registry 的 `checkpoint` 與 `source` 都用 `step_000100.pt`（檔名樣式 `step_%06d.pt` 由 `test_network_entries_name_the_files_the_seats_load` 釘住，仍滿足）。
 4. 驗收證據檔名隨之為 `step_000100_argmax.json` / `step_000100_softmax.json`。
@@ -282,7 +282,7 @@ dry-run 的 `seeds` 行對冷啟動是準的：`7680000..7709999` 正是實際�
 
 ### 不碰
 
-`data/rl_o1000/`、`data/rl_o50k_v2/`、`data/rl_o50k_v3/`、`data/rl_h50k_v2/`（上一次的前置殘檔，本 run 不用它）、`data/multi*/`、`ai/checkpoints/` 既有檔、`records.json`（訓練全程不寫）。
+`data/rl/o/20k/`、`data/rl/o/50k_v2/`、`data/rl/o/50k_v3/`、`data/rl/h/50k_v2/`（上一次的前置殘檔，本 run 不用它）、`data/rl/shared/four-at-once*/`、`ai/checkpoints/` 既有檔、`records.json`（訓練全程不寫）。
 
 ---
 
@@ -357,7 +357,7 @@ dry-run 的 `seeds` 行對冷啟動是準的：`7680000..7709999` 正是實際�
 - **訓練側強弱**（全池 10 席，軟實訓）：reward 2.4212 → 2.4593 → 2.4777 → 2.4762（四區間均值），名次 2.428 → 2.393 → 2.376 → 2.377，餘格 15.10 → 14.65。後半段進入平台。
 - **迴圈內評測**（12 點，100 局，七人格，argmax，current vs 起點）：**10 正 2 負**（負點 round 45 −0.0543、round 60 −0.0187），diff 範圍 −0.0543 ~ +0.1540，中位約 +0.065。曲線與 1000 局結果的關係：曲線的中位水準（≈+0.065）恰在本評測的解析力下限附近——所以「曲線微正、判據測不出」是自調的形狀，不是矛盾。
 - **凍結席 sha256**：階段 0 與階段 1 三檔逐位相同（`ab6ec0a1…` / `0868776e…` / `e1dc6230…`），另跑兩次 `python -m ai --check` 皆綠。
-- **檔名對齊**：`data/rl_h50k_v3/step_000060.pt` = `step_000100.pt`（逐位副本），sha256 **`4e8ccf6157afc82f56e3c418991c96b61e9ab9162d46badbdd1b6960918754c8`**；評測的 `current_sha256` 即此值。
+- **檔名對齊**：`data/rl/h/50k_v3/step_000060.pt` = `step_000100.pt`（逐位副本），sha256 **`4e8ccf6157afc82f56e3c418991c96b61e9ab9162d46badbdd1b6960918754c8`**；評測的 `current_sha256` 即此值。
 - **已知報導缺口**：`reward_by_opponent` 只統計七人格，三個網路席不在其中；訓練側的完整強弱只有 `learner_reward_mean` / `learner_rank_mean`。
 
 ---
@@ -368,7 +368,7 @@ dry-run 的 `seeds` 行對冷啟動是準的：`7680000..7709999` 正是實際�
 
 - **不寫入** `ai/registry.json`、`seats.py`、`config.py`、兩個測試檔、主 README 的任何一格；`GOLDEN_POOL` 與三個 GOLDEN 種子**不動**（池仍是 16 席）。
 - `rl_h1000_50k`（multi 的 100 輪版）與 `rl_h1000_20k` 均維持原狀。
-- 權重留在 `data/rl_h50k_v3/`（gitignored）與本檔旁的兩個證據 JSON；**未發佈**、未進版控的 `ai/checkpoints/`。
+- 權重留在 `data/rl/h/50k_v3/`（gitignored）與本檔旁的兩個證據 JSON；**未發佈**、未進版控的 `ai/checkpoints/`。
 - **不續跑、不調參、不開第二條**。重做是新決定，由使用者下，並註明是看過結果後做的。
 - 種子段 `stage RL h50k v2 train` / `stage RL h50k v2 eval` 已註冊、已由本 run 用過；日後任何重跑不得再取用這兩段。
 
@@ -390,7 +390,7 @@ dry-run 的 `seeds` 行對冷啟動是準的：`7680000..7709999` 正是實際�
 
 | 項 | 值 |
 |---|---|
-| 候選 | `data/rl_h50k_v3/step_000100.pt`（sha256 `4e8ccf61…`，round 60 的累加名副本） |
+| 候選 | `data/rl/h/50k_v3/step_000100.pt`（sha256 `4e8ccf61…`，round 60 的累加名副本） |
 | 起點對照 | `ai/checkpoints/rl_h1000_20k/step_000040.pt`（sha256 `e1dc6230…`） |
 | 局數 | **1000**，同 specs、配對（current 對起點，**各跑 1000 局**） |
 | 種子段 | `stage RL h50k v2 eval2` = **7,725,000–7,725,999**（全新，註冊於 `37df602` 之後的本次提交） |
@@ -496,7 +496,7 @@ softmax：
 
 | 項 | 值 |
 |---|---|
-| 候選 | `data/rl_h50k_v3/step_000020.pt`（sha256 `ecb2b672ca67…`，round 20 的原始輸出） |
+| 候選 | `data/rl/h/50k_v3/step_000020.pt`（sha256 `ecb2b672ca67…`，round 20 的原始輸出） |
 | 參照 | `ai/checkpoints/rl_h1000_20k/step_000040.pt`（本 run 的起點，sha256 `e1dc6230a70d…`） |
 | 局數 | **1000**，同 specs、配對 |
 | 種子段 | **`stage RL h50k v2 eval3` = 7,775,000–7,775,999**（全新；判據段 7,715,000 與換池段 7,725,000 都已用過） |
@@ -555,10 +555,10 @@ softmax：
 | 項 | 值 |
 |---|---|
 | key | `rl_h1000_30k`（命名定稿，改名 = 重排常規池，禁止） |
-| 入池對象 | `data/rl_h50k_v3/step_000020.pt`（round 20 的原始輸出） |
+| 入池對象 | `data/rl/h/50k_v3/step_000020.pt`（round 20 的原始輸出） |
 | 累計檔名 | `step_000060.pt`（起點 step 40 + round 20） |
 | published | `ai/checkpoints/rl_h1000_30k/step_000060.pt` |
-| source | `data/rl_h1000_30k/step_000060.pt`（逐位副本；放在**新目錄**是因為 `data/rl_h50k_v3/step_000060.pt` 已被同一條 run 的 round 60 輸出佔用） |
+| source | `data/rl/h/30k/step_000060.pt`（逐位副本；放在**新目錄**是因為 `data/rl/h/50k_v3/step_000060.pt` 已被同一條 run 的 round 60 輸出佔用） |
 | sha256 | `ecb2b672ca67661d53f9e10b48c4bddf76739e94bd58a24256a9f990690b2453`（三個位置逐位相同，發佈前已驗） |
 | pools | `["all", "rl_only"]`：`all` 16→**18**、`rl_only` 9→**11**、`no_imitation` 7 不變 |
 | 通行證據 | §17：+0.052220（1.477 × paired_se）vs `rl_h1000_20k`，唯一一次 1000 局 argmax |

@@ -304,7 +304,7 @@ RL_I50K_V3_EVAL2_BLOCK = ("stage RL i50k v3 eval2", RL_I50K_V3_EVAL2_SEED_BASE,
 #
 # Same shape as the criterion and as the i mid-step measurements: 1000 paired
 # argmax games on the default seven-personality pool, this time
-# `data/rl_h50k_v3/step_000020.pt` against its own start
+# `data/rl/h/50k_v3/step_000020.pt` against its own start
 # `rl_h1000_20k`. Fresh seeds again - the criterion run scored
 # 7,680,000-adjacent eval row 7,715,000 and the pool-swapped look scored
 # 7,725,000, so this row sits 9,001 above the highest of them. Eval bases
@@ -321,7 +321,7 @@ RL_H50K_V2_EVAL3_BLOCK = ("stage RL h50k v2 eval3", RL_H50K_V2_EVAL3_SEED_BASE,
 # shape reason as the rows above: round 1 draws `seed_base` itself, so the base
 # sits at the floor of the row it claims rather than outside every row.
 #
-# The start is the mid-run snapshot pooled the same day - `data/rl_h50k_v3`'s
+# The start is the mid-run snapshot pooled the same day - `data/rl/h/50k_v3`'s
 # round 20, published as `rl_h1000_30k` - so this run continues the line that
 # passed instead of the line that did not: the same run's round-60 weights
 # scored +0.006430 and were never pooled. 40 rounds on a 60-step start is
@@ -374,7 +374,7 @@ RL_H50K_V4_EVAL2_BLOCK = ("stage RL h50k v4 eval2", RL_H50K_V4_EVAL2_SEED_BASE,
                           - 1)
 
 # plan10 (2026-10-15 decree), the h learner's fifth run: 105 rounds from a
-# cold start (`--init` on `data/rl_h50k_v4/step_000035.pt`, no `--resume`)
+# cold start (`--init` on `data/rl/h/50k_v4/step_000035.pt`, no `--resume`)
 # under the balanced schedule, 52,500 games, towards the seat
 # `rl_h1000_100k`. Cold start for the same reason as the rows above: round 1
 # draws `seed_base` itself, so the base sits at the floor of the row it claims.

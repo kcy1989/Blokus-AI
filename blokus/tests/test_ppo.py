@@ -15,7 +15,7 @@ something that would otherwise fail quietly:
     direction where the objective would improve;
   * the KL term pulls the policy back toward the anchor.
 
-Every test needs `data/hc2/step_001000.pt` and skips without it. Threads are
+Every test needs `data/imitation/hc2/step_001000.pt` and skips without it. Threads are
 pinned to one where bit-identical parameters are asserted: multi-threaded CPU
 convolution is not associative, which is the same reason `rl.rollout` pins them.
 """

@@ -1,0 +1,71 @@
+# data/ — 訓練資料與檢查點
+
+`data/` 幾乎全部被 `.gitignore` 排除（`data/*`），因為它可重建、且大（2026-10-19
+實測約 6.6G）。這個目錄按**學習者血統**分組，與 `eval/` 同構。
+
+**被席位載入的路徑一律以 `ai/registry.json` 的 `checkpoint` 為準**；`source` 與
+`seats.RL_SEATS` 記的是「在哪裡訓練」。下表「席位」欄指的是該目錄是哪個席位的訓練來源。
+
+## `data/imitation/` — H 階段（資料集與老師）
+
+| 目錄 | 大小 | 席位 | 可否刪 |
+| --- | --- | --- | --- |
+| `h0` | 4.6M | — | 保留（H0 證據） |
+| `h1` | 5.9M | — | 保留（H1 證據；`rl.paired3` 讀 manifest） |
+| `hb1` | 1001M | — | 保留（H-B1 資料集；`rl/collect.py`、`rl/caches.py` 引用） |
+| `hb2` | 136M | — | 保留（H-B2 檢查點，仍可按步載入） |
+| `hc1` | 1002M | — | 保留（H-C1 資料集；`test_rl_collect` 讀 manifest） |
+| `hc2` | 55M | `IMITATION_CHECKPOINT_DIR`（非席位；`rl/` 與 `--adhoc` 讀） | 保留（其中三個 `.pt` 入版控） |
+| `hcb` | 84M | — | 保留 |
+| `hci` | 77M | — | 保留 |
+| `hco` | 80M | — | 保留 |
+| `hco_trial_dirty` | 112K | — | 可刪（暫存 trial） |
+| `imit_b1000` | 54M | 0k 權重（`--adhoc` 重放讀） | 保留（`step_001000.pt` 入版控） |
+| `imit_i1000` | 54M | 0k 權重（`--adhoc` 重放讀） | 保留（`step_001000.pt` 入版控） |
+| `imit_o1000` | 54M | 0k 權重（`--adhoc` 重放讀） | 保留（`step_001000.pt` 入版控） |
+
+## `data/rl/` — 學習者訓練輸出
+
+| 目錄 | 血統 | 大小 | 席位 | 可否刪 |
+| --- | --- | --- | --- | --- |
+| `h/20k` | h | 224M | `rl_h1000_20k` | 保留（席位來源） |
+| `h/30k` | h | 5.5M | `rl_h1000_30k` | 保留（席位來源；v2 run 的 round 20 副本） |
+| `h/50k_v2` | h | 7.3M | — | 可刪（從未開跑，只有前置檔） |
+| `h/50k_v3` | h | 337M | — | 可刪（最終未入池；round 20 已複製到 `h/30k`） |
+| `h/50k_v4` | h | 229M | — | 可刪（最終未入池；r35 僅作後續起點） |
+| `h/100k` | h | 581M | `rl_h1000_100k` | 保留（席位來源） |
+| `h/t05` | h | 337M | — | 可刪（T=0.5 run 未入池） |
+| `i/20k` | i | 224M | `rl_i1000_20k` | 保留（席位來源） |
+| `i/20k_par` | i | 19M | — | 可刪（掃描變體） |
+| `i/20k_seq` | i | 19M | — | 可刪（掃描變體） |
+| `i/20k_v2` | i | 332M | — | 可刪（v2 run 未入池） |
+| `i/37.5k` | i | 5.5M | `rl_i1000_37.5k` | 保留（席位來源；v3 run 的 round 35 副本） |
+| `i/50k_v3` | i | 337M | — | 可刪（最終未入池；round 35 已複製到 `i/37.5k`） |
+| `o/20k` | o | 224M | `rl_o1000_20k` | 保留（席位來源） |
+| `o/20k_par` | o | 19M | — | 可刪（掃描變體） |
+| `o/20k_seq` | o | 19M | — | 可刪（掃描變體） |
+| `o/50k_v2` | o | 332M | — | 可刪（v2 run 未入池） |
+| `o/50k_v3` | o | 332M | `rl_o1000_50k_v3` | 保留（席位來源） |
+| `b/20k` | b | 224M | `rl_b1000_20k` | 保留（席位來源） |
+| `b/20k_par` | b | 19M | — | 可刪（掃描變體） |
+| `b/20k_seq` | b | 19M | — | 可刪（掃描變體） |
+| `shared/four-at-once` | 共同 | 109M | `rl_{h,o,b,i}1000_50k` | 保留（席位來源） |
+| `shared/four-at-once-rb80` | 共同 | 152M | — | 可刪（balanced-schedule 變體，未產出席位） |
+
+「可刪」是**候選**，不是本輪已刪。刪除前要確認對應的 `eval/` 證據不需要重放；席位來源
+（保留欄）在席位仍載入時不得刪。
+
+## 不動的檔與其他殘檔
+
+以下不屬於任何血統，本輪不動：
+
+| 路徑 | 用途 |
+| --- | --- |
+| `humanlog/` | runtime；`gamelog.LOG_DIR` 指向它 |
+| `match/` | runtime；`match.DEFAULT_OUT_DIR` 指向它 |
+| `manifest.json` | 原始資料集 manifest（用途未查明） |
+| `records_pre_hc2.json`、`records_pre_rl.json` | 舊 `records.json` 快照（用途未查明） |
+| `imit_train_*.npz`、`imit_valid_*.npz` | H 階段的 imitation 分片，留在根層 |
+| `rl_h50k_v3_train.log`、`rl_h50k_v4_train.log`、`rl_i50k_v3_train.log` | 訓練日誌，留在根層 |
+
+**刪除候選（待裁決，本輪未動）**：`plan9_step1_backup/`（5.5M）。
