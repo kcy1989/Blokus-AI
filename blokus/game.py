@@ -1,6 +1,7 @@
 """Game state machine: SETUP -> PLAYING -> GAME_OVER."""
 from board import Board
-from config import B, CLOCKWISE_OWNERS, OWNER_CORNER, PIECES, PLAYER_OWNER
+from config import (B, CLOCKWISE_OWNERS, OWNER_CORNER, PIECES, PLAYER_OWNER,
+                    SEATS)
 from ai import draw_personalities, make_brain
 from ai.formulas import ODIRS, _legal_bases
 from pieces import Hand, MASTER
@@ -9,8 +10,8 @@ import seats as seats_mod
 
 HAND_NAMES = [p["name"] for p in PIECES]
 COLOR_NAMES = ["blue", "green", "red", "yellow"]
-# A game has four seats, so one all-AI match draws exactly four personalities.
-MATCH_SEATS = 4
+# Seats per match. `config.SEATS` is the single definition; this is an alias.
+MATCH_SEATS = SEATS
 
 
 class Game:

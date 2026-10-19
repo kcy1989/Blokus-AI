@@ -35,7 +35,8 @@ from ai.registry import (aliases as registry_aliases,
                          entry as registry_entry,
                          keys as registry_keys,
                          personality_keys)
-from config import CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER
+from config import (CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER,
+                    SEATS)
 
 # The four colours, in the order the menus list them.
 COLOR_NAMES = tuple(COLORS)
@@ -190,7 +191,8 @@ ALIASES = dict(registry_aliases())
 # about aliases. `records.json` was renamed in step 1 rather than left to split.
 RL_ALIASES = {a: v for a, v in ALIASES.items() if v in dict(RL_SEATS)}
 
-SEATS = 4
+# `SEATS` is imported from `config` above - the single definition. It used to be
+# a second literal here; `game.MATCH_SEATS` was a third. Both now alias config.
 
 
 def canonical_key(key):

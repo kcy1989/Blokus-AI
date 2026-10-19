@@ -4,6 +4,11 @@ import os
 
 B = 20
 N = B * B
+# Seats per game. The single definition: `game.MATCH_SEATS` and `seats.SEATS`
+# are aliases of this, so changing it here changes every seat count at once.
+# `config` imports nothing from the project, so every layer can read it without
+# a cycle - which is why the constant lives here and not in `game` or `seats`.
+SEATS = 4
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 PIECE_JSON = os.path.join(PROJECT_DIR, "piece_data.json")
 
