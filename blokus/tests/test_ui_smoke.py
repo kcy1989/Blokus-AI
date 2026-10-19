@@ -219,6 +219,43 @@ def test_three_columns_share_one_margin():
         assert L.H - (L.BTN_Y + L.BTN_H) >= L.MARGIN, s
 
 
+def _cell_probe(L, c, r):
+    """Screen point at the centre of cell (c, r).
+
+    Anchored on PANEL_W/MARGIN rather than L.BO on purpose: a probe built from
+    L.BO moves with the board origin, so it could never catch a BO shift.
+    """
+    return (L.PANEL_W + L.MARGIN + c * L.CELL + L.CELL // 2,
+            L.MARGIN + r * L.CELL + L.CELL // 2)
+
+
+def _assert_cell_at_contract(L):
+    """The board origin is a contract: PANEL_W + MARGIN, MARGIN.
+
+    Cell centres pin the mapping, but they sit half a cell from every edge and
+    so survive a one-pixel origin shift; the boundary probes are what make this
+    sensitive to BO.
+    """
+    x0, y0 = L.PANEL_W + L.MARGIN, L.MARGIN
+    side = L.board_px
+    for c, r in ((0, 0), (7, 11), (19, 19)):
+        assert L.cell_at(_cell_probe(L, c, r)) == (c, r), (c, r)
+    assert L.cell_at((x0 - 1, y0 + L.CELL)) is None
+    assert L.cell_at((x0 + L.CELL, y0 - 1)) is None
+    assert L.cell_at((x0 + side, y0 + L.CELL)) is None
+    assert L.cell_at((x0 + L.CELL, y0 + side)) is None
+    assert L.cell_at((x0, y0)) == (0, 0)
+    assert L.cell_at((x0 - 1, y0)) is None
+    assert L.cell_at((x0 + side - 1, y0 + side - 1)) == (19, 19)
+    assert L.cell_at((x0 + side, y0 + side)) is None
+
+
+def test_cell_at_maps_the_board_grid():
+    """Hit-testing reads the same origin the board is drawn at."""
+    for s, z in ((1.0, 2.0), (1.5, 1.0)):
+        _assert_cell_at_contract(Layout(s, z))
+
+
 def test_buttons_sit_under_the_board_with_room_between_them():
     """Confirm has to be reachable right under the cell you just picked."""
     L = Layout(1.0, 2.0)
