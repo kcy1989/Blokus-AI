@@ -105,11 +105,6 @@ class Board:
         self.corner_regions = [[frozenset() for _ in range(4)] for _ in range(4)]
         self.borders = [[frozenset() for _ in range(4)] for _ in range(4)]
 
-    def owner(self, x, y):
-        if 0 <= x < B and 0 <= y < B:
-            return self.grid[y * B + x]
-        return -2
-
     def can_place(self, x, y, cells, owner, must_cover=None, reach=None):
         """Legality choke point.
 
