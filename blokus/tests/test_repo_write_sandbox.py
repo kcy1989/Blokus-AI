@@ -1,24 +1,23 @@
 """The repository cannot be written to from a test run.
 
-`data/` and `records.json` are both gitignored, so a test that writes to either
-leaves no trace in a diff. Nothing would show up in a commit, the leaderboard
-would simply be wrong afterwards, and the damage would be found - if at all -
-much later, by a number that does not reproduce.
+`records.json` is gitignored, so a test that writes to it leaves no trace in a
+diff. Nothing would show up in a commit, the leaderboard would simply be wrong
+afterwards, and the damage would be found - if at all - much later, by a number
+that does not reproduce.
 
 Two layers deal with this and they are not the same layer:
 
-  * the session fixture in `conftest.py` **redirects** the two default output
-    paths to scratch space, so the write cannot happen;
+  * the session fixture in `conftest.py` **redirects** the default leaderboard
+    path to scratch space, so the write cannot happen;
   * the snapshot guard in `conftest.py` **detects** a change to the watched
     paths afterwards, which also covers a write the fixture cannot prevent -
-    a human playing a game, or an evaluation started without `--dry`, while the
-    suite runs.
+    a person playing a game, or an evaluation started without `--dry`, while
+    the suite runs.
 
 The first is what this file tests. The second is `tests/test_data_guard.py`.
 """
 import os
 
-import gamelog
 import records
 
 
@@ -46,30 +45,14 @@ def test_a_default_leaderboard_is_not_the_repositorys():
     assert not _inside_repo(r.path), r.path
 
 
-def test_a_default_game_log_is_not_in_the_repository():
-    """`gamelog.default_log_path()` must not land under `data/humanlog`.
-
-    A recording seat writes a whole game's moves here, so this is the one path a
-    test produces by accident very easily: seat a `human_log` seat, play the game
-    out, and there is a file. It is also the path the shipped application uses,
-    which is why `test_gamelog.py` checks *that* directory is gitignored while
-    this one checks that a test never writes to it.
-    """
-    path = gamelog.default_log_path("probe")
-    assert os.path.isdir(gamelog.LOG_DIR)
-    assert not _inside_repo(path), path
-    assert not _inside_repo(gamelog.LOG_DIR), gamelog.LOG_DIR
-
-
-def test_the_sandbox_is_actually_used_by_both(tmp_path_factory):
+def test_the_sandbox_is_actually_used(tmp_path_factory):
     """The redirection is real, not merely "not the repository".
 
-    A fixture that pointed both defaults at a second in-repository directory
-    would satisfy the two tests above while still writing into a checkout. Both
-    have to be under the pytest tmp directory, which is outside by construction.
+    A fixture that pointed the default at a second in-repository file would
+    satisfy the test above while still writing into a checkout. It has to be
+    under the pytest tmp directory, which is outside by construction.
     """
     r = records.Records()
-    log = gamelog.default_log_path("probe")
     # The shipped default really is the repository's own file, so the test above
     # is not passing because there was never anything to redirect.
     shipped = os.path.join(os.path.dirname(os.path.abspath(records.__file__)),
@@ -82,8 +65,6 @@ def test_the_sandbox_is_actually_used_by_both(tmp_path_factory):
     base = os.path.abspath(str(tmp_path_factory.getbasetemp()))
     assert not _inside_repo(base)
     assert os.path.abspath(r.path).startswith(base + os.sep), r.path
-    assert os.path.abspath(gamelog.LOG_DIR).startswith(base + os.sep), \
-        gamelog.LOG_DIR
 
 
 def test_an_explicit_path_still_wins(tmp_path):

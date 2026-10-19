@@ -343,7 +343,6 @@ main.py      進入點：pygame 初始化、事件迴圈、60 FPS
 match.py     全 AI 聯賽工具（不影響玩家對局流程）
   └── game.py, records.py
 records.py   排行榜：每個人格的平均分與平均餘格
-gamelog.py   人類對局的資料集（`data/humanlog/`）
 seats.py     席位模型：選項、顏色、輪轉；權重載入路徑的讀者
 engine.py    純 Python 的規則引擎：400-bit 狀態、旋轉、合法步、正規化視圖
 rl/          模仿學習的實驗骨架（見「rl/ 套件」）
@@ -372,7 +371,6 @@ tests/       58 個 .py 檔，1149 項測試
 | `board.py` | `Board` 類別：格網、`empty_bits`／`owner_bits`、`Reach`、連通區塊、合法性判定 |
 | `pieces.py` | 21 種棋塊、旋轉去重、手牌容器 |
 | `game.py` | 回合狀態、開局角位規則、順時針輪轉、勝負判定 |
-| `gamelog.py` | 人類對局寫成 `data/humanlog/` 的 JSONL |
 | `seats.py` | 席位選項、顏色分配、輪轉；讀 `ai/registry.json` 與權重路徑 |
 | `layout.py` | 16:9 視窗與面板／棋盤／手牌三欄幾何 |
 | `engine.py` | 與 `board.py` 平行的另一份規則實作，用不可變的 `State` 描述整局 |
@@ -1409,8 +1407,8 @@ h/i 兩條 run 自己的 10 席訓練池是它們證據裡的字面清單——�
 
 ### 在遊戲介面選到 50k 席位
 
-座位選單（`seats.seat_menu_options()`）現在是 **21 項**：18 個自動席位 +
-2 個人類席位 + 「隨機 AI」。四個 50k 排在四個 20k 之後，中文名是
+座位選單（`seats.seat_menu_options()`）現在是 **21 項**：19 個自動席位 +
+1 個人類席位 + 「隨機 AI」。四個 50k 排在四個 20k 之後，中文名是
 「強化學習 rl_h1000_50k」，說明分別是「PPO 訓練 100 輪、共 50,000 局
 （自 20k 續練）」，再依老師加上「老師：優化者／築城者／入侵者」（h 版沿用
 通用說明，不加老師）。`rl_o1000_50k_v3` 排在 `rl_o1000_50k` 之後，說明是

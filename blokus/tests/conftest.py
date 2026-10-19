@@ -12,14 +12,13 @@ Two things are watched:
     data/rl/*         every learner's training output
     records.json      the cumulative leaderboard
 
-`data/humanlog` and `data/match` are **not** matched, and that is deliberate:
-both are products of the running application rather than of the tests. A human
-game appends to `data/humanlog/`, and an evaluation run drops a batch into
-`data/match/`; watching either would make the guard fail on ordinary use of the
+`data/match` is **not** matched, and that is deliberate: it is a product of the
+running application rather than of the tests. An evaluation run drops a batch
+into `data/match/`; watching it would make the guard fail on ordinary use of the
 application.
 
 **Known limitation.** `records.json` is written by playing a game, not only by
-the tests. A human who plays - or an evaluation run started without `--dry` -
+the tests. A person who plays - or an evaluation run started without `--dry` -
 while the suite is running will make this guard fail on a change it did not
 cause. The failure message says so. Watching the leaderboard is worth that
 because it is the one guarded path an ordinary interactive session touches; the
@@ -42,7 +41,6 @@ import os
 
 import pytest
 
-import gamelog
 import records
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,7 +53,7 @@ PROJECT_ROOT = os.environ.get("BLOKUS_DATA_GUARD_ROOT") or \
 
 # Directories under `data/` to watch, as patterns relative to PROJECT_ROOT.
 # One level deep: the lineage directories are the units that were reordered, and
-# `data/humanlog` / `data/match` sit beside them rather than inside these.
+# `data/match` sits beside them rather than inside these.
 GUARD_PATTERNS = ("data/imitation/*", "data/rl/*")
 
 # ...and single files.
@@ -212,42 +210,32 @@ def pytest_sessionfinish(session, exitstatus):
 
 @pytest.fixture(autouse=True, scope="session")
 def _the_repository_is_not_writable_from_a_test(tmp_path_factory):
-    """Point the two default output paths at scratch space for the whole run.
+    """Point the default leaderboard path at scratch space for the whole run.
 
-    `data/` and `records.json` are gitignored, so a write to either is invisible
-    in a diff: nothing would show up in a commit, and the leaderboard would
-    simply be wrong afterwards. The guard above *detects* that by comparing
-    snapshots; this makes it impossible instead, which is the stronger property
-    and the one that does not depend on catching it.
+    `records.json` is gitignored, so a write to it is invisible in a diff:
+    nothing would show up in a commit, and the leaderboard would simply be wrong
+    afterwards. The guard above *detects* that by comparing snapshots; this makes
+    it impossible instead, which is the stronger property and the one that does
+    not depend on catching it.
 
-    Two mechanisms rather than one, because the two defaults are bound
-    differently:
-
-      * `Records.__init__` takes `path=RECORDS_PATH` as a **default argument**,
-        evaluated when the function is defined. Rebinding `records.RECORDS_PATH`
-        at runtime would not move the file - the trap this very repository
-        documents in `seats.build_brain`. So the default tuple itself is
-        replaced. That also composes with the tests that redirect the leaderboard
-        by swapping `__init__` wholesale, because `monkeypatch` puts the original
-        function back and the patched defaults ride along on it.
-      * `gamelog.LOG_DIR` is a module constant read inside
-        `default_log_path`, so rebinding it is enough.
+    The mechanism is a default argument: `Records.__init__` takes
+    `path=RECORDS_PATH` as one, evaluated when the function is defined, so
+    rebinding `records.RECORDS_PATH` at runtime would not move the file - the
+    trap this very repository documents in `seats.build_brain`. The default tuple
+    itself is replaced, which also composes with the tests that redirect the
+    leaderboard by swapping `__init__` wholesale, because `monkeypatch` puts the
+    original function back and the patched defaults ride along on it.
 
     The session guard above is left in place. Detection and prevention are not
-    the same tool, and the guard also covers a human playing while the suite
+    the same tool, and the guard also covers a person playing while the suite
     runs - which this fixture cannot prevent, because that write is not a test's.
     """
     scratch = tmp_path_factory.mktemp("not-the-repository")
-    log_dir = scratch / "humanlog"
-    log_dir.mkdir()
     leaderboard = scratch / "records.json"
 
     original_defaults = records.Records.__init__.__defaults__
-    original_log_dir = gamelog.LOG_DIR
     records.Records.__init__.__defaults__ = (str(leaderboard),)
-    gamelog.LOG_DIR = str(log_dir)
     try:
         yield
     finally:
         records.Records.__init__.__defaults__ = original_defaults
-        gamelog.LOG_DIR = original_log_dir

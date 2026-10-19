@@ -42,7 +42,7 @@ from config import (CLOCKWISE_OWNERS, COLORS, OWNER_CORNER, PLAYER_OWNER,
 COLOR_NAMES = tuple(COLORS)
 
 # What kind of contestant a seat holds. The kind, not the key, is what decides
-# whether the seat needs a brain, may be logged, or waits for a human.
+# whether the seat needs a brain or waits for a human.
 KIND_AI = "ai"
 KIND_IMITATION = "imitation"
 # A trained policy. Its own kind rather than KIND_IMITATION so that
@@ -50,7 +50,6 @@ KIND_IMITATION = "imitation"
 # which is what the name says and what the three `hc_*` seats are.
 KIND_RL = "rl"
 KIND_HUMAN = "human"
-KIND_HUMAN_LOG = "human_log"
 # Not a kind of contestant but a deferred choice: a seat left on this is dealt
 # one of the automated options when the game starts, the same way a
 # "random" colour is dealt one of what is left. It is resolved before anything
@@ -63,7 +62,6 @@ RANDOM = "random"
 RANDOM_AI_KEY = "random_ai"
 
 HUMAN_KEY = "human"
-HUMAN_LOG_KEY = "human_log"
 
 # Which H-C2 checkpoints are offered as players, in the order the menu lists
 # them. Read-only at inference: the optimiser state in those files is ignored,
@@ -353,7 +351,7 @@ def automated_options():
 
 def seat_options(include_humans=True):
     """Every option a seat can be *set to*, in menu order: every automated
-    option by key, then (optionally) the two human seats.
+    option by key, then (optionally) the human seat.
 
     Counted from the registry rather than typed here - the roster grew from
     eleven to fifteen when plan10 published the 50k policies, and a docstring
@@ -364,7 +362,7 @@ def seat_options(include_humans=True):
     """
     out = list(automated_options())
     if include_humans:
-        out += [HUMAN_KEY, HUMAN_LOG_KEY]
+        out += [HUMAN_KEY]
     return tuple(out)
 
 
@@ -416,7 +414,7 @@ def register_adhoc(key, path):
     session or a wrapper may set the same binding twice.
     """
     key = canonical_key(key)
-    if (key in (RANDOM_AI_KEY, HUMAN_KEY, HUMAN_LOG_KEY)
+    if (key in (RANDOM_AI_KEY, HUMAN_KEY)
             or key in personality_keys() or is_imitation_key(key)
             or is_rl_key(key)):
         raise ValueError(
@@ -464,14 +462,12 @@ def kind_of(key, include_humans=True):
         return KIND_RL
     if key == HUMAN_KEY:
         return KIND_HUMAN
-    if key == HUMAN_LOG_KEY:
-        return KIND_HUMAN_LOG
     raise ValueError("no such seat option: %r" % (key,))
 
 
 def is_human_kind(kind):
-    """A seat a person plays, whether or not it is recorded."""
-    return kind in (KIND_HUMAN, KIND_HUMAN_LOG)
+    """A seat a person plays."""
+    return kind == KIND_HUMAN
 
 
 def assign_colours(wanted, rng=None):

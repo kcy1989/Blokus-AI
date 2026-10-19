@@ -84,12 +84,12 @@ def test_canonical_key_leaves_what_it_does_not_recognise_alone():
     """The alias table rewrites the names it knows and nothing else.
 
     `records.py` runs every key it writes through `canonical_key` (plan9a
-    stage 9), so anything outside the alias table - the human seats, the
+    stage 9), so anything outside the alias table - the human seat, the
     player key, a key typed by hand - has to come back byte for byte. A
     resolver that returned `None`, dropped the key or guessed a seat would
     take the leaderboard with it, and this is what says so in one place.
     """
-    for key in (OLD, NEW, "player", "human", "human_log", "random_ai",
+    for key in (OLD, NEW, "player", "human", "random_ai",
                 "made_up_key", ""):
         assert S.canonical_key(key) == key
 

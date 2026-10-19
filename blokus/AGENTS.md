@@ -372,7 +372,7 @@ bytecode，`assert len(CLOCKWISE_OWNERS) == SEATS` 當場觸發。常數反證�
 
 ```
 blokus/
-  board.py config.py engine.py game.py gamelog.py layout.py main.py
+  board.py config.py engine.py game.py layout.py main.py
   pieces.py records.py seats.py ui.py match.py bench_engine.py
   blokuselo/    評分引擎（= 原 blokuselo.py）＋校準／診斷
   tools/        benchmark、跨引擎檢查、ui_shots、pair0k、openings...

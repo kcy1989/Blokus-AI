@@ -677,7 +677,7 @@ def test_an_option_may_be_repeated_and_a_colour_may_not():
     assert [u.game.owner_key[o] for o in range(4)] == ["wolf"] * 4
     assert sorted(u.game.colors.values()) == ["blue", "green", "red", "yellow"]
 
-    # four humans, and two recording humans, are both legal
+    # four humans, and a human mixed with AI, are both legal
     u = make_ui()
     at_seat_screen(u)
     u.seat_keys = ["human"] * 4
@@ -688,11 +688,11 @@ def test_an_option_may_be_repeated_and_a_colour_may_not():
 
     u = make_ui()
     at_seat_screen(u)
-    u.seat_keys = ["human_log", "chess", "human_log", "chess"]
+    u.seat_keys = ["human", "chess", "human", "chess"]
     u.seat_colours = [seats_mod.RANDOM] * 4
     click(u, u.seat_rects()["start_game"].center)
     assert u.state == "PLAYING"
-    assert u.game.recording_seats() == [0, 2]
+    assert u.game.humans() == [0, 2]
 
 
 def test_a_colour_another_seat_took_is_not_on_offer():
@@ -1666,7 +1666,7 @@ def test_two_seats_on_the_same_option_each_get_their_own_place(tmp_path):
     u.records = Records(str(tmp_path / "records.json"))
     _finish_with_remaining(u, [7, 15, 16, 17],
                            ["rl_o1000_20k", "human", "rl_o1000_20k",
-                            "human_log"],
+                            "wolf"],
                            ["yellow", "blue", "green", "red"])
     rows = u.seat_rows()
     assert len(rows) == 4, rows
@@ -1674,7 +1674,7 @@ def test_two_seats_on_the_same_option_each_get_their_own_place(tmp_path):
     assert [r[3] for r in rows] == [1, 2, 3, 4], rows
     assert [r[4] for r in rows] == [4, 3, 2, 1], rows
     assert [r[1] for r in rows] == ["rl_o1000_20k", "human", "rl_o1000_20k",
-                                    "human_log"]
+                                    "wolf"]
     # the two matching seats must not carry the same place
     twins = [r[3] for r in rows if r[1] == "rl_o1000_20k"]
     assert twins == [1, 3], twins
@@ -1689,7 +1689,7 @@ def test_the_results_screen_renders_four_distinct_rows(tmp_path):
     u.records = Records(str(tmp_path / "records.json"))
     _finish_with_remaining(u, [7, 15, 16, 17],
                            ["rl_o1000_20k", "human", "rl_o1000_20k",
-                            "human_log"],
+                            "wolf"],
                            ["yellow", "blue", "green", "red"])
     real = u.label
     texts = []

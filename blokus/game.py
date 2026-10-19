@@ -21,10 +21,6 @@ class Game:
         # state `setup_match` and `set_player_color` leave it in, so a caller
         # that only ever used those sees no change.
         self.seat_kinds = None
-        # A `gamelog.GameLog` when at least one seat is "human (record)", else
-        # `None`. `act` consults it, so a game with no recording seat writes
-        # nothing at all - not an empty file, not a header.
-        self.log = None
         self.reset()
 
     def reset(self):
@@ -105,7 +101,6 @@ class Game:
         self.attach_brains()
         self.turn_order = self._draw_turn_order()
         self.turn_pos = 0
-        self._open_log()
         self.state = "SETUP_INFO"
         return self
 
@@ -151,22 +146,6 @@ class Game:
     def humans(self):
         """The owners a person plays, in seat order."""
         return [o for o in range(MATCH_SEATS) if self.is_human(o)]
-
-    def recording_seats(self):
-        """The owners whose moves are written to the log."""
-        kinds = self.seat_kinds or {}
-        return [o for o in range(MATCH_SEATS)
-                if kinds.get(o) == seats_mod.KIND_HUMAN_LOG]
-
-    def _open_log(self):
-        """Start a log if this game has a "human (record)" seat, else none."""
-        seats = self.recording_seats()
-        if not seats:
-            self.log = None
-            return None
-        from gamelog import GameLog
-        self.log = GameLog(self, seats)
-        return self.log
 
     def setup_match(self, keys=None):
         """A game played entirely by AIs: all four seats get a personality,
@@ -288,16 +267,12 @@ class Game:
         if not self.can_act(name, oi, x, y, owner):
             raise ValueError("illegal move %s oi=%d at (%d,%d) for owner %d"
                              % (name, oi, x, y, owner))
-        if self.log is not None:
-            self.log.record_move(owner, name, oi, x, y)
         self.hands[owner].names.remove(name)
         self.board.place(x, y, MASTER[name]["orientations"][oi], owner)
         self.placed[owner] += 1
         self._advance()
 
     def act_pass(self):
-        if self.log is not None:
-            self.log.record_pass(self.current_owner())
         self._advance()
 
     def auto_pass(self, owner):

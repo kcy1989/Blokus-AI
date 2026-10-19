@@ -40,12 +40,12 @@ PERSONA_ZH = {k: I[k] for k in PERSONALITY_ORDER}
 
 
 def seat_label(key):
-    """The Chinese name of any of the sixteen seat options.
+    """The Chinese name of any seat option.
 
     One lookup for the whole set, because the four seats are no longer all
     personalities: a seat may be a personality, an imitation checkpoint, a
-    trained policy, or one of the two human seats, and every screen that names
-    a seat goes through here.
+    trained policy, or the human seat, and every screen that names a seat goes
+    through here.
 
     Which `config.I` key names a registered seat is `ai/registry.json`'s
     `label`, not a string chosen here - plan9a stage 6 wired the two together,
@@ -59,8 +59,6 @@ def seat_label(key):
         return I["random_ai"]
     if key == seats_mod.HUMAN_KEY:
         return I["human"]
-    if key == seats_mod.HUMAN_LOG_KEY:
-        return I["human_log"]
     if seats_mod.is_imitation_key(key):
         return I[ai.registry.label_key(key)].format(seats_mod.imitation_step(key))
     if seats_mod.is_rl_key(key):

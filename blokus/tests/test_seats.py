@@ -29,21 +29,21 @@ from game import Game
 
 # ------------------------------------------------------------------ options
 
-def test_the_human_seats_are_exactly_what_the_league_leaves_out():
-    """With humans is two rows more than without, and nothing else differs.
+def test_the_human_seat_is_exactly_what_the_league_leaves_out():
+    """With the human seat is one row more than without, and nothing else differs.
 
     Stage 8 took the `== 16` / `== 14` out: those were roster sizes. What the
     numbers were standing in for is still asserted - the difference between
-    the two lists is precisely the two human seats - and the size itself is
+    the two lists is precisely the human seat - and the size itself is
     pinned one file over by `GOLDEN_POOL`.
     """
-    sixteen = seats.seat_options(True)
-    fourteen = seats.seat_options(False)
-    assert set(sixteen) - set(fourteen) == {"human", "human_log"}
-    assert len(sixteen) == len(fourteen) + 2
-    assert len(set(sixteen)) == len(sixteen)
+    with_human = seats.seat_options(True)
+    without_human = seats.seat_options(False)
+    assert set(with_human) - set(without_human) == {"human"}
+    assert len(with_human) == len(without_human) + 1
+    assert len(set(with_human)) == len(with_human)
     assert not any(seats.is_human_kind(seats.kind_of(k, False))
-                   for k in fourteen)
+                   for k in without_human)
 
 
 def test_every_option_is_one_of_the_three_kinds_of_contestant():
@@ -297,10 +297,8 @@ def test_an_unknown_option_is_refused():
 def test_kind_of_covers_every_option():
     for key in seats.seat_options(True):
         assert seats.kind_of(key) in (seats.KIND_AI, seats.KIND_IMITATION,
-                                      seats.KIND_RL, seats.KIND_HUMAN,
-                                      seats.KIND_HUMAN_LOG)
+                                      seats.KIND_RL, seats.KIND_HUMAN)
     assert seats.is_human_kind(seats.KIND_HUMAN)
-    assert seats.is_human_kind(seats.KIND_HUMAN_LOG)
     assert not seats.is_human_kind(seats.KIND_AI)
     assert not seats.is_human_kind(seats.KIND_IMITATION)
     assert not seats.is_human_kind(seats.KIND_RL)
@@ -412,21 +410,13 @@ def test_setup_seats_takes_four_options_that_may_repeat():
     assert sorted(g.colors.values()) == ["blue", "green", "red", "yellow"]
 
 
-def test_four_humans_and_two_recording_humans_are_both_legal():
+def test_four_humans_are_legal():
     rng = random.Random(4)
     g = Game(rng)
     g.setup_seats(["human"] * 4, None, rng)
     assert g.humans() == [0, 1, 2, 3]
-    assert g.recording_seats() == []
     assert g.brain_map() == {}
     assert all(b is None for b in g.brains.values())
-
-    rng = random.Random(5)
-    g = Game(rng)
-    g.setup_seats(["human_log", "chess", "human_log", "human"], None, rng)
-    assert g.humans() == [0, 2, 3]
-    assert g.recording_seats() == [0, 2]
-    assert sorted(g.brain_map()) == [1]
 
 
 def test_no_human_at_all_is_legal():
@@ -578,14 +568,15 @@ def test_the_menu_offers_one_more_than_there_are_options():
     """One more thing to pick from than to be: the last entry is a request
     rather than a setting, so the menu has one row the pool does not.
 
-    All three sizes are relative now - the pool, the pool plus humans, plus
-    the deferred choice - so a roster change moves them together instead of
+    All three sizes are relative now - the pool, the pool plus the human seat,
+    plus the deferred choice - so a roster change moves them together instead of
     failing a literal `17`.
     """
     menu = seats.seat_menu_options()
     automated = seats.automated_options()
     with_humans = seats.seat_options(True)
-    assert len(menu) == len(automated) + 2 + 1
+    assert len(menu) == len(with_humans) + 1
+    assert len(with_humans) == len(automated) + 1
     assert len(set(menu)) == len(menu)
     assert menu[-1] == seats.RANDOM_AI_KEY
     assert set(menu) - set(with_humans) == {seats.RANDOM_AI_KEY}
@@ -698,13 +689,12 @@ def test_a_random_seat_beside_a_human_still_resolves():
     rng = random.Random(11)
     g = Game(rng)
     g.setup_seats([seats.RANDOM_AI_KEY, "human", seats.RANDOM_AI_KEY,
-                   "human_log"],
+                   "human"],
                   ["blue", "green", "red", "yellow"], rng)
-    assert g.owner_key[1] == "human" and g.owner_key[3] == "human_log"
+    assert g.owner_key[1] == "human" and g.owner_key[3] == "human"
     assert g.owner_key[0] in seats.automated_options()
     assert g.owner_key[2] in seats.automated_options()
     assert g.humans() == [1, 3]
-    assert g.recording_seats() == [3]
     assert g.brains[1] is None and g.brains[3] is None
     assert sorted(g.brain_map()) == [0, 2]
 

@@ -72,7 +72,6 @@
 
 | 路徑 | 用途 |
 | --- | --- |
-| `humanlog/` | runtime；`gamelog.LOG_DIR` 指向它 |
 | `match/` | runtime；`match.DEFAULT_OUT_DIR` 指向它 |
 | `manifest.json` | 原始資料集 manifest（用途未查明） |
 | `records_pre_hc2.json`、`records_pre_rl.json` | 舊 `records.json` 快照（用途未查明） |

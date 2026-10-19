@@ -149,19 +149,16 @@ def test_guard_roots_watches_the_dataset_directories_and_the_leaderboard(tmp_pat
 
 
 def test_guard_roots_ignores_the_applications_own_output_directories(tmp_path):
-    """`data/humanlog` and `data/match` are runtime products, not evidence.
+    """`data/match` is a runtime product, not evidence.
 
-    A human game appends to `data/humanlog` and an evaluation run drops a batch
-    into `data/match`; watching either would make the guard fail on ordinary use
-    of the application rather than on a test that writes where it should not.
-    Neither sits under a watched pattern, so the exclusion is structural rather
-    than a named opt-out.
+    An evaluation run drops a batch into `data/match`; watching it would make
+    the guard fail on ordinary use of the application rather than on a test that
+    writes where it should not. It does not sit under a watched pattern, so the
+    exclusion is structural rather than a named opt-out.
     """
     (tmp_path / "data" / "imitation" / "h0").mkdir(parents=True)
-    (tmp_path / "data" / "humanlog").mkdir(parents=True)
     (tmp_path / "data" / "match").mkdir(parents=True)
     roots = guard_roots(str(tmp_path))
-    assert os.path.join("data", "humanlog") not in roots
     assert os.path.join("data", "match") not in roots
     assert os.path.join("data", "imitation", "h0") in roots
 

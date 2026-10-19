@@ -118,8 +118,7 @@ I = {
     "start_game": "開始遊戲",
     "random_ai": "隨機AI",
     "random_ai_desc": "開局時從可用的對手中隨機抽一個",
-    "human": "人類（不記錄）",
-    "human_log": "人類（記錄）",
+    "human": "人類",
     # `imitation_fmt` and the nine `imitation_*_fmt` / `imitation_*_desc_fmt`
     # keys below are **unreferenced since plan9 task 4** (2026-10-10): they were
     # `label` / `desc_key` values in `ai/registry.json`, and that file has no
