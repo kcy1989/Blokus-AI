@@ -92,10 +92,10 @@ def cell_pos(u, x, y):
     return (L.BO[0] + x * L.CELL + L.CELL // 2, L.BO[1] + y * L.CELL + L.CELL // 2)
 
 
-def wait_for_player_turn(u, limit=400):
+def wait_for_player_turn(u, owner=0, limit=400):
     for _ in range(limit):
         u.tick(pygame.event.get())
-        if u.state == "PLAYING" and u.game.current_owner() == 0:
+        if u.state == "PLAYING" and u.game.current_owner() == owner:
             return True
         if u.ai_pending and not u.ai_ready:
             pygame.time.wait(10)
@@ -810,6 +810,32 @@ def test_hover_then_click_locks_and_confirm_works_from_button():
     click(u, u.button_rects()["confirm"].center)
     assert u.drag is None
     assert len(u.game.hands[0].names) == before - 1
+
+
+def test_a_human_seated_away_from_zero_plays_their_own_hand():
+    """The rack, the drag check and the preview all follow the human's seat.
+
+    Seat 0 was hardcoded here, so a person moved to seat 1 saw seat 0's pieces
+    and every preview was checked against seat 0's contact rule. The game had
+    started, but the human could not place anything.
+    """
+    seat = 1
+    u = start_game_human_at(make_ui(), seat)
+    assert wait_for_player_turn(u, seat)
+    assert set(u.hand_order()) == set(u.game.hands[seat].names)
+    assert all(u.hand_slot(name) is not None for name in u.hand_order())
+
+    name, oi, x, y = best_player_move(u)
+    click(u, u.hand_slot(name).center)
+    assert u.drag is not None and u.drag["name"] == name
+    u.drag["oi"] = oi
+    move_mouse(u, cell_pos(u, x, y))
+    assert (u.drag["x"], u.drag["y"]) == (x, y)
+    assert u.drag["valid"]
+    click(u, cell_pos(u, x, y))
+    before = len(u.game.hands[seat].names)
+    assert u.try_confirm()
+    assert len(u.game.hands[seat].names) == before - 1
 
 
 def test_locked_piece_does_not_slide_with_cursor():

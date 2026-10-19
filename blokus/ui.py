@@ -919,9 +919,24 @@ class UI:
 
     # ---------- hand ----------
 
+    def rack_owner(self):
+        """Whose pieces the rack shows.
+
+        A person may be seated anywhere, so seat 0 is not "the player" any
+        more. On a human's turn this is that seat; between turns it stays on
+        the first human so the rack does not flicker to an AI's hand. A game
+        with no human at all (the league, or four AI seats) falls back to the
+        seat to move.
+        """
+        owner = self.game.current_owner()
+        if self.game.is_human(owner):
+            return owner
+        humans = self.game.humans()
+        return humans[0] if humans else owner
+
     def hand_order(self):
         """Pieces sorted by cell count then name, independent of Hand order."""
-        return sorted(self.game.hands[0].names,
+        return sorted(self.game.hands[self.rack_owner()].names,
                       key=lambda n: (MASTER[n]["size"], n))
 
     def hand_layout(self):
@@ -944,12 +959,12 @@ class UI:
     def hand_slot(self, name):
         """Fixed slot for `name`, or None once the piece has been played."""
         slots, _cards = self.hand_layout()
-        if name not in self.game.hands[0].names:
+        if name not in self.game.hands[self.rack_owner()].names:
             return None
         return slots.get(name)
 
     def start_drag(self, name, pos):
-        if name in self.game.hands[0].names:
+        if name in self.game.hands[self.rack_owner()].names:
             self.drag = {"name": name, "oi": HAND_ITEMS[name], "rot": 0,
                          "x": None, "y": None, "valid": False, "locked": False,
                          "mx": pos[0], "my": pos[1], "over": False}
@@ -995,7 +1010,8 @@ class UI:
         """Legality comes from Game itself, so the preview can never disagree
         with what `act` will accept."""
         d = self.drag
-        d["valid"] = self.game.can_act(d["name"], d["oi"], d["x"], d["y"], 0)
+        d["valid"] = self.game.can_act(d["name"], d["oi"], d["x"], d["y"],
+                                       self.game.current_owner())
 
     def update_drag(self, pos, force=False):
         """Track the cursor. The preview keeps its last board position when the
@@ -1022,7 +1038,7 @@ class UI:
         ph = (max(y for _, y in cells) + 1) * c
         x0 = d["mx"] - pw // 2
         y0 = d["my"] - ph // 2
-        col = COLORS[self.game.colors[0]]
+        col = COLORS[self.game.colors[self.game.current_owner()]]
         for dx, dy in cells:
             r = pygame.Rect(x0 + dx * c, y0 + dy * c, c, c)
             self.draw_alpha_rect(r, col, 190)
@@ -1260,13 +1276,13 @@ class UI:
                                 L.HAND_LABEL_H)
             self.label(key, strip.centerx, strip.centery,
                        max(10, int(round(12 * s))), (168, 176, 190), center=True)
-        pcolor = COLORS[self.game.colors[0]]
+        pcolor = COLORS[self.game.colors[self.rack_owner()]]
         c = L.HAND_CELL
         held = self.drag["name"] if self.drag else None
         # Geometry is fixed for the whole rack; only the pieces still in hand
         # are drawn, so a played piece leaves an empty slot instead of pulling
         # the rest of the rack up behind it.
-        in_hand = set(self.game.hands[0].names)
+        in_hand = set(self.game.hands[self.rack_owner()].names)
         for name, r in slots.items():
             if name not in in_hand:
                 continue
