@@ -562,6 +562,8 @@ def normalize(state):
 
     # Rotation renumbers the owners, so track who ended up where before
     # translating the rotated position back to the original numbering.
+    # Four owners, left hardcoded: the count is the four-corner cycle (config.py
+    # asserts len(CLOCKWISE_OWNERS) == SEATS).
     moved = list(range(4))
     for _ in range(k):
         moved = [ROT_OWNER[o] for o in moved]
