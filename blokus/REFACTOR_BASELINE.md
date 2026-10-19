@@ -124,7 +124,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 | S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 完成 |
 | S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 完成 |
 | S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 完成 |
-| S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者） | 進行中 |
+| S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者；S7a–S7i 全部完成） | 完成 |
 | S9 | UI 接縫 1（`Layout` 抽出） | 待授權 |
 
 S5（`resolve_seats` 拆分）與 S8（分層倒置）**不執行**（裁決；S8 只記錄）。
@@ -178,5 +178,42 @@ midgame grid、每輪 3000 次呼叫。
 **方法論**：快速子集 CPU 時間無法交錯，只作粗略安全線，**不作回歸證據**；
 真實回歸判定一律用單一行程交錯 A/B（≥5 輪取最小）。S7 至今沒有任何回歸疑慮
 被交錯測量證實。
+
+## S7d 結果（`engine.py`，含 `config.py` 的 assert）
+
+- **`config.py`（`6e4a958`）**：新增 `assert len(CLOCKWISE_OWNERS) == SEATS`。
+  這把 `SEATS` 綁死在四角幾何上：把 `SEATS` 改 5 會在 **import 就** `AssertionError`。
+- **`engine.py`（`07f331e`）**：12 處座位數改用 `SEATS` —— `:190` turn_order 檢查、
+  `:193`/`:194`/`:197` State 建構、`:213` `result`、`:332`/`:334` `_advance`、
+  `:409`/`:418` `deserialize`、`:557` `normalize`、`:650`/`:651` `hand_vectors`；
+  並在 `:17` 的 config import 加 `SEATS`。
+- **保留（+ 一行註解）**：`:70` `empty_of` 的四項 OR（每手熱路徑）；`rotate_state`
+  `:505-508` 與 `normalize` 的 `moved = list(range(4))`（`ec6de10` 補註解）——
+  同屬 `normalize`/`rotate_state` 家族、在每步 observation 路徑上，改成 `SEATS`
+  收益為零。保留處註解皆寫明「4 由四角 cycle 決定，`config.py` 有 assert」。
+  訊息 `:191`（"permutation of 0..3"）／`:410`（"four players"）與 docstring 未動。
+- **反證**：用 runtime patch `engine.SEATS = 5`（**不可**用 `config.SEATS=5`，會被
+  新 assert 擋在 import）→ `initial_state`/`result`/`serialize`/`deserialize` 長度
+  變 5；`initial_state()` 配預設 4-cycle 時 `ValueError`；`_advance`/`hand_vectors`
+  撞到保留的 `OWNER_CORNER`/`ROT_OWNER` 四角而 `KeyError`。**僅驗證常數被接上，
+  不代表支援 5 席。**
+- **效能（`bench_engine.py` f1 交錯 A/B，`--games 60 --func-games 60`，各 5 輪取
+  最小 median；A＝worktree `6e4a958`、B＝工作樹）**：10 個函式最大比值
+  **1.0075**（`has_any_legal`，+0.75%），最小 0.9782（`legal_moves`）；無退步。
+
+  | function | A | B | ratio |
+  | --- | --- | --- | --- |
+  | apply_move | 0.0496 | 0.0499 | 1.0053 |
+  | deserialize | 0.0292 | 0.0293 | 1.0042 |
+  | hand_vectors | 0.1757 | 0.1752 | 0.9974 |
+  | has_any_legal | 0.0081 | 0.0081 | 1.0075 |
+  | legal_move_mask | 0.3886 | 0.3828 | 0.9850 |
+  | legal_moves | 0.4940 | 0.4798 | 0.9782 |
+  | normalize | 0.1472 | 0.1459 | 0.9907 |
+  | pass_turn | 0.0397 | 0.0398 | 1.0042 |
+  | serialize | 0.0292 | 0.0291 | 0.9935 |
+  | to_plane | 0.2413 | 0.2377 | 0.9852 |
+  | [game median] | 0.0459 | 0.0452 | 0.9859 |
+
 
 
