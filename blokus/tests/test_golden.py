@@ -25,13 +25,31 @@ if GOLDEN_DIR not in sys.path:
 from golden_cases import CASES, replay  # noqa: E402
 
 with open(os.path.join(GOLDEN_DIR, "golden.json"), encoding="utf-8") as _fh:
-    GOLDEN = json.load(_fh)
+    _DOC = json.load(_fh)
+
+META = _DOC["meta"]
+GAMES = _DOC["games"]
 
 
 def test_every_case_has_a_recorded_game():
-    assert sorted(GOLDEN) == sorted(case[0] for case in CASES)
+    assert sorted(GAMES) == sorted(case[0] for case in CASES)
+
+
+def test_the_baseline_records_where_it_came_from():
+    """The file is only meaningful next to the commit it was recorded from."""
+    assert META["generated_from_head"]
+    assert META["generated_at_utc"]
+    assert META["cases"] == len(CASES)
+    assert META["plies"] == sum(len(g["moves"]) for g in GAMES.values())
 
 
 @pytest.mark.parametrize("case", CASES, ids=[case[0] for case in CASES])
 def test_golden_game_replays_move_for_move(case):
-    assert replay(case) == GOLDEN[case[0]]
+    """Whole-game equality, not just the result.
+
+    `replay` returns turn order, colours, seat keys, the full per-ply list
+    (`[owner, name, oi, x, y]`, or `[owner, "PASS"]`), the final remaining
+    counts and the final state; this compares all of it. A change that moves
+    a single ply, or reseats a colour, fails here.
+    """
+    assert replay(case) == GAMES[case[0]]

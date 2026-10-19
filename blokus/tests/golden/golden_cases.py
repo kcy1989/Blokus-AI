@@ -22,6 +22,20 @@ Two deliberate properties:
 `replay` is the single definition of "play this case". Both the generator
 and the test call it, so a case cannot be recorded one way and checked
 another.
+
+**Two blind spots, written down rather than discovered later:**
+
+  * **The wall-clock cap never fires here.** With the budget off, the
+    `elapsed >= WALL_BUDGET -> skip opponent lookahead` branch of
+    `ai/chooser.py` is not exercised by any case. No test covers it today
+    either; it is a phase-2 backlog item, not something to add now.
+  * **No case holds an rl or imitation seat.** Every key below is a
+    personality, so `build_brain` never takes the network path and the
+    per-seat RNG consumption of a checkpoint seat is not pinned. Before
+    phase 2 touches `Game.setup_seats` (the `brain_factory` injection), add
+    a pin that builds a seat with a **stub** brain and asserts the RNG
+    consumption order - otherwise a change there can move the shared-stream
+    turn-order draw without any case noticing.
 """
 import random
 
