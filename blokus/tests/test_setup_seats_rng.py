@@ -19,9 +19,10 @@ This test states the order **independently**: it replays the raw
 `random.Random` calls and compares the generator state, so a change to the
 order fails here instead of being mirrored by both sides.
 
-The stub is injected through `seats.build_brain` today. The `injection`
-parameter exists so the `brain_factory` path (once `Game.setup_seats` grows
-one) can be added as a second value and must produce the **same** state.
+The stub is injected two ways - by rebinding `seats.build_brain`, and through
+the `brain_factory` parameter `Game.setup_seats` now takes - and both must
+produce the **same** state, because the parameter is only worth having if it
+does not change who draws what.
 """
 import random
 
@@ -73,8 +74,15 @@ def _patched_build_brain(original):
     return build
 
 
-@pytest.mark.parametrize("injection", ["monkeypatch"])
+@pytest.mark.parametrize("injection", ["monkeypatch", "brain_factory"])
 def test_setup_seats_draws_in_the_documented_order(monkeypatch, injection):
+    """Both injection routes must consume the stream identically.
+
+    `monkeypatch` rebinds `seats.build_brain`; `brain_factory` hands the
+    builder straight to `setup_seats`. They are the same order by
+    construction, and this pins that they stay so - the parameter is only
+    worth having if it does not change who draws what.
+    """
     option_keys = list(PERSONALITIES) + [STUB_KEY]
     colours = [None, None, None, None]
     expected = _expected_state(option_keys, colours, SEED)
@@ -84,8 +92,8 @@ def test_setup_seats_draws_in_the_documented_order(monkeypatch, injection):
     if injection == "monkeypatch":
         monkeypatch.setattr(seats, "build_brain", patched)
         game.setup_seats(option_keys, colours)
-    # elif injection == "brain_factory":   # added once S4 lands
-    #     game.setup_seats(option_keys, colours, brain_factory=patched)
+    else:
+        game.setup_seats(option_keys, colours, brain_factory=patched)
 
     assert game.rng.getstate() == expected, (
         "setup_seats drew a different number or order of values")

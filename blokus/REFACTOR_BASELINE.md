@@ -97,6 +97,10 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   `tests/test_setup_seats_rng.py` 的 stub 補上。
 - **`Board._update_regions` 不優化**（裁決）。日後若要優化，先量「每手 `choose_move`
   內 `place`/`unplace` 呼叫次數」，且不寫成測試斷言。
+- **`test_board.py` 的 `test_full_hand_fills_each_quadrant` 覆蓋略窄**：`:120` 的斷言
+  由「該 owner 的棋子集合非空」改為「`owner_bits[o]` 非零」（S3d，因 `all_owner_cells`
+  已刪）。它因此不再同時驗證「棋子集合內容」與「位元遮罩」一致；該一致性改由
+  `test_board` 其他測試與 `test_golden` 逐手比對保護。
 
 ## 階段進度
 
@@ -105,7 +109,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 | S1 | `test_seat_rename` 改讀 tmp `records.json` | 完成 |
 | S2 | `setup_seats` 的 stub brain rng 消耗釘子測試 | 完成 |
 | S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 完成 |
-| S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 待授權 |
+| S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 完成 |
 | S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 待授權 |
 | S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者） | 待授權 |
 | S9 | UI 接縫 1（`Layout` 抽出） | 待授權 |

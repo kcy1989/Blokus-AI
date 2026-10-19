@@ -43,7 +43,8 @@ class Game:
 
     def setup_seats(self, option_keys, colours=None, rng=None,
                     checkpoint_dir=None, device=None,
-                    mode="argmax", include_humans=True, seat_rngs=None):
+                    mode="argmax", include_humans=True, seat_rngs=None,
+                    brain_factory=None):
         """Configure all four seats by hand: one option and one colour each.
 
         `option_keys` is four option keys from `seats.seat_options`, in seat
@@ -83,12 +84,21 @@ class Game:
         self.owner_key = {o: option_keys[o] for o in range(MATCH_SEATS)}
         self.colors = {o: resolved[o] for o in range(MATCH_SEATS)}
         self.seat_kinds = kinds
+        # `brain_factory` is the injection seam: a caller that only needs the
+        # seat layout (owner_key, colours, turn order, kinds) can hand in a
+        # builder that makes a cheap stand-in, so a test of the seat screen
+        # does not have to load a network to draw a results table. Default is
+        # `None` and the real builder is looked up *at call time* - binding
+        # `seats_mod.build_brain` as a default argument would freeze the
+        # original and silently ignore a later rebinding, which is exactly what
+        # `tests/test_match_paired_rng.py` does.
+        build = seats_mod.build_brain if brain_factory is None else brain_factory
         self.brains = {
-            o: seats_mod.build_brain(option_keys[o],
-                                     rng if seat_rngs is None else seat_rngs[o],
-                                     kinds[o],
-                                     checkpoint_dir=checkpoint_dir,
-                                     device=device, mode=mode)
+            o: build(option_keys[o],
+                     rng if seat_rngs is None else seat_rngs[o],
+                     kinds[o],
+                     checkpoint_dir=checkpoint_dir,
+                     device=device, mode=mode)
             for o in range(MATCH_SEATS)
         }
         self.attach_brains()
