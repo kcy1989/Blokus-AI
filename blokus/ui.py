@@ -9,7 +9,7 @@ import pygame
 import ai
 import records as records_mod
 import seats as seats_mod
-from config import COLORS, HAND_CELLS_TOTAL, I, OWNER_CORNER, PERSONALITY_ORDER
+from config import COLORS, HAND_CELLS_TOTAL, I, OWNER_CORNER, PERSONALITY_ORDER, SEATS
 from pieces import MASTER
 
 SCALES = (0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 2.0)
@@ -473,7 +473,7 @@ class UI:
         # player presses start: the screen is edited repeatedly and each edit
         # would otherwise have to rebuild four brains.
         self.seat_keys = list(DEFAULT_SEAT_KEYS)
-        self.seat_colours = [seats_mod.RANDOM] * 4
+        self.seat_colours = [seats_mod.RANDOM] * SEATS
         # `(seat, "option"|"colour")` while a picker is open, else None.
         self.seat_pick = None
         # Which slice of a picker's list is showing. Zeroed whenever a picker
@@ -619,7 +619,7 @@ class UI:
         self.game.reset()
         self.state = "SETUP_SEATS"
         self.seat_keys = list(DEFAULT_SEAT_KEYS)
-        self.seat_colours = [seats_mod.RANDOM] * 4
+        self.seat_colours = [seats_mod.RANDOM] * SEATS
         self.seat_pick = None
         self.menu_scroll = 0
         self.drag = None
@@ -803,7 +803,7 @@ class UI:
         used, and where it is not a neutral grey says so rather than picking one
         seat and pretending it speaks for both.
         """
-        cols = {self.game.colors[o] for o in range(4)
+        cols = {self.game.colors[o] for o in range(SEATS)
                 if self.game.owner_key[o] == key}
         if len(cols) == 1:
             return COLORS[cols.pop()]
@@ -847,7 +847,7 @@ class UI:
                             (IMITATION_MODES.index(self.imitation_mode) + 1)
                             % len(IMITATION_MODES)]
                     elif bid == "randomise":
-                        self.seat_colours = [seats_mod.RANDOM] * 4
+                        self.seat_colours = [seats_mod.RANDOM] * SEATS
                     else:
                         seat, what = bid.split(":")
                         self.seat_pick = (int(seat), what)
@@ -1088,7 +1088,7 @@ class UI:
         ox = cx + sw + int(round(14 * s))
         ow = int(round(250 * s))
         out = {}
-        for seat in range(4):
+        for seat in range(SEATS):
             y = self.seat_row_y(seat)
             out["%d:colour" % seat] = pygame.Rect(cx, y, sw, sw)
             out["%d:option" % seat] = pygame.Rect(ox, y, ow, int(round(40 * s)))
@@ -1567,7 +1567,7 @@ class UI:
                        (140, 146, 156))
 
         rows = self.seat_rects()
-        for seat in range(4):
+        for seat in range(SEATS):
             key = self.seat_keys[seat]
             colour = self.seat_colours[seat]
             row_h = self.seat_row_h()
@@ -1729,8 +1729,8 @@ class UI:
                             must_cover=self.game.must_cover(owner),
                             reach=self.game.reach(owner),
                             other_must_cover={o: self.game.must_cover(o)
-                                              for o in range(4)},
-                            other_reach={o: self.game.reach(o) for o in range(4)})
+                                              for o in range(SEATS)},
+                            other_reach={o: self.game.reach(o) for o in range(SEATS)})
         if self.ai_token == token:
             self.ai_move = mv
             self.ai_ready = True
