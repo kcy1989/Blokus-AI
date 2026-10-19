@@ -288,7 +288,7 @@ def test_builder_is_in_the_pool_and_renders():
     assert "builder" in ai.personality_keys()
     assert "builder" in PERSONALITY_ORDER
     # Was `PERSONALITY_ORDER[-1] == "builder"`, which pinned builder to the end
-    # of the order. plan6.md decision 4 appends "hunter" after it, so that
+    # of the order. docs/plans/plan6.md decision 4 appends "hunter" after it, so that
     # statement became false and could not be kept: it was asserting an ordering
     # the plan deliberately changed. What it really guarded - builder is in the
     # pool and in the display order - is asserted on the two lines above.

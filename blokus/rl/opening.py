@@ -41,7 +41,7 @@ the board, its `restrict` reads piece sizes, `mistake_rate` is 0 and
 exactly as valid as letting it observe any other stones.
 
 Legal moves are computed on the real coordinates of the `State` and are never
-rotated, because `reports/g_report.md` section G5 showed that a normalised view
+rotated, because `docs/reports/g_report.md` section G5 showed that a normalised view
 answers the opening question with the wrong corner.
 """
 import random
@@ -263,7 +263,7 @@ def choose_v2(state, board, owner, brain, rng, tracker, *, other_brains=None,
 def book_geometry():
     """The derived corner, direction and the six required squares, per player.
 
-    Reported rather than assumed: `plan4.md` says the corners must be derived
+    Reported rather than assumed: `docs/plans/plan4.md` says the corners must be derived
     and not written out, and the only way to show that is to print what the
     derivation produced.
     """

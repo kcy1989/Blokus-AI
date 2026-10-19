@@ -317,7 +317,7 @@ def episode_reward(remaining_by_owner, owner):
     """One seat's reward for a finished game: `(5 - rank) - remaining / 100`.
 
     `remaining_by_owner` is `engine.result(state)` - the four seats' unplaced
-    squares in raw cells, indexed by owner id. `plan8.md` fixes the units at raw
+    squares in raw cells, indexed by owner id. `docs/plans/plan8.md` fixes the units at raw
     cells precisely so this stays comparable with `records.rank_rows`, which
     also takes raw cells.
 

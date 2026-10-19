@@ -11,7 +11,7 @@ standard-looking version is wrong for this project.
 
 **The old log_probs are recomputed at the start, over the shuffled order, cut
 into the update's own minibatches.** Not because recomputing is fashionable -
-`plan8.md` fixes it - but because of what it buys. Measured on hc_1000, a
+`docs/plans/plan8.md` fixes it - but because of what it buys. Measured on hc_1000, a
 position scored inside a batch of 512 and the same position scored alone differ
 by **3.49e-03** in log_prob, which is 0.35% of PPO's ratio before a single
 gradient step is taken. The batch is part of the arithmetic.
@@ -79,7 +79,7 @@ class Config(NamedTuple):
 
     A NamedTuple rather than a dataclass so `cfg._replace(...)` is the cheap way
     to vary one field in a test, and so it is hashable and prints readably in a
-    manifest. Defaults are `plan8.md`'s candidate values; they are **candidates**,
+    manifest. Defaults are `docs/plans/plan8.md`'s candidate values; they are **candidates**,
     not conclusions, and this module has no opinion about which are right - it
     implements whatever it is handed.
     """
@@ -103,7 +103,7 @@ def compute_gae(rewards, values, gamma=DEFAULT_GAMMA, lam=DEFAULT_LAM):
     """`(advantages, returns)` for one episode's decision sequence.
 
     `rewards` and `values` have one entry per decision - a pass is not a decision
-    and contributes neither. `plan8.md` fixes the terminal reward on the last
+    and contributes neither. `docs/plans/plan8.md` fixes the terminal reward on the last
     decision and zero in between, so `rewards` is `[0, 0, ..., r]`.
 
     The value after the final decision is **zero**: the episode is over and there

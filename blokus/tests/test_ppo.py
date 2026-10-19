@@ -165,7 +165,7 @@ def test_gae_rejects_mismatched_lengths():
 
 def test_the_terminal_reward_lands_on_the_last_decision_only(episodes):
     """Every episode contributes exactly one non-zero reward, on its last
-    decision - which is what `plan8.md` fixes, and what makes an episode a time
+    decision - which is what `docs/plans/plan8.md` fixes, and what makes an episode a time
     series rather than a bag."""
     b = P.batch_from_episodes(episodes)
     nonzero = b["reward"][b["reward"] != 0.0]
@@ -234,7 +234,7 @@ def test_the_first_minibatch_ratio_is_exactly_one(episodes, batch):
 def test_the_baseline_is_recomputed_not_taken_from_the_rollout(episodes, batch):
     """And the mismatch with the rollout's own numbers is reported, not hidden.
 
-    `plan8.md` fixes the rollout's log_prob as diagnostic only. The rollout
+    `docs/plans/plan8.md` fixes the rollout's log_prob as diagnostic only. The rollout
     scored one state at a time on the rollout's device; the update scores in
     minibatches on the update device. They agree to about 3e-6 here and the
     statistic says so every run, so a device or batching mistake would show up in

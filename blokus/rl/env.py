@@ -43,7 +43,7 @@ def average_places(remaining):
     """Competition ranking with tied places split evenly, fewest cells first.
 
     The same rule as `tools.benchmark.average_ranks`, written out rather than
-    imported: that function is this project's ranking oracle and `plan3.md`
+    imported: that function is this project's ranking oracle and `docs/plans/plan3.md`
     asks for the ranking here to be checked against it, which an import would
     make vacuous. `tests/test_rl_env.py` compares the two over 1,000 games.
     """

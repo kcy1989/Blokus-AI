@@ -672,7 +672,7 @@ def test_the_personality_pool_is_the_seven_named_in_the_plan():
 
 @needs_checkpoint
 def test_hc_and_rl_keys_are_not_in_the_opponent_pool(net):
-    """plan8.md is explicit: the opponent pool is the seven personalities only."""
+    """docs/plans/plan8.md is explicit: the opponent pool is the seven personalities only."""
     pool = Rr.PERSONALITY_POOL
     assert not any(seats.is_imitation_key(k) for k in pool)
     assert not any(k.startswith("rl_") for k in pool)

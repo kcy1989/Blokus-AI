@@ -1,6 +1,6 @@
 """Stage G0: does the GPU actually work, and how fast is it?
 
-`plan3.md` asks for this as measurement rather than assumption, because the
+`docs/plans/plan3.md` asks for this as measurement rather than assumption, because the
 card is Blackwell (compute capability 12.0) and the instruction says plainly
 that "this card needs CUDA 12.8 or newer" was never verified. It is now: the
 wheel is `2.11.0+cu128` and `get_arch_list()` contains `sm_120`.

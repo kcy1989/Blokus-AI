@@ -10,7 +10,7 @@ whatever trains, may touch torch.
 `engine` is the single source of rules. Legal moves are always computed on a
 real-coordinate `State` and only then mapped into the mover's frame through
 `rl.actions.LUT_ROT`; calling the engine's rules on a normalised view is not
-done anywhere in this package. See `reports/g_report.md` section G5 for why.
+done anywhere in this package. See `docs/reports/g_report.md` section G5 for why.
 """
 
 __all__ = ("actions", "features", "env", "collect")

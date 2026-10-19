@@ -12,7 +12,7 @@ result. What that cannot show - that 2,000 pairs behave like 4 - is shown by the
 real run's own reproducibility, which is re-checked there rather than here.
 
 The last test is the H0-0 correction from the throughput formula. It lives in a
-stage H0 file because `plan4.md` allows only two new test files and neither is
+stage H0 file because `docs/plans/plan4.md` allows only two new test files and neither is
 named after `rl/smoke_gpu.py`; `tests/test_rl_isolation.py` covers that module
 and is not to be modified. It needs no GPU, because the function under test is
 fed a fixed list of timings.

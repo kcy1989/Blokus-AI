@@ -3,7 +3,7 @@ like, and how is it written down?
 
 The teacher is the Hunter personality: the optimizer scored as "my playable cells
 minus the strongest opponent's", plus a fixed three-move opening book. Stage H
-adopted it over v1 on the paired evidence in `reports/h1_report.md`. It is
+adopted it over v1 on the paired evidence in `docs/reports/h1_report.md`. It is
 deterministic given a seed, which is the property that makes a supervised label
 reachable at all: stage F' measured the optimizer's two calls with the same seed
 differing 0 times out of 500, so its top-1 move is a function of the position
@@ -33,7 +33,7 @@ the game seed:
 
 Every sample records the teacher's move, the shortlist it came from and the
 outcome of the game it was played in. Nothing here trains anything; the shards
-are the raw material and `reports/g_report.md` section G4 says what the trial
+are the raw material and `docs/reports/g_report.md` section G4 says what the trial
 run actually contains.
 
 Two properties are enforced rather than assumed. The wall-clock budget in

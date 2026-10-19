@@ -24,7 +24,7 @@ definition of "mover's view".
 
 Legal moves are never computed here. Features are a function of the position
 only; the action mask is `rl.actions.legal_mask_view`. See
-`reports/g_report.md` section G5.
+`docs/reports/g_report.md` section G5.
 """
 import numpy as np
 
@@ -57,7 +57,7 @@ SCALAR_NAMES_V2 = (
     "remaining_me", "remaining_next", "remaining_opposite",
     "remaining_previous",
     "opened_me", "opened_next", "opened_opposite", "opened_previous",
-    # How many real moves the mover has made. `plan6.md` H-B0 item 3: Hunter's
+    # How many real moves the mover has made. `docs/plans/plan6.md` H-B0 item 3: Hunter's
     # opening book applies to its first three own moves, and without this the
     # book step is only inferable from the mover's own stone count - which works
     # solely because Z5, V5 and W5 are all pentominoes, and stops working the
@@ -257,7 +257,7 @@ def featurize_via_normalize(state):
     Kept because it is the reference: the tests assert `featurize` agrees with
     it bit for bit, which is what makes the numpy rotation a speed
     optimisation rather than a second opinion about the rules. It is also the
-    slower path, and `reports/g_report.md` section G2 carries both timings.
+    slower path, and `docs/reports/g_report.md` section G2 carries both timings.
     """
     view, seat_of = engine.normalize(state)
     own = view.own_bits

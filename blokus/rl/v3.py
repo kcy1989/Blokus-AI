@@ -272,7 +272,7 @@ def differential_is_constant(state, board, owner, brain, seed=0):
     """Over one decision: how many distinct values `A_j*(after)` takes across the
     candidates v1 would score.
 
-    `plan5.md` H1-1 test 5 asks for the fraction of positions where this varies,
+    `docs/plans/plan5.md` H1-1 test 5 asks for the fraction of positions where this varies,
     because a term that never varies is a term that cannot change a ranking and
     would make the whole experiment uninformative without failing loudly. The
     value itself is only a report input; the decision never reads it.

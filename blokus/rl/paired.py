@@ -503,7 +503,7 @@ def bootstrap_ci(values, iters=BOOTSTRAP_ITERS, seed=BOOTSTRAP_SEED):
     The resampling unit is the pair, because a pair is the unit of independence:
     the two games inside one pair share a configuration, a seed and three
     opponents, so treating their two `d` values as independent would understate
-    the interval. `plan4.md` fixes the iteration count and the seed here, so the
+    the interval. `docs/plans/plan4.md` fixes the iteration count and the seed here, so the
     interval is reproducible rather than a property of the run.
     """
     n = len(values)
@@ -636,7 +636,7 @@ def _count(values):
 
 
 def decide(stats):
-    """The decision, from the rule `plan4.md` fixed before the experiment ran.
+    """The decision, from the rule `docs/plans/plan4.md` fixed before the experiment ran.
 
     Adopt v2 only if the group A interval lies entirely below zero **and** the
     group B interval reaches zero or below. Anything else is "keep v1", because
@@ -686,7 +686,7 @@ def expansion_needed(stats):
 def diagnose_v1_opening(n_games, seed_base=SEED_BASE_A, controllers_pool=POOL_A):
     """How close is v1's own opening to the book, in the games it actually plays?
 
-    `plan4.md` asks for this as a diagnostic rather than an assertion, because it
+    `docs/plans/plan4.md` asks for this as a diagnostic rather than an assertion, because it
     decides how much of a difference v2 can possibly make: if v1 already plays
     book moves by itself, a book cannot help, and if it never does, the book is
     replacing a large part of the opening rather than a small part of it.

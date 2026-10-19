@@ -165,7 +165,7 @@ def test_the_seed_guard_rejects_seeds_below_this_stages_own_base():
 
 
 def test_the_plan_reserved_ranges_are_the_ones_written_down():
-    """`plan5.md` lists these; if the constants drift from the plan the guard
+    """`docs/plans/plan5.md` lists these; if the constants drift from the plan the guard
     stops guarding the right thing."""
     got = {label: (lo, hi) for label, lo, hi in P.RESERVED_RANGES}
     assert got["bench_engine.py"] == (0, 199)
@@ -192,11 +192,11 @@ EXPECTED_ADDED = (
     # both runs, so one entry covers both.
     ("H-B1/H-C1 imitation train", 6_000_000, 6_029_378),
     ("H-B1/H-C1 imitation valid", 6_100_000, 6_101_545),
-    # reports/hc2_report.md lines 141-144. Single seeds, not spans:
+    # docs/reports/hc2_report.md lines 141-144. Single seeds, not spans:
     # match.run_league draws every seat from one random.Random(seed).
     ("stage H-C2 evaluation", 910_001, 910_004),
     ("pool league 920001", 920_001, 920_001),
-    # plan8.md's RL blocks.
+    # docs/plans/plan8.md's RL blocks.
     ("stage RL train", 7_000_000, 7_019_999),
     ("stage RL validation", 7_100_000, 7_100_999),
 )
@@ -463,7 +463,7 @@ def test_one_worker_and_four_workers_agree_field_for_field():
 # --------------------------------------------------------------------------
 
 def test_the_ranks_agree_with_the_project_ranking_oracle():
-    """`average_places` is the ranking. `plan3.md` and `plan5.md` both ask for it
+    """`average_places` is the ranking. `docs/plans/plan3.md` and `docs/plans/plan5.md` both ask for it
     to be checked against `tools.benchmark.average_ranks`, which is written out
     independently; an import would make the check vacuous."""
     sys.path.insert(0, os.path.join(ROOT, "tools"))

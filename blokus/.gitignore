@@ -22,7 +22,10 @@ htmlcov/
 # because git does not descend into an excluded directory. There is no
 # accidental hole for this to open; `eval/imitation/` and `eval/rl-single-train/`
 # are un-ignored on purpose, by their own lines further down.
-plan*/
+# The pattern is also root-anchored: without the leading slash it matched the
+# `plans/` component inside `docs/plans/` too, which would hide the plan
+# documents this project keeps under version control.
+/plan*/
 
 # ...but the evaluation results under `eval/imitation/` and
 # `eval/rl-single-train/` are not plans, they are evidence, and an evaluation

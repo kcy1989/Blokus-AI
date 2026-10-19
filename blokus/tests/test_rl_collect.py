@@ -256,7 +256,7 @@ def test_every_game_has_at_least_one_teacher_seat():
 def test_the_controller_weights_are_the_ones_the_plan_asks_for():
     """All seven personalities, the teacher at half and the rest splitting it.
 
-    Hunter is the teacher (`plan6.md` stage H) and appears exactly once: a weight
+    Hunter is the teacher (`docs/plans/plan6.md` stage H) and appears exactly once: a weight
     table is a per-seat draw, so a second entry would put two Hunters in a game.
     """
     weights = dict(C.CONTROLLER_WEIGHTS)
@@ -304,7 +304,7 @@ def test_no_teacher_sample_comes_from_an_opening_prefix():
     a prefix ply asks the teacher for a move and then discards it, which advances
     Hunter's book counter without the player having moved, so the teacher's first
     three moves stop being book moves (measured: 79.9% / 49.8% / 21.0% of book
-    steps 0 / 1 / 2 displaced). `plan6.md` decision 7 requires those three to
+    steps 0 / 1 / 2 displaced). `docs/plans/plan6.md` decision 7 requires those three to
     survive as supervised labels.
 
     What the prefix still does is move the board: the other three seats keep

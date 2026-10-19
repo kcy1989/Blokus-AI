@@ -66,7 +66,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PERSONALITY_POOL = ("hunter", "optimizer", "builder", "intruder", "fox",
                     "chess", "wolf")
 
-# The seed block plan8.md reserves for RL training. Checked through
+# The seed block docs/plans/plan8.md reserves for RL training. Checked through
 # `rl.paired3.reject_reserved_seeds` rather than trusted.
 RL_SEED_BASE = 7_000_000
 RL_SEED_VALID_BASE = 7_100_000
@@ -75,7 +75,7 @@ RL_SEED_VALID_SPAN = 1_000
 
 # The reserved block a call is allowed to claim. Train by default; the
 # in-training evaluation claims the validation block instead, because
-# `plan8.md` puts its fixed evaluation seeds at 7,100,000 and they have to come
+# `docs/plans/plan8.md` puts its fixed evaluation seeds at 7,100,000 and they have to come
 # from somewhere reserved rather than from the training stream.
 RL_TRAIN_BLOCK = ("stage RL train", RL_SEED_BASE, RL_SEED_BASE + RL_SEED_SPAN - 1)
 RL_VALID_BLOCK = ("stage RL validation", RL_SEED_VALID_BASE,

@@ -2,7 +2,7 @@
 
 Every number in here is produced by *reading* the engine, the action table and
 the AI pipeline. No existing file is modified and no slow path is optimised:
-plan2.md is explicit that this stage exists to obtain facts, and a fact that
+docs/plans/plan2.md is explicit that this stage exists to obtain facts, and a fact that
 arrived with a fix attached is no longer a fact.
 
 The report is split in two, because the two halves have different honesty
@@ -36,10 +36,10 @@ from config import B, CLOCKWISE_OWNERS, N, OWNER_CORNER  # noqa: E402
 from game import Game  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPORT_DIR = os.path.join(HERE, "reports")
+REPORT_DIR = os.path.join(HERE, "docs", "reports")
 
 # Stage boundaries are defined by the number of *real* pieces played, per
-# plan2.md section 1. Passes never advance a stage: a player who cannot move
+# docs/plans/plan2.md section 1. Passes never advance a stage: a player who cannot move
 # has not made progress.
 STAGE_OPENING = "opening"   # 0  <= n < 16
 STAGE_MIDDLE = "middle"     # 16 <= n < 48
@@ -1307,7 +1307,7 @@ def main():
         _strip_measurements(raw)
     report = render(raw, args.no_timing)
     if args.report:
-        # Off by default: `reports/f_prime_report.md` is written by hand, with
+        # Off by default: `docs/reports/f_prime_report.md` is written by hand, with
         # the reading of the numbers in it, and a re-run of this script must not
         # silently replace that with a table dump. The rendered form is still
         # what goes to stdout, so the numbers are always checkable.

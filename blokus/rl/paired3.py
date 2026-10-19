@@ -24,7 +24,7 @@ which arm is playing, exactly as in `rl/paired.py`, so an opponent's extra draws
 in one game cannot leak into the next opponent's game in the next arm.
 
 The bootstrap is vectorised with numpy. H0's version was a `10_000 x n` pure
-Python loop and took longer than the 15,000 games it summarised; `plan5.md`
+Python loop and took longer than the 15,000 games it summarised; `docs/plans/plan5.md`
 asks for numpy here and explicitly does not require the intervals to match H0's.
 """
 import argparse
@@ -72,7 +72,7 @@ SEED_BASE_B = 4_100_000
 SEED_BASE_A_EXPAND = 4_200_000
 SEED_BASE_B_EXPAND = 4_300_000
 
-# Every range a published number already came from. `plan5.md` lists these and
+# Every range a published number already came from. `docs/plans/plan5.md` lists these and
 # asks for an assertion, so they are written out rather than derived from the
 # other modules: a guard that imported the ranges it is meant to police would
 # agree with any change to them.
@@ -89,7 +89,7 @@ SEED_BASE_B_EXPAND = 4_300_000
 #     builds one `random.Random(seed)` and draws every seat, colour and opening
 #     player from it, so `--seed 910001` *is* one run rather than the first of
 #     910001 consecutive ones. 910001-910004 are the four H-C2 league seeds
-#     (reports/hc2_report.md) and 920001 is the pool league; the span is written
+#     (docs/reports/hc2_report.md) and 920001 is the pool league; the span is written
 #     for the four because all four were used.
 #   * match.py's own default seed, 20260928, needs no entry: it already falls
 #     inside the tools/benchmark.py range below.
@@ -883,7 +883,7 @@ def _mean(rows, field):
 
 
 def decide(stats):
-    """The decision, from the rule `plan5.md` fixed before the experiment ran.
+    """The decision, from the rule `docs/plans/plan5.md` fixed before the experiment ran.
 
     v3 becomes a candidate teacher only if group A's `d32` interval lies entirely
     below zero **and** group B's reaches zero or below. A boundary case of

@@ -82,7 +82,7 @@ def hand_names_of(state, owner):
 def book_alive_state(owner, step):
     """A real position where `owner` has played exactly `step` book moves.
 
-    `plan6.md` acceptance 3: real games never abandon the book (7,500 pairs in
+    `docs/plans/plan6.md` acceptance 3: real games never abandon the book (7,500 pairs in
     stage H1, none of them), so the abandonment branch has to be reached
     deliberately. This reaches a given step by *playing* the book, which is the
     reachable way in.
@@ -289,7 +289,7 @@ def test_the_draw_agrees_with_rl_opening_for_an_injected_seed():
 
 
 def test_the_candidate_set_is_owner_independent_in_the_normalised_view():
-    """`plan6.md` H-A0b item 5 asked exactly this. The rotation is measured from
+    """`docs/plans/plan6.md` H-A0b item 5 asked exactly this. The rotation is measured from
     `engine._rot_mask` rather than assumed."""
     cell = {}
     for c in range(B * B):
@@ -402,7 +402,7 @@ def test_an_empty_candidate_set_abandons_and_then_scores_differentially():
 
 
 def test_a_seat_that_passed_still_counts_exactly_its_real_moves():
-    """`plan6.md` decision 2: a pass must not shift the book step.
+    """`docs/plans/plan6.md` decision 2: a pass must not shift the book step.
 
     `context` runs only on a turn where the player had a legal move, so a passing
     seat's counter does not advance - which is exactly the count a driver would

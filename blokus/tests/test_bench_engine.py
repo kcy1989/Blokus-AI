@@ -71,14 +71,14 @@ def test_the_report_without_timing_is_byte_identical_between_runs():
     """
     args = [sys.executable, SCRIPT, "--no-timing", "--sections",
             "f1b", "f2", "f3", "f4c", "env", "--games", "5",
-            "--json", os.path.join(HERE, "..", "reports", "_test_raw.json")]
+            "--json", os.path.join(HERE, "..", "docs", "reports", "_test_raw.json")]
     first = subprocess.run(args, capture_output=True, text=True, cwd=ROOT)
     assert first.returncode == 0, first.stderr
     second = subprocess.run(args, capture_output=True, text=True, cwd=ROOT)
     assert second.returncode == 0, second.stderr
     assert first.stdout == second.stdout
     try:
-        os.remove(os.path.join(ROOT, "reports", "_test_raw.json"))
+        os.remove(os.path.join(ROOT, "docs", "reports", "_test_raw.json"))
     except OSError:
         pass
 

@@ -57,7 +57,7 @@ def test_the_channel_names_and_count_are_fixed():
     assert F.PLANE_CHANNELS_V2[:7] == engine.PLANE_CHANNELS, \
         "the first seven channels must stay the engine's"
     # 12 per-seat scalars plus `own_move_count`, which is the mover's alone.
-    # `plan6.md` H-B0 item 3 added the thirteenth: Hunter's book applies to its
+    # `docs/plans/plan6.md` H-B0 item 3 added the thirteenth: Hunter's book applies to its
     # first three own moves, and the count is what says so.
     assert F.SCALAR_C_V2 == 13
     assert len(F.SCALAR_NAMES_V2) == 13
@@ -396,7 +396,7 @@ def test_the_movers_own_move_count_is_the_thirteenth_scalar():
 
     Pinned on value, not just on shape: a thirteenth scalar that was always zero
     would pass every count assertion and quietly leave the book step unlearnable,
-    which is the only reason this scalar exists (`plan6.md` H-B0 item 3).
+    which is the only reason this scalar exists (`docs/plans/plan6.md` H-B0 item 3).
     """
     checked = 0
     for s in positions(range(12), stride=1):

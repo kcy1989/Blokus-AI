@@ -1,6 +1,6 @@
 """A suspicion about `engine.normalize`, recorded rather than fixed.
 
-The suspicion, from `plan3.md`: `normalize` renumbers the players so the mover
+The suspicion, from `docs/plans/plan3.md`: `normalize` renumbers the players so the mover
 is owner 0, but the opening rule reads `OWNER_CORNER[owner]`, and owner 0's
 corner is the bottom-right square. So calling the engine's rules on a
 normalised view, before the mover has opened, may offer them owner 0's corner
@@ -8,7 +8,7 @@ instead of their own.
 
 Whether that is true is decided here by measurement, and the answer is reported
 either way. The test asserts nothing: it collects the counts and prints them,
-and the numbers go into `reports/g_report.md` section G5. Nothing in `engine.py`
+and the numbers go into `docs/reports/g_report.md` section G5. Nothing in `engine.py`
 is touched either way, and nothing in `rl/` uses the result - `rl` always
 computes legal moves on real coordinates and rotates them afterwards, which is
 why this is a curiosity about the engine and not a bug in the new code.
@@ -49,7 +49,7 @@ def collect(seed_games):
 
 
 def compare(state):
-    """A against B, per `plan3.md`.
+    """A against B, per `docs/plans/plan3.md`.
 
         A = real_to_view(legal_indices(real state), p)
         B = legal_indices(engine.normalize(state)[0])

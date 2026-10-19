@@ -611,7 +611,7 @@ def test_diagnostic_is_reproducible_and_well_formed():
 # --------------------------------------------------------------------------
 
 def test_the_optimizer_has_no_internal_state_a_book_would_distort():
-    """`plan4.md` asks this before v2 is written, so it is checked, not assumed.
+    """`docs/plans/plan4.md` asks this before v2 is written, so it is checked, not assumed.
 
     The only attribute the optimizer sets beyond the base `Brain` is
     `mistake_rate`, and it is 0, and `uses_lookahead` is false. So the brain is

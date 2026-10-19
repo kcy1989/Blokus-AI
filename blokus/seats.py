@@ -70,7 +70,7 @@ HUMAN_LOG_KEY = "human_log"
 # and so is the fact that 10,000 was the last step trained.
 #
 # H-C2 is the run that regenerated the imitation data on the exact-latch engine
-# (reports/hc2_report.md). H-B2's checkpoints are still on disk in `data/hb2`
+# (docs/reports/hc2_report.md). H-B2's checkpoints are still on disk in `data/hb2`
 # and are still loadable by step number; they are simply no longer *named*, so
 # that a stale key cannot silently resolve to a checkpoint trained on data whose
 # `stuck` column disagreed with the rules.

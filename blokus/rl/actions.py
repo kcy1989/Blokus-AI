@@ -22,7 +22,7 @@ features would be scored on the wrong moves.
 Rotation is never computed here as a formula. `LUT_ROT` is built by applying
 `engine.rotate_move` repeatedly, so there is exactly one rotation rule in the
 repository and it is the one the rules are defined with. See
-`reports/g_report.md` section G5 for why legal moves are never computed on a
+`docs/reports/g_report.md` section G5 for why legal moves are never computed on a
 normalised view.
 """
 import numpy as np
