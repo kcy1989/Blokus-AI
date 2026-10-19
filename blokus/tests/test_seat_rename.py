@@ -190,19 +190,33 @@ def test_the_rename_did_not_change_a_single_game():
     assert all(any(k == NEW for k, *_rest in game) for game in rows)
 
 
-def test_records_json_names_only_the_new_key():
-    """The rename step renamed it; an alias does not merge leaderboard rows.
+def test_records_json_names_only_the_new_key(tmp_path):
+    """One policy keeps one row: the write path canonicalises the spelling.
 
-    `records.json` is keyed by the name a game was played under and knows nothing
-    about aliases, so a result recorded through the old name would open a second
-    row for one policy. Renaming the existing row is what keeps the history in
-    one place.
+    Read from a `records.json` this test owns, not the repository's. That file
+    is runtime data (gitignored, one per machine), so an assertion about its
+    contents tested the machine rather than the code - and it went red the
+    moment a local leaderboard no longer happened to hold the row.
+
+    What the code owes is the property the rename depends on: a result filed
+    under the retired spelling lands on the registered row instead of opening a
+    second one. The fixture names **both** spellings, so the claim cannot pass
+    by the old one simply being absent from the input - drop the canonicalising
+    step and `OLD` reappears as a row of its own and the game count splits.
     """
-    with open(S.__file__.replace("seats.py", "records.json"),
-              encoding="utf-8") as fh:
+    from records import Records
+
+    rec = Records(str(tmp_path / "records.json"))
+    rows = rec.record([(OLD, 10), (NEW, 20), ("hunter", 30), ("wolf", 40)])
+    keys = {k for k, _rank, _points in rows}
+    assert NEW in keys and OLD not in keys, rows
+
+    with open(rec.path, encoding="utf-8") as fh:
         entries = json.load(fh)
-    assert OLD not in entries
+    assert OLD not in entries, "the retired spelling opened a row of its own"
     assert NEW in entries
+    # Both seats - one filed under each spelling - landed on the one row.
+    assert entries[NEW]["games"] == 2, entries[NEW]
 
 
 def torch_equal(a, b):
