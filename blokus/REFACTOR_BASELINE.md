@@ -15,17 +15,20 @@
 > 三個線程變數不是可選的（見 `AGENTS.md` 第六節：少了它們 `-n 8` 會在
 > `multiprocessing` fork 上死結）。
 
-## 全量基準（截至 S2）
+## 全量基準（截至 S6）
 
-- **收集 1144** → 預期 **1141 passed / 2 skipped / 1 failed**。
+- **收集 1147** → 預期 **1144 passed / 2 skipped / 1 failed**。
 - **唯一已知失敗**：`tests/test_rl_multi.py::test_the_frozen_weights_are_untouched_by_a_training_step`。
+- **耗時波動診斷**：全量 wall time 在 311–375s 間跳動。`load average` 5.05/28 核屬未飽和，
+  故 375s **不能只歸因於負載**。若再超時，**另查 CPU 頻率（降頻/熱節流）與記憶體壓力**，
+  不只貼 `load average`。
 
 ### 已知失敗是**環境相依**的
 
 該測試把模型移到 CUDA（`rl/policy.py` 的 `net.to(device)`，預設 `update_device`）。
 在 CPU-only 的 `.venv-test` 下必然以 `AssertionError: Torch not compiled with CUDA
 enabled` 失敗。**在有 GPU 的環境它可能轉綠——轉綠不算基準漂移**，不需停下解釋；
-只有「非這兩類（環境相依）原因造成的失敗集合變動」才要停下。
+只有「環境相依以外的原因」造成的失敗集合變動才要停下。
 
 （前一項已知失敗 `tests/test_seat_rename.py::test_records_json_names_only_the_new_key`
 已於 S1 消除：它原本讀本機 runtime `records.json`，改為讀 tmp 檔並驗證寫入端正規化。）
@@ -59,8 +62,10 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 - **測試分工**：`test_setup_seats_rng` 的 stub 消耗 0 次 rng，所以它只釘「席位編排的
   消耗順序與次數」；人格腦**內部**的 7 次抽取由 `test_rng_pins`（值）與 `test_golden`
   （對局）負責，三者互不重疊。
-- **預算 60 秒**（硬線）；餘裕有限，新增進子集的測試須同步量耗時。**超過 55s 即回報**
-  取捨（機器波動約 5 秒）。
+- **判定方式：CPU 時間為準**。wall time 受機器負載影響達 36%（實測 39–53s），55s wall
+  線已失去意義。改以 `time` 的 `user+sys` 為硬線＝**已錄基準 × 1.25**；已錄基準：
+  **8 檔 241s、7 檔 237s**（CPU 時間對其他行程負載不敏感，波動約 6%）。另保留 **90s wall**
+  作粗檢，只擋暴增。新增進子集的測試須同步量 CPU 時間。
 - `test_ui_smoke.py`（約 32s）**不**入每步子集；僅在該步改動到 `ui.py` 時額外跑。
 
 ## 黃金基準
@@ -93,13 +98,14 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 - **`USE_WALL_BUDGET` 觸發分支**：已由 `tests/test_wall_budget_branch.py`（S6）覆蓋。
   以 `WALL_BUDGET = 0` 使 `elapsed < 0` 恆假而**確定性**觸發跳過分支，不依賴真實時鐘；
   該測試 docstring 明寫「只證明分支可達，不證明真實負載行為」。
-- **`test_setup_seats_rng` 對「插入一次小額抽取」未偵測**：它用 `getstate()` 相等釘住
-  消耗，對**順序**改變敏感，但對插入一次 `randrange` 在此 seed/序列上漏檢。原因已查明
-  （實測）：`randrange(4)` 走拒絕取樣（`_randbelow`），每次消耗的 MT 字數**可變（1–2）**；
-  插入的那次讓最後一次少消耗 1 格、總字數相抵 → `getstate()` 相等。**不是 `getstate`
-  不敏感**（比較方式就是直接 `getstate()` 相等），而是「抽取次數」≠「消耗字數」。
-  次數類保護由 `test_rng_pins`（值）與 `test_golden`（對局）負責；若要補強（**另案**，
-  不在 S6），以計數代理包住 rng、直接斷言抽取次數。
+- **`test_setup_seats_rng` 對「插入一次小額抽取」在現有 seed 序列上未偵測到**：它用
+  `getstate()` 相等釘住消耗，對**順序**改變敏感，但對插入一次 `randrange`，在**現有
+  seed 序列上未偵測到**（盲區取決於序列，換一組 seed 可能偵測到）。原因已由實測確認：
+  `randrange(4)` 走拒絕取樣（`_randbelow`），每次消耗的 MT 字數**可變（1–2）**；插入的
+  那次讓最後一次少消耗 1 格、總字數相抵 → `getstate()` 相等。**不是 `getstate` 不敏感**
+  （比較方式就是直接 `getstate()` 相等），而是「抽取次數」≠「消耗字數」。次數類保護由
+  `test_rng_pins`（值）與 `test_golden`（對局）負責；若要補強（**另案**，不在 S6），以
+  計數代理包住 rng、直接斷言抽取次數。
 - **黃金基準無 rl／imitation 席位**：網路席位的 rng 消耗不在其內；由
   `tests/test_setup_seats_rng.py` 的 stub 補上。
 - **`Board._update_regions` 不優化**（裁決）。日後若要優化，先量「每手 `choose_move`
@@ -118,7 +124,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 | S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 完成 |
 | S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 完成 |
 | S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 完成 |
-| S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者） | 待授權 |
+| S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者） | 進行中 |
 | S9 | UI 接縫 1（`Layout` 抽出） | 待授權 |
 
 S5（`resolve_seats` 拆分）與 S8（分層倒置）**不執行**（裁決；S8 只記錄）。
