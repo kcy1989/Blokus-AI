@@ -30,6 +30,16 @@ enabled` 失敗。**在有 GPU 的環境它可能轉綠——轉綠不算基準�
 （前一項已知失敗 `tests/test_seat_rename.py::test_records_json_names_only_the_new_key`
 已於 S1 消除：它原本讀本機 runtime `records.json`，改為讀 tmp 檔並驗證寫入端正規化。）
 
+### 已知負載敏感時序測試（flake）
+
+`tests/test_trace.py::test_trace_costs_nothing_when_not_requested` 比較「不開 trace」與
+「開 trace」兩次整局計時（`off <= on * 1.15 + 0.05`）。它**未登記於 `AGENTS.md` 原 5 處
+計時測試**，在全量滿載（8 worker）下偶發變紅；隔離序列與單檔 `-n 8` 皆穩定綠。
+
+**判定規則**：全量出現此項失敗時，允許「隔離重跑一次 ＋ 全量重跑一次」，**兩者皆綠
+才算通過**，並在回報中註明；隔離跑也紅則視為真失敗。**不放寬斷言係數**（不授權改
+測試）。若再出現，評估是否排除出快速子集或補登 `AGENTS.md`。
+
 ## 快速子集（每步使用，階段 3）
 
 ```bash
@@ -94,7 +104,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 |---|---|---|
 | S1 | `test_seat_rename` 改讀 tmp `records.json` | 完成 |
 | S2 | `setup_seats` 的 stub brain rng 消耗釘子測試 | 完成 |
-| S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 進行中 |
+| S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 完成 |
 | S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 待授權 |
 | S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 待授權 |
 | S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者） | 待授權 |

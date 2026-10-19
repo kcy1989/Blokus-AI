@@ -117,7 +117,7 @@ def test_full_hand_fills_each_quadrant():
         pack_all(b, o)
     assert sum(1 for i in range(400) if b.grid[i] != -1) == 356
     for o in range(4):
-        assert b.all_owner_cells(o)
+        assert b.owner_bits[o], "owner %d placed no stones" % o
 
 
 def _brute_has_legal(board, names):

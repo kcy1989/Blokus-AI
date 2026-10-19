@@ -244,7 +244,3 @@ class Board:
                 if self.any_legal(cells, must_cover, reach):
                     return True
         return False
-
-    def all_owner_cells(self, owner):
-        grid = self.grid
-        return [i for i, o in enumerate(grid) if o == owner]
