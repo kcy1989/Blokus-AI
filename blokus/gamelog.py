@@ -21,7 +21,7 @@ import json
 import os
 import time
 
-from config import B, CLOCKWISE_OWNERS, PROJECT_DIR
+from config import B, CLOCKWISE_OWNERS, PROJECT_DIR, SEATS
 
 import engine
 from rl.actions import (legal_indices, legal_mask_view, move_to_index,
@@ -102,9 +102,9 @@ class GameLog:
             "feature_version": FEATURE_VERSION,
             "n_recording_seats": len(self.recording_seats),
             "recording_seats": list(self.recording_seats),
-            "seat_kinds": [game.seat_kinds[o] for o in range(4)],
-            "seat_options": [game.owner_key[o] for o in range(4)],
-            "colors": [game.colors[o] for o in range(4)],
+            "seat_kinds": [game.seat_kinds[o] for o in range(SEATS)],
+            "seat_options": [game.owner_key[o] for o in range(SEATS)],
+            "colors": [game.colors[o] for o in range(SEATS)],
             "turn_order": [int(o) for o in game.turn_order],
         }
         self.records = []
@@ -188,7 +188,7 @@ class GameLog:
     def _hands(self):
         from rl.imitation import hand_bits_from_names
         return tuple(hand_bits_from_names(self._game.hands[o].names)
-                     for o in range(4))
+                     for o in range(SEATS))
 
 
 def read_log(path):
