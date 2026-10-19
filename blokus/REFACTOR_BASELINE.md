@@ -15,9 +15,10 @@
 > 三個線程變數不是可選的（見 `AGENTS.md` 第六節：少了它們 `-n 8` 會在
 > `multiprocessing` fork 上死結）。
 
-## 全量基準（截至 S6）
+## 全量基準（截至 S9）
 
-- **收集 1147** → 預期 **1144 passed / 2 skipped / 1 failed**。
+- **收集 1148** → 預期 **1145 passed / 2 skipped / 1 failed**。
+  （S6 時為 1147；S7j 的 `test_board_structures_follow_the_seat_constant` 加 1 項。）
 - **唯一已知失敗**：`tests/test_rl_multi.py::test_the_frozen_weights_are_untouched_by_a_training_step`。
 - **耗時波動診斷**：全量 wall time 在 311–375s 間跳動。`load average` 5.05/28 核屬未飽和，
   故 375s **不能只歸因於負載**。若再超時，**另查 CPU 頻率（降頻/熱節流）與記憶體壓力**，
@@ -125,7 +126,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 | S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 完成 |
 | S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 完成 |
 | S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者；S7a–S7i 全部完成） | 完成 |
-| S9 | UI 接縫 1（`Layout` 抽出） | 待授權 |
+| S9 | UI 接縫 1（`Layout` 抽出） | 完成 |
 
 S5（`resolve_seats` 拆分）與 S8（分層倒置）**不執行**（裁決；S8 只記錄）。
 
@@ -215,5 +216,53 @@ midgame grid、每輪 3000 次呼叫。
   | to_plane | 0.2413 | 0.2377 | 0.9852 |
   | [game median] | 0.0459 | 0.0452 | 0.9859 |
 
+## S9 結果（UI 接縫 1：`Layout` 抽出）
 
+**harness**：`tools/ui_shots.py`（S9 新增，`5690725`）。以 headless 方式把 UI 渲染成
+PNG，用來證明抽檔前後**畫面逐位元相同**。
+
+- `--tree <ref>`：先 `git worktree` 檢出該 ref 再跑，用來產生／比對其他版本的截圖。
+- `--out <dir>`：輸出目錄（PNG 與 `md5sums.txt`）。
+- `--also <dir>`：同一輪再寫一份到另一目錄。
+- `--compare <dirA> <dirB>`：逐張比對兩目錄的 PNG。
+- `--jitter <px>`：把棋盤原點（`L.BO`）位移該像素數，用於反證。
+- **矩陣＝`SCALES`（1.0／1.5／2.0）× `HAND_ZOOMS` 兩端（1.0／2.0）×
+  `{setup, playing, game_over}` ＝ 18 張**，檔名 `s{scale}_hz{hz}_{screen}.png`。
+- 固定條件：`anim=None`、`toasts=[]`、`drag=None`、`ai_pending=False`、
+  `ai_ready=False`、明示顏色、`Game(random.Random(7))`；playing ＝ 10 手、
+  game_over ＝ 82 手走到 `GAME_OVER`。並以 `ui._ELO_BY_KEY={}` 與
+  `records=_NoRecords()` **中和 Elo／戰績**（見下方適用範圍）。
+- **基準 PNG 在 `/tmp`，不入倉庫**（`/tmp/kilo/s9/base/{a,b,c}`）。**不可假設仍存在**；
+  要用時**從 `5690725` 重新產生**（`--tree 5690725`）。抽檔期間**不得重新產生基準**。
+
+**基準自穩定**：同行程（a vs b）與跨行程（a vs c）皆 18/18 相同，`md5sums.txt` 一致。
+
+**反證（突變驗證）**：
+
+| 突變 | 結果 |
+|---|---|
+| `--jitter 1`（`L.BO` +1px） | 12/18 DIFF（附 bbox） |
+| `L.BTN_H` +1（ad-hoc `/tmp/kilo/s9/jitter_btn.py`） | 6/18 DIFF（全為 setup，附 bbox） |
+| 兩者聯集 | **18/18** |
+| 還原 | 0/18 |
+
+**適用範圍**：只在**同機、同字型、16:9** 下有意義；Elo 與戰績為**空資料**
+（已中和成 `_ELO_BY_KEY={}`／`_NoRecords()`），故只涵蓋**空榜路徑**；**不含**
+拖曳（`drag`）、動畫（`anim`）、toast。
+
+**S9 步驟**：
+
+| 步驟 | 內容 | 提交 | 驗證 |
+|---|---|---|---|
+| S9-1 | 幾何常數 + `HAND_ITEMS` 移到 `layout.py`（`ui.py` 轉出） | `df8db9c` | harness 0/18、ui_smoke 81、golden 9、全量 1145/2/1、子集 CPU 259.80s |
+| S9-2 | `Layout` 類別 + `_L0` + 衍生名移到 `layout.py`（位元組等價） | `75fde8f` | harness 0/18、ui_smoke 81、golden 9、全量 1145/2/1、子集 CPU 238.83s、19/19 身分、rollback worktree 0/18 |
+
+**已知缺口**：
+
+- **`Layout.cell_at` 無直接測試**（`test_ui_smoke` 只經 `__init__`／`layout_hand` 間接覆蓋）。
+- **死別名保留不刪**：`_L0`、`W`、`H`、`CELL`、`BO`、`PANEL_W`、`HAND_CELL`、
+  `HAND_X0`、`HAND_Y0`、`BTN_Y`、`BTN_H`。倉庫內無使用者**只證明倉庫內**，不能證明
+  無外部使用；刪除**另案**，需 grep 加 harness 0/18。
+- `desktop_size`／`auto_fit_area`／`best_scale` **留在 `ui.py`**（`:192-215`）：
+  移走會改到測試的 monkeypatch 目標，故 S9-3 不做。
 
