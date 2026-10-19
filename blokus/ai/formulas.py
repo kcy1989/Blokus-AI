@@ -21,7 +21,7 @@ Three parts:
 """
 from board import (BLOCK_ANCHORS, COL0, COL_LAST, Reach, V, cells_to_vertices,
                    dilate, neighbors_of)
-from config import B, CORNERS_IDX, N
+from config import B, CORNERS_IDX, N, SEATS
 from pieces import MASTER
 
 # --------------------------------------------------------------------------
@@ -413,7 +413,7 @@ def crossing_context(board, hand_names, owner):
     move.
     """
     own = board.owner_bits[owner]
-    opps = [(o, board.owner_bits[o]) for o in range(4)
+    opps = [(o, board.owner_bits[o]) for o in range(SEATS)
             if o != owner and board.owner_bits[o]]
     pre = {o: cross_anchors(own, m) for o, m in opps}
     uncrossed = [(o, m) for o, m in opps if not pre[o]]
@@ -613,11 +613,11 @@ def board_feats(grid):
     squares, number of stones of each player beside it, and number of opponent
     stones beside it.
 
-    One O(400 x 4) scan does it all; every candidate afterwards is just a table
-    lookup and a sum.
+    One scan over every square and owner does it all; every candidate afterwards
+    is just a table lookup and a sum.
     """
     open_a = [0] * N
-    block = [[0] * N for _ in range(4)]
+    block = [[0] * N for _ in range(SEATS)]
     for p in range(N):
         if grid[p] != -1:
             continue
@@ -626,10 +626,10 @@ def board_feats(grid):
             if q == -1:
                 open_a[p] += 1
             elif q >= 0:
-                for o in range(4):
+                for o in range(SEATS):
                     if o != q:
                         block[o][p] += 1
-    nc = [[0] * 4 for _ in range(N)]
+    nc = [[0] * SEATS for _ in range(N)]
     for n in range(N):
         if grid[n] != -1:
             continue
@@ -637,14 +637,14 @@ def board_feats(grid):
             o = grid[m]
             if o >= 0:
                 nc[n][o] += 1
-    defend = [[0] * N for _ in range(4)]
+    defend = [[0] * N for _ in range(SEATS)]
     for p in range(N):
         if grid[p] != -1:
             continue
         for n in NEIGH[p]:
             if grid[n] == -1:
                 total = nc[n][0] + nc[n][1] + nc[n][2] + nc[n][3]
-                for o in range(4):
+                for o in range(SEATS):
                     defend[o][p] += total - nc[n][o]
     return open_a, block, defend
 
