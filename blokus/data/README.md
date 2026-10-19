@@ -66,6 +66,13 @@
 | `manifest.json` | 原始資料集 manifest（用途未查明） |
 | `records_pre_hc2.json`、`records_pre_rl.json` | 舊 `records.json` 快照（用途未查明） |
 | `imit_train_*.npz`、`imit_valid_*.npz` | H 階段的 imitation 分片，留在根層 |
-| `rl_h50k_v3_train.log`、`rl_h50k_v4_train.log`、`rl_i50k_v3_train.log` | 訓練日誌，留在根層 |
+
+三個訓練日誌已於 2026-10-19 搬進各自的 run 目錄，檔名不變，搬動前後 md5 逐檔一致：
+
+| 舊路徑 | 新路徑 | md5 |
+| --- | --- | --- |
+| `rl_h50k_v3_train.log` | `rl/h/50k_v3/rl_h50k_v3_train.log` | `6801ce62…` |
+| `rl_h50k_v4_train.log` | `rl/h/50k_v4/rl_h50k_v4_train.log` | `c4372a5e…` |
+| `rl_i50k_v3_train.log` | `rl/i/50k_v3/rl_i50k_v3_train.log` | `b5cd83ea…` |
 
 **刪除候選（待裁決，本輪未動）**：`plan9_step1_backup/`（5.5M）。
