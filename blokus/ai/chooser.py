@@ -14,6 +14,7 @@ import dataclasses
 import math
 import time
 
+from config import SEATS
 from . import formulas as F
 
 
@@ -219,7 +220,7 @@ def choose_move(board, hand_names, owner, brain, rng, other_brains=None,
     # model a reply for, and the `other_brains[o].profile` below would raise on
     # them - which used to be impossible, because the one seat a person played
     # still carried a chess brain it never used.
-    opps = [o for o in range(4)
+    opps = [o for o in range(SEATS)
             if o != owner and (other_brains or {}).get(o) is not None]
     lookahead_used = False
     if other_brains and opps and brain.uses_lookahead \
