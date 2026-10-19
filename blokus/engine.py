@@ -14,7 +14,7 @@ import json
 import os
 from dataclasses import dataclass, replace
 
-from config import B, N, OWNER_CORNER
+from config import B, N, OWNER_CORNER, SEATS
 from pieces import MASTER
 
 # Bumped whenever a change can alter which moves are legal, what the position
@@ -67,6 +67,8 @@ def dilate_diag(mask):
 
 
 def empty_of(own_bits):
+    # One term per owner, kept expanded because this is on the per-move hot
+    # path; the count is the four-corner cycle (config.py asserts == SEATS).
     return ALL & ~(own_bits[0] | own_bits[1] | own_bits[2] | own_bits[3])
 
 
@@ -185,14 +187,14 @@ def initial_state(turn_order=None):
         from config import CLOCKWISE_OWNERS
         turn_order = CLOCKWISE_OWNERS
     turn_order = tuple(turn_order)
-    if sorted(turn_order) != list(range(4)):
+    if sorted(turn_order) != list(range(SEATS)):
         raise ValueError("turn_order must be a permutation of 0..3, got %r"
                          % (turn_order,))
-    return State(own_bits=(0, 0, 0, 0),
-                 hand_bits=(FULL_HAND,) * 4,
+    return State(own_bits=(0,) * SEATS,
+                 hand_bits=(FULL_HAND,) * SEATS,
                  turn_order=turn_order,
                  to_move=turn_order[0],
-                 stuck=(False, False, False, False))
+                 stuck=(False,) * SEATS)
 
 
 def remaining_cells(state, owner):
@@ -208,7 +210,7 @@ def remaining_cells(state, owner):
 
 def result(state):
     """(remaining cells) for all four owners, indexed by owner id."""
-    return tuple(remaining_cells(state, o) for o in range(4))
+    return tuple(remaining_cells(state, o) for o in range(SEATS))
 
 
 def is_over(state):
@@ -327,9 +329,9 @@ def _advance(state):
     same latched set as `Game._all_stuck`, which the cross-checks in
     `rl.collect` and `tools.cross_check_engine` compare at every ply.
     """
-    to_move = state.turn_order[(state.turn_pos + 1) % 4]
+    to_move = state.turn_order[(state.turn_pos + 1) % SEATS]
     stuck = list(state.stuck)
-    for o in range(4):
+    for o in range(SEATS):
         if stuck[o]:
             continue
         if has_any_legal(state, o):
@@ -404,7 +406,7 @@ def deserialize(blob):
     d = json.loads(blob)
     own = tuple(int(m, 16) for m in d["own_bits"])
     hand = tuple(int(m, 16) for m in d["hand_bits"])
-    if len(own) != 4 or len(hand) != 4:
+    if len(own) != SEATS or len(hand) != SEATS:
         raise ValueError("a position has four players")
     for m in own:
         if m & ~ALL:
@@ -413,7 +415,7 @@ def deserialize(blob):
         if m & ~FULL_HAND:
             raise ValueError("hand_bits has bits outside the 21 pieces")
     for i, m in enumerate(own):
-        for j in range(i + 1, 4):
+        for j in range(i + 1, SEATS):
             if own[i] & own[j]:
                 raise ValueError("square owned by two players at once")
     return State(own_bits=own, hand_bits=hand,
@@ -499,6 +501,8 @@ def rotate_state(state):
     next seat in the cycle, so the turn order stays a rotation of the same
     4-cycle and two neighbouring turns are still adjacent corners.
     """
+    # Four owners, left hardcoded: the count is the four-corner cycle, not a
+    # knob (config.py asserts len(CLOCKWISE_OWNERS) == SEATS).
     own = [0, 0, 0, 0]
     hand = [0, 0, 0, 0]
     stuck = [False] * 4
@@ -551,7 +555,7 @@ def normalize(state):
     the rest of the engine works on it unchanged.
     """
     p = CLOCKWISE_OWNERS.index(state.to_move)
-    k = (4 - p) % 4                 # clockwise steps that bring me to TL
+    k = (SEATS - p) % SEATS         # clockwise steps that bring me to TL
     s = state
     for _ in range(k):
         s = rotate_state(s)
@@ -644,8 +648,8 @@ def hand_vectors(state):
     """
     import numpy as np
     view, _seat_of = normalize(state)
-    out = np.zeros((4, N_PIECES), dtype=np.float32)
-    for p in range(4):
+    out = np.zeros((SEATS, N_PIECES), dtype=np.float32)
+    for p in range(SEATS):
         bits = view.hand_bits[p]
         for i in range(N_PIECES):
             if bits >> i & 1:
