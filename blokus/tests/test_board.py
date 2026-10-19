@@ -2,7 +2,7 @@
 import random
 import time
 
-from config import B, OWNER_CORNER
+from config import B, CORNERS, OWNER_CORNER, SEATS
 from board import Board, Reach, neighbors_of
 from pieces import MASTER
 
@@ -118,6 +118,24 @@ def test_full_hand_fills_each_quadrant():
     assert sum(1 for i in range(400) if b.grid[i] != -1) == 356
     for o in range(4):
         assert b.owner_bits[o], "owner %d placed no stones" % o
+
+
+def test_board_structures_follow_the_seat_constant():
+    """The three owner-indexed tables track the seat count `board` uses.
+
+    This pins only that `Board` builds them as long as the `SEATS` the `board`
+    module reads; it does not check that `SEATS` itself is four - that is what
+    `config.py`'s `assert len(CLOCKWISE_OWNERS) == SEATS` is for. The inner
+    length is the corner count (`len(CORNERS)`), an independent constant that
+    happens to equal `SEATS` today.
+    """
+    b = Board()
+    assert len(b.owner_bits) == SEATS
+    assert len(b.corner_regions) == SEATS
+    assert len(b.borders) == SEATS
+    for o in range(SEATS):
+        assert len(b.corner_regions[o]) == len(CORNERS)
+        assert len(b.borders[o]) == len(CORNERS)
 
 
 def _brute_has_legal(board, names):
