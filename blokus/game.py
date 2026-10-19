@@ -32,13 +32,13 @@ class Game:
         self.state = "SETUP_SEATS"
         self.turn_count = 0
         self.turn_pos = 0
-        self.turn_order = [0, 1, 2, 3]
+        self.turn_order = list(range(MATCH_SEATS))
         self.brains = {}
-        self.owner_key = {0: None, 1: None, 2: None, 3: None}
-        self.colors = {0: None, 1: None, 2: None, 3: None}
-        self.hands = [Hand(HAND_NAMES) for _ in range(4)]
-        self.placed = [0, 0, 0, 0]
-        self.stuck = [False] * 4
+        self.owner_key = {o: None for o in range(MATCH_SEATS)}
+        self.colors = {o: None for o in range(MATCH_SEATS)}
+        self.hands = [Hand(HAND_NAMES) for _ in range(MATCH_SEATS)]
+        self.placed = [0] * MATCH_SEATS
+        self.stuck = [False] * MATCH_SEATS
 
     # -- who is playing ------------------------------------------------------
 
@@ -181,9 +181,9 @@ class Game:
         if len(set(keys)) != MATCH_SEATS or len(keys) != MATCH_SEATS:
             raise ValueError("a match needs %d distinct personalities, got %r"
                              % (MATCH_SEATS, list(keys)))
-        self.owner_key = {o: keys[o] for o in range(4)}
-        self.colors = {o: COLOR_NAMES[o] for o in range(4)}
-        self.brains = {o: make_brain(keys[o], self.rng) for o in range(4)}
+        self.owner_key = {o: keys[o] for o in range(MATCH_SEATS)}
+        self.colors = {o: COLOR_NAMES[o] for o in range(MATCH_SEATS)}
+        self.brains = {o: make_brain(keys[o], self.rng) for o in range(MATCH_SEATS)}
         self.turn_order = self._draw_turn_order()
         self.turn_pos = 0
         self.state = "SETUP_INFO"
@@ -234,15 +234,15 @@ class Game:
 
     def start(self):
         self.board = Board()
-        self.hands = [Hand(HAND_NAMES) for _ in range(4)]
-        self.placed = [0, 0, 0, 0]
-        self.stuck = [False] * 4
+        self.hands = [Hand(HAND_NAMES) for _ in range(MATCH_SEATS)]
+        self.placed = [0] * MATCH_SEATS
+        self.stuck = [False] * MATCH_SEATS
         self.turn_count = 0
         self.turn_pos = 0
         self.state = "PLAYING"
 
     def current_owner(self):
-        return self.turn_order[self.turn_pos % 4]
+        return self.turn_order[self.turn_pos % MATCH_SEATS]
 
     def must_cover(self, owner):
         """A player's opening piece has to sit on their own corner square."""
@@ -306,7 +306,7 @@ class Game:
 
     def _advance(self):
         self.turn_count += 1
-        self.turn_pos = (self.turn_pos + 1) % 4
+        self.turn_pos = (self.turn_pos + 1) % MATCH_SEATS
         if self._all_stuck():
             self.state = "GAME_OVER"
 
@@ -333,7 +333,7 @@ class Game:
         clock (99.5s -> 98.7s, inside the run-to-run noise).
         """
         alive = False
-        for o in range(4):
+        for o in range(MATCH_SEATS):
             if self.stuck[o]:
                 continue
             if self.has_legal(o):
@@ -352,7 +352,7 @@ class Game:
         board, the better they did. Ties are ordered by owner so the result is
         deterministic.
         """
-        rows = [(o, self.remaining_cells(o)) for o in range(4)]
+        rows = [(o, self.remaining_cells(o)) for o in range(MATCH_SEATS)]
         rows.sort(key=lambda t: (t[1], t[0]))
         return rows
 
