@@ -42,6 +42,3 @@ class Hand:
 
     def remove(self, name):
         self.names.remove(name)
-
-    def all(self):
-        return [MASTER[name] for name in self.names]
