@@ -5,15 +5,12 @@
 `plan9.md` 階段 A 的評測結果放在這裡。**這裡放的是證據，不是計畫書**——評測一旦跑完就
 必須能從 repository 重算，否則它只是某個終端機上的一次輸出。
 
-## 為什麼這個目錄要單獨加一行 .gitignore
+## `.gitignore` 與這個目錄
 
-`.gitignore` 第 10 行的 `plan*` 會匹配**任何以 `plan` 開頭的路徑元件**，所以
-`eval/imitation/` 原本整個被忽略，而且是靜默的：檔案照樣寫得進去，`git status` 只是永遠
-不會提到它們。`!eval/imitation/` 與 `!eval/rl-single-train/` 兩行把它們救回來，
-`plan*.md` 仍維持忽略。
-
-這裡**不需要** `data/` 那段的三行寫法。那裡必須先取消排除父目錄，是因為 git 不會
-descend 進被排除的父目錄；`eval/` 本身沒有被排除，所以指名那兩個目錄就夠了。
+`.gitignore` 的 `/plan*/` 現在是**根錨定**的，只匹配根目錄下以 `plan` 開頭的暫存目錄，
+所以 `eval/imitation/` 與 `eval/shared/` 都不會被它吃掉。`eval/` 本身沒有被排除，
+因此也不需要 `data/` 那段的三行寫法（那裡必須先取消排除父目錄，是因為 git 不會
+descend 進被排除的父目錄）；一行 `!eval/` 已經足夠說明意圖。
 
 ## 目錄內容
 

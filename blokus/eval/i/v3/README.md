@@ -13,7 +13,7 @@
 | 目標局數 | 累計 **50k** 方向：新增 **30,000** 局 |
 | 訓練後席位名 | `rl_i1000_50k_v3` |
 | 輸出目錄 | `data/rl_i50k_v3/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
-| 證據目錄 | `eval/rl-single-train-v3i/`（本檔所在） |
+| 證據目錄 | `eval/i/v3/`（本檔所在） |
 | 判準 | argmax **單次** 1000 局配對優於起點（見 §5；**softmax 不跑**） |
 | 排程 | **`--balanced-schedule`**，每步 500 局 |
 
@@ -31,7 +31,7 @@
 
 ## 2. 捆綁改動，不可拆因
 
-本 run 相對學習者自己的 0k→20k 那一輪（`eval/rl-single-train/`）**同時改變多件事**：
+本 run 相對學習者自己的 0k→20k 那一輪（`eval/shared/0k-to-20k/`）**同時改變多件事**：
 
 1. **池**：七人格、無放回抽 3 → **十席自訂池**（七人格 + 三個凍結網路席），**不含**學習者自己的起點（plan10 預設形狀，非例外）。
 2. **排程**：均勻抽樣 → **平衡排程** `--balanced-schedule`。
@@ -44,7 +44,7 @@
 
 ### 與舊 `rl_i1000_50k_v2` 的關係（不同實驗，不可比）
 
-- 同名數字 `v2` 已由**早先的 i 單打續訓**使用（`resume` 自 round 41、**11 席池**、種子段 7,170,000–7,199,999 與 7,540,000–7,540,999，證據 `eval/rl-single-train-v2i/`），結果 argmax **−0.029730（比值 −0.719）→ 未通過、未入池**。本 run 因此改叫 **v3**，一個名字不對兩份權重。
+- 同名數字 `v2` 已由**早先的 i 單打續訓**使用（`resume` 自 round 41、**11 席池**、種子段 7,170,000–7,199,999 與 7,540,000–7,540,999，證據 `eval/i/v2/`），結果 argmax **−0.029730（比值 −0.719）→ 未通過、未入池**。本 run 因此改叫 **v3**，一個名字不對兩份權重。
 - 兩者差在：本 run 是平衡排程＋冷啟動＋十席池（舊的是有放回抽樣＋續訓＋11 席池）；本 run 的池**不含** `rl_i1000_50k`（舊的池含它——那違反 plan10 §1 檢查 3）；種子段、輪號、檔名全不同。**結果不可互相比較或合併。**
 
 ---
@@ -64,8 +64,8 @@ rl_o1000_50k_v3, optimizer, builder, intruder, rl_h1000_20k
 
 1. **預先註冊證據**：
    - 7 個人格（hunter/optimizer/builder/intruder/fox/chess/wolf）：既有聯賽與模仿期證據，既有 run 全部用過。
-   - `rl_b1000_50k`：**無證據** — big_eval 四筆全未過 2 se（出處 `eval/rl-multiple-train/big_eval/README.md`，表見 `eval/rl-single-train-v2o/README.md` §2-2）。先前經使用者裁示納入，本 run 沿用，再次標明。
-   - `rl_o1000_50k_v3`：已入池（2026-10-14）。它自己的驗收是 argmax **+0.2286（6.17 se）**、複驗 **+0.2187（5.61 se）**，各自對它自己的起點（出處 `eval/rl-single-train-v3o/README.md` §14/§15）；狀態**待校準**。
+   - `rl_b1000_50k`：**無證據** — big_eval 四筆全未過 2 se（出處 `eval/shared/four-at-once/big_eval/README.md`，表見 `eval/o/v2/README.md` §2-2）。先前經使用者裁示納入，本 run 沿用，再次標明。
+   - `rl_o1000_50k_v3`：已入池（2026-10-14）。它自己的驗收是 argmax **+0.2286（6.17 se）**、複驗 **+0.2187（5.61 se）**，各自對它自己的起點（出處 `eval/o/v3/README.md` §14/§15）；狀態**待校準**。
    - `rl_h1000_20k`：**已驗證** — argmax vs `hc_1000` **+0.2450（9.51 se）**、vs `hunter` **+0.2040（7.74 se）**（出處 `eval/imitation/README.md`）。
 2. **含自我對戰**：**否** — `rl_i1000_20k` 已移出池外。plan10 §8 風險 1（自我對戰）對本 run **不成立**。
 3. **含下游版本**：**否** — `rl_i1000_50k`（multi 的 100 輪版）不在池內；本 run 要產出的 `rl_i1000_50k_v3` 尚不存在。（舊 v2 run 的池含 `rl_i1000_50k`，那是它違反本檢查的地方，也是兩者不可比的理由之一。）
@@ -149,7 +149,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 
 上表由「`rng_seed = seed_base`、逐輪重新播種」這條路徑生成——也就是 `rl_train` 實際傳給 `make_specs` 的形狀（`rl/rl_train.py` 的 `make_specs(..., rng_seed=cfg.seed_base, ..., round_no=round_no)`）。
 
-**一項不一致（紀實，沿用 h run 的記錄）**：用同一套碼重算 `eval/rl-single-train-v3o/README.md` §6-2 自己的數字（10 席、base 7,620,000），得 min 1,276／max 2,640／spread 1,364、逐輪 48–93 均 70.4，與該檔記的 1,355／2,778／1,423、63–101 均 84.5 **對不上**；另試三種 rng 慣例也無一重現。結論：那份調查的方法無法由現行碼路徑重現。**本檔的數字以可在碼裡對上的路徑為準，方法如上；不宣稱與 v3o 的兩兩共現數字同源。**
+**一項不一致（紀實，沿用 h run 的記錄）**：用同一套碼重算 `eval/o/v3/README.md` §6-2 自己的數字（10 席、base 7,620,000），得 min 1,276／max 2,640／spread 1,364、逐輪 48–93 均 70.4，與該檔記的 1,355／2,778／1,423、63–101 均 84.5 **對不上**；另試三種 rng 慣例也無一重現。結論：那份調查的方法無法由現行碼路徑重現。**本檔的數字以可在碼裡對上的路徑為準，方法如上；不宣稱與 v3o 的兩兩共現數字同源。**
 
 ---
 
@@ -170,7 +170,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 
 `--init` 路徑只載入**權重**（`rl.rl_train._start_net` → `rl.policy.load_policy`），blob 為空：**Adam 狀態不還原、`entropy_reference` 不沿用起點檔的 1.394941998852624**（該值存在檔內，冷啟動路徑不讀）。優化器由 `_make_optimizer` 全新建立，動量一階／二階皆為零。起點檔內其實存有 Adam 狀態，但本 run **不用它**。
 
-（已知事實：i 的 20k 之 `entropy_reference` 是四個 20k 裡最低的（1.3949），見 `eval/rl-single-train-v2i/README.md`；但本 run 的 reference 由第 1 輪新環境實測設定，兩者無關。）
+（已知事實：i 的 20k 之 `entropy_reference` 是四個 20k 裡最低的（1.3949），見 `eval/i/v2/README.md`；但本 run 的 reference 由第 1 輪新環境實測設定，兩者無關。）
 
 ### 8-2 風險（機制推測，標明為推測）
 

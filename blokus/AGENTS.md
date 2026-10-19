@@ -196,7 +196,7 @@ AI 評分與測試都走 `place_geometry` / `place_state`，兩邊不會各算�
   `if g <= 0: continue` 過濾並寫明那個意圖。兩者互相矛盾：`set_meta` 對一個
   從未對局的選手**寫得進去、下次載入整條消失**。2026-10-09 發布三個 20k 時
   據此**不寫** `records.json`（使用者裁決選 b），provenance 暫以
-  `eval/rl-single-train/README.md` 與各 `MANIFEST.json` 為準。日後獨立處理：
+  `eval/shared/0k-to-20k/README.md` 與各 `MANIFEST.json` 為準。日後獨立處理：
   要嘛讓 `_load` 保留 meta-only 列（補測試），要嘛明寫「來源欄位只在對局後
   才持久」。
 

@@ -23,11 +23,11 @@ PAIR_FILES = {
     "o": "eval/imitation/rl_o1000_0k-pair-no_imitation.json",
 }
 OPENING_FILES = {
-    "eval/rl-single-train/openings-12-h.json": ("rl_h1000_20k", 12),
-    "eval/rl-single-train/openings-12-o.json": ("rl_o1000_20k", 12),
-    "eval/rl-single-train/openings-12-b.json": ("rl_b1000_20k", 12),
-    "eval/rl-single-train/openings-12-i.json": ("rl_i1000_20k", 12),
-    "eval/rl-single-train/openings-four20k.json": (None, 15),
+    "eval/shared/0k-to-20k/openings-12-h.json": ("rl_h1000_20k", 12),
+    "eval/shared/0k-to-20k/openings-12-o.json": ("rl_o1000_20k", 12),
+    "eval/shared/0k-to-20k/openings-12-b.json": ("rl_b1000_20k", 12),
+    "eval/shared/0k-to-20k/openings-12-i.json": ("rl_i1000_20k", 12),
+    "eval/shared/0k-to-20k/openings-four20k.json": (None, 15),
 }
 PERSONALITIES = {"hunter", "optimizer", "builder", "intruder", "fox", "chess",
                  "wolf"}

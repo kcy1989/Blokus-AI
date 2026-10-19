@@ -14,7 +14,7 @@
 | 目標局數 | 累計 **125k**：新增 **30,000** 局 |
 | 訓練後席位名 | 待 §5 判準後裁示（本 run 先不入池） |
 | 輸出目錄 | `data/rl_t05/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
-| 證據目錄 | `eval/rl-single-train-t05/`（本檔所在） |
+| 證據目錄 | `eval/h/t05/`（本檔所在） |
 | 判準 | argmax **單次** 1000 局配對優於起點（見 §5） |
 | 溫度 | **T = 0.5**（rollout softmax 採 `softmax(logits / T)`；PPO rescore 與更新同分母） |
 | 排程 | **`--balanced-schedule`**，每步 500 局 |

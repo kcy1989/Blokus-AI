@@ -424,7 +424,7 @@ step 80（40k）→ step 100（50k）之間，h 與 o 在 argmax 下落後自己
 | 評測種子 | **7,369,000–7,369,399**（`stage RL rb80 big eval`） |
 | 大尺規評測 | **400 局、argmax、配對自己的 20k** |
 | `--n-procs` | 16 |
-| 輸出 | `data/multi_rb80/`；證據 `eval/rl-multiple-train-rb80/` |
+| 輸出 | `data/multi_rb80/`；證據 `eval/shared/four-at-once-rb80/` |
 
 `data/multi/` 全程只讀。優化器狀態（AdamW 的 `exp_avg` / `exp_avg_sq` / `step`）
 與 `entropy_reference` 從 `step_000080.pt` 完整還原，所以 entropy guardrail
@@ -466,7 +466,7 @@ step 85 / 95 的大尺規評測**不在本次範圍**；要加會先回報，不
 #### 訓練
 
 20 步（81→100），78.7 分，平均 236.0 s/步。**0 次 guardrail 觸發、0 次凍結席 sha256 不符。**
-里程碑 85 / 90 / 95 / 100，證據在 `eval/rl-multiple-train-rb80/`。
+里程碑 85 / 90 / 95 / 100，證據在 `eval/shared/four-at-once-rb80/`。
 種子逐列核對過：首步 table `7,362,000–7,362,009`、fixed `7,363,000–7,363,259`；
 末步 table `7,362,190–7,362,199`、fixed `7,367,940–7,368,199` —— **全程落在新列，與原軌跡零重疊**。
 `data/multi/` 全程未被寫入（仍 60 / 6 列，時間戳 Oct 10 20:23）。

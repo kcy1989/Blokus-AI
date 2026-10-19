@@ -68,7 +68,7 @@ fox, rl_h1000_20k, optimizer, builder, intruder
 > **「有預先註冊量測，四筆全部判為『無證據』，未取得正向驗證；
 > 經使用者裁示納入。」**
 
-出處 `eval/rl-multiple-train/big_eval/README.md`，「## 判準（預先註冊）」之下：
+出處 `eval/shared/four-at-once/big_eval/README.md`，「## 判準（預先註冊）」之下：
 
 | 席位 | argmax（400 局，兩份排程） | softmax（400 局，兩份排程） |
 |---|---|---|
@@ -303,7 +303,7 @@ chess, wolf`）：
 | 訓練目錄 | `data/rl_o50k_v2/`（新；`.gitignore:80` 的 `data/*` 已覆蓋） |
 | 佈置 | `cp data/rl_o1000/step_000040.pt data/rl_o50k_v2/latest.pt`，**sha256 逐位相等後才啟動** |
 | 產出 | `step_000041.pt` … `step_000100.pt` + `latest.pt` / `current.pt` / `rounds.jsonl` / `eval.jsonl` |
-| 證據目錄 | `eval/rl-single-train-v2o/`（本檔所在） |
+| 證據目錄 | `eval/o/v2/`（本檔所在） |
 | **不碰** | `data/rl_o1000/`、`data/multi/`、`data/multi_rb80/`、`data/rl_i1000_v2/`、`data/rl_h50k_v2/`、`ai/checkpoints/` 內既有檔 |
 
 ### 起點檢查點

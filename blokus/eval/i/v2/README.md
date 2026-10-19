@@ -58,7 +58,7 @@ rl_h1000_20k, rl_i1000_50k, rl_o1000_20k, rl_b1000_50k
 > **「有預先註冊量測，四筆全部判為『無證據』，未取得正向驗證；
 > 經使用者裁示納入。」**
 
-出處 `eval/rl-multiple-train/big_eval/README.md`，「## 判準（預先註冊）」之下：
+出處 `eval/shared/four-at-once/big_eval/README.md`，「## 判準（預先註冊）」之下：
 
 | 席位 | argmax（400 局，兩份排程） | softmax（400 局，兩份排程） |
 |---|---|---|

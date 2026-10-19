@@ -253,7 +253,7 @@ RL_H50K_V2_EVAL2_BLOCK = ("stage RL h50k v2 eval2", RL_H50K_V2_EVAL2_SEED_BASE,
 #
 # The seat is named v3 rather than v2 because `rl_i1000_50k_v2` already
 # names the earlier resume-based rerun (rounds 41..100, evidence
-# `eval/rl-single-train-v2i/`), which scored argmax -0.0297 and was never
+# `eval/i/v2/`), which scored argmax -0.0297 and was never
 # pooled; one name must not point at two sets of weights.
 #
 # One evaluation row only: the decree made the acceptance measurement a

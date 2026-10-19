@@ -9,39 +9,20 @@ __pycache__/
 htmlcov/
 
 # Scratch directories whose name starts with "plan", but **not** the plans
-# themselves. This was `plan*`, which matched `plan9.md` as well as the
-# directories `eval/imitation/`, `eval/rl-single-train/` and
-# `data/plan9_step1_backup/`, so every plan after the first was written and then
-# invisible to git - and `plan.md` was the only one tracked, purely because it
-# predates the rule.
+# themselves. This began as `plan*`, which matched every file and directory
+# starting with those letters; the trailing slash narrowed it to directories.
 #
-# The trailing slash is the whole change: a pattern with one matches files *and*
-# directories, a pattern ending in `/` matches directories only. So the plans go
-# in and the directories stay out, and - the property that matters here - a
-# negation below cannot re-include anything *inside* a `plan*` directory,
-# because git does not descend into an excluded directory. There is no
-# accidental hole for this to open; `eval/imitation/` and `eval/rl-single-train/`
-# are un-ignored on purpose, by their own lines further down.
-# The pattern is also root-anchored: without the leading slash it matched the
-# `plans/` component inside `docs/plans/` too, which would hide the plan
-# documents this project keeps under version control.
+# The leading slash is the second half of the fix: without an anchor the pattern
+# also matched the `plans/` component inside `docs/plans/`, hiding the plan
+# documents this project keeps under version control. Root anchoring keeps the
+# root-level scratch directories out and lets `docs/plans/` in.
 /plan*/
 
-# ...but the evaluation results under `eval/imitation/` and
-# `eval/rl-single-train/` are not plans, they are evidence, and an evaluation
-# that cannot be recomputed from the repository is not evidence. `plan*` above
-# matches any path *component* starting with "plan", so it silently swallowed
-# the whole directory - no warning, the files just never appeared in
-# `git status`. Two lines bring them back, and the `plan*.md` files it was
-# written for stay ignored.
-#
-# Unlike the `data/` block further down, no three-line dance is needed here: that
-# one had to re-include a directory whose *parent* was excluded, and git refuses
-# to descend into an excluded parent. `eval/` itself is not excluded, so naming
-# the two directories is enough.
-!eval/imitation/
-!eval/rl-single-train/
-!eval/rl-multiple-train/
+# Evaluation evidence under `eval/` is not a plan, it is evidence, and an
+# evaluation that cannot be recomputed from the repository is not evidence.
+# With the pattern above root-anchored this is already true; the negation is
+# kept explicit so a future broad ignore rule does not silently hide it.
+!eval/
 
 # Virtual environments. `.venv-rl/` is the stage-G reinforcement-learning
 # environment: about 4 GiB of CUDA wheels, regenerateable with one pip command.

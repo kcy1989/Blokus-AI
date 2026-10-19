@@ -25,7 +25,7 @@ Usage (the twelve-seat batch shape, one student per run):
         --pool rl_h1000_0k,rl_o1000_0k,rl_b1000_0k,rl_i1000_0k,hunter,optimizer,builder,intruder,fox,chess,wolf,rl_h1000_20k \
         --subject rl_h1000_20k --seed 20261005 --games 3000 --mode argmax \
         --stop-after 10 --device cuda \
-        --out eval/rl-single-train/openings-12-h.json
+        --out eval/shared/0k-to-20k/openings-12-h.json
 """
 import argparse
 import json

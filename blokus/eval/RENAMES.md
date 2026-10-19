@@ -55,3 +55,23 @@
 | `eval/plan9/step4/x-softmax-s-rl_h1000_20k.json.gz` | `eval/rl-single-train/four20k-softmax-s-rl_h1000_20k.json.gz` |
 | `eval/plan9/step4/x-softmax-s-rl_i1000_20k.json.gz` | `eval/rl-single-train/four20k-softmax-s-rl_i1000_20k.json.gz` |
 | `eval/plan9/step4/x-softmax-s-rl_o1000_20k.json.gz` | `eval/rl-single-train/four20k-softmax-s-rl_o1000_20k.json.gz` |
+
+## 2026-10-19 血統分組（目錄層）
+
+只搬目錄、不改檔案內容。上面 2026-10-09 的逐檔對照維持原文，新的位置以本表為準。
+`eval/imitation/` 與本檔不動；b 沒有專屬 eval 目錄（它的證據在共同 run 內），因此
+`eval/b/` 不建立。
+
+| 舊路徑 | 新路徑 | 血統 |
+| --- | --- | --- |
+| `eval/rl-single-train/` | `eval/shared/0k-to-20k/` | 共同（plan9 步驟 4） |
+| `eval/rl-multiple-train/` | `eval/shared/four-at-once/` | 共同（plan10 任務二） |
+| `eval/rl-multiple-train-rb80/` | `eval/shared/four-at-once-rb80/` | 共同（balanced-schedule 變體） |
+| `eval/rl-single-train-v2h/` | `eval/h/v2/` | h |
+| `eval/rl-single-train-v4h/` | `eval/h/v4/` | h |
+| `eval/rl-single-train-t05/` | `eval/h/t05/` | h |
+| `eval/rl-single-train-h100k/` | `eval/h/100k/` | h |
+| `eval/rl-single-train-v2i/` | `eval/i/v2/` | i |
+| `eval/rl-single-train-v3i/` | `eval/i/v3/` | i |
+| `eval/rl-single-train-v2o/` | `eval/o/v2/` | o |
+| `eval/rl-single-train-v3o/` | `eval/o/v3/` | o |

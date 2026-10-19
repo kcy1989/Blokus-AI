@@ -14,7 +14,7 @@
 | 目標局數 | 累計 **100k**：新增 **52,500** 局 |
 | 訓練後席位名 | `rl_h1000_100k`（名冊 18 列與 `RL_SEATS` 均無此 key；`canonical_key` 對未知 key 原樣回傳，以兩表檢查為準） |
 | 輸出目錄 | `data/rl_h100k/`（全新；`.gitignore` 的 `data/*` 已覆蓋） |
-| 證據目錄 | `eval/rl-single-train-h100k/`（本檔所在） |
+| 證據目錄 | `eval/h/100k/`（本檔所在） |
 | 判準 | argmax **單次** 1000 局配對優於起點（見 §5；**softmax 不跑**） |
 | 排程 | **`--balanced-schedule`**，每步 500 局 |
 
@@ -41,7 +41,7 @@ h 線目前有六個名字指六組權重：
 | `rl_h1000_30k` | v3 run 的 round 20（中段快照） | 已入池（+0.052220／1.477 se vs 20k） |
 | `rl_h1000_50k_v2` | v3 run 的 round 60 | 未過判據、未入池 |
 | `rl_h1000_50k_v4` | 從 30k 出發的 40 輪（round 40 = `step_000100.pt`） | **未過判據、未入池**（−0.017660） |
-| **`data/rl_h50k_v4/step_000035.pt`（本 run 起點）** | v4 run 的 **round 35** | 未入池（對 30k 是 +0.046100，正但未過 1.3 se 線，`eval/rl-single-train-v4h/README.md` §15） |
+| **`data/rl_h50k_v4/step_000035.pt`（本 run 起點）** | v4 run 的 **round 35** | 未入池（對 30k 是 +0.046100，正但未過 1.3 se 線，`eval/h/v4/README.md` §15） |
 | **`rl_h1000_100k`（本 run）** | 從 round 35 出發的 105 輪 | 本檔的對象 |
 
 → 本 run 的起點是**一條從未入池的中段權重**，不是任何已入池席位。這是與之前每一條 run（起點都是名冊席位）最大的不同，必須在任何報告裡講明：起點自身的實力只被量過一次（+0.046100，未過線）。
@@ -76,10 +76,10 @@ rl_o1000_50k_v3, optimizer, builder, intruder, rl_h1000_20k, rl_h1000_30k
 
 1. **預先註冊證據**：
    - `rl_o1000_50k_v3`：已入池（2026-10-14）。驗收 argmax **+0.2286（6.17 se）**、複驗 **+0.2187（5.61 se）**；狀態**待校準**。
-   - `rl_h1000_30k`：今日入池。驗收 argmax **+0.052220（1.477 se）** 對 `rl_h1000_20k`（`eval/rl-single-train-v2h/README.md` §17/§18）；狀態**待校準**，另有使用者報告的 15,000 局聯賽（非本機證據，不可由本 repo 驗證）。
-   - `rl_i1000_37.5k`：今日入池。它自己的驗收是 argmax **+0.065620（1.597 se）** 對它自己的起點（`eval/rl-single-train-v3i/README.md` §15）；狀態**待校準**。
+   - `rl_h1000_30k`：今日入池。驗收 argmax **+0.052220（1.477 se）** 對 `rl_h1000_20k`（`eval/h/v2/README.md` §17/§18）；狀態**待校準**，另有使用者報告的 15,000 局聯賽（非本機證據，不可由本 repo 驗證）。
+   - `rl_i1000_37.5k`：今日入池。它自己的驗收是 argmax **+0.065620（1.597 se）** 對它自己的起點（`eval/i/v3/README.md` §15）；狀態**待校準**。
    - `rl_h1000_20k`：**已驗證** — argmax vs `hc_1000` **+0.2450（9.51 se）**、vs `hunter` **+0.2040（7.74 se）**（出處 `eval/imitation/README.md`）。
-   - `rl_b1000_50k`：**無證據** — big_eval 四筆全未過 2 se（出處 `eval/rl-multiple-train/big_eval/README.md`，表見 `eval/rl-single-train-v2o/README.md` §2-2）。先前經使用者裁示納入，本 run 沿用，再次標明。
+   - `rl_b1000_50k`：**無證據** — big_eval 四筆全未過 2 se（出處 `eval/shared/four-at-once/big_eval/README.md`，表見 `eval/o/v2/README.md` §2-2）。先前經使用者裁示納入，本 run 沿用，再次標明。
 2. **含自我對戰（嚴格）**：**否** — 學習者自己的當前權重（v4 round 35）不在池內，plan10 §8 風險 1 對本 run **不成立**。
    **但必須照實記明**：池內有 `rl_h1000_30k`（起點的**父代**，v4 run 就是從它訓練出 round 35 的）與 `rl_h1000_20k`（**祖父代**）。所以不是「對自己當前權重」，而是「對自己兩代內的舊版」的同族情形——比 v4 run（池含 20k、起點 30k）更進一步，因為這次連直接父代都在池內。
 3. **含下游版本**：**否** — 本 run 要產出的 `rl_h1000_100k` 尚不存在；multi 的 `rl_h1000_50k`（100 輪版）不在池內。
@@ -168,7 +168,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 
 上表由「`rng_seed = seed_base`、逐輪重新播種」這條路徑生成——也就是 `rl_train` 實際傳給 `make_specs` 的形狀（每輪 `make_specs(lo, 500, rng_seed=base, balanced=True, round_no=r)`）。
 
-**一項不一致（紀實）**：用同一套碼重算 `eval/rl-single-train-v3o/README.md` §6-2 自己的數字，得 min 1,276／max 2,640／spread 1,364，與該檔記的 1,355／2,778／1,423 **對不上**；另試三種 rng 慣例也無一重現。結論：那份調查的方法無法由現行碼路徑重現。**本檔的數字以可在碼裡對上的路徑為準，方法如上；不宣稱與 v3o 的兩兩共現數字同源。**
+**一項不一致（紀實）**：用同一套碼重算 `eval/o/v3/README.md` §6-2 自己的數字，得 min 1,276／max 2,640／spread 1,364，與該檔記的 1,355／2,778／1,423 **對不上**；另試三種 rng 慣例也無一重現。結論：那份調查的方法無法由現行碼路徑重現。**本檔的數字以可在碼裡對上的路徑為準，方法如上；不宣稱與 v3o 的兩兩共現數字同源。**
 
 ---
 
@@ -453,7 +453,7 @@ python -m rl.rl_train \
 | 模式 | **方案 A：`argmax`**（2 次 `play_batch`）＋ **方案 B：`softmax` ($T=1.0$)**（2 次 `play_batch`），共 4 次 `play_batch`，共用同一份 `specs` |
 | `learner_key` | `"rl_1000_20k"`（與訓練迴圈 `rl_train.NAME` 及 §14 驗收完全一致） |
 | `n_procs` | 16 |
-| 輸出檔案 | `eval/rl-single-train-h100k/step_000200_trainpool_diag.json` |
+| 輸出檔案 | `eval/h/100k/step_000200_trainpool_diag.json` |
 | 性質聲明 | **純診斷：不入池、不改 §5 判準、不作為通過依據** |
 
 ### 15-3 診斷結果（跑後追記；§15-1–§15-2 預先註冊句子一字未動）

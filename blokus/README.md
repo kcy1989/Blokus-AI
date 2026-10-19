@@ -194,11 +194,11 @@ commit 與 dirty 記進 checkpoint。那是訓練程式碼，屬於之後動訓�
 是否乾淨**，按同一個標準（`code_hash()` 的那句註解）不足以識別訓練資料，所以**不採用**。
 同日定案的其他欄位：`history` = 「模仿 1000 步 + 單打 20k」、`train_seed` =
 **`7200000`（int，種子基底）**，範圍 **`7200000–7219999`** 記於本檔與
-`eval/rl-single-train/README.md`、`teacher` = 各自的老師、`pool_contains_teacher` =
+`eval/shared/0k-to-20k/README.md`、`teacher` = 各自的老師、`pool_contains_teacher` =
 `true`。**這些欄位本次尚未寫進 `records.json`**：`Records._load` 只保留 `games > 0`
 的列，三個 20k 從未對局，寫了下次載入就整條消失（`rows()` 已為「先給 provenance 再
 對局」留了過濾，持久化沒跟上 —— 見 AGENTS 待辦）。在那之前，**三個 20k 的
-provenance 以 `eval/rl-single-train/README.md` 與各 `data/rl_*1000/MANIFEST.json` 為準**。
+provenance 以 `eval/shared/0k-to-20k/README.md` 與各 `data/rl_*1000/MANIFEST.json` 為準**。
 
 ### 權重式
 
@@ -1428,7 +1428,7 @@ git commit -m "Remove the four 50k seats"
   `automated_options()` 回到 11。
 - **GOLDEN 會自動回到十一 key 池的那份**，因為舊值就寫在 `fe9cb59` 裡，
   revert 即還原，**不需要再重採**。
-- `eval/rl-multiple-train/` 的三個快照**不退**：它們是訓練本身的證據，
+- `eval/shared/four-at-once/` 的三個快照**不退**：它們是訓練本身的證據，
   與席位在不在名册無關。要重現就照快照裡的 sha256 找 `data/multi/` 的檔。
 - `data/multi/` 本來就 gitignored，不受影響。
 

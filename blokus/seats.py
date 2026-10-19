@@ -129,7 +129,7 @@ RL_SEATS = (
     ("rl_b1000_20k", "data/rl_b1000/step_000040.pt"),
     ("rl_i1000_20k", "data/rl_i1000/step_000040.pt"),
     # plan10 milestone 1 (2026-10-10): the four learners after 60 more rounds
-    # of 500 games each, trained at once under eval/rl-multiple-train/. The
+    # of 500 games each, trained at once under eval/shared/four-at-once/. The
     # path is where the policy was *trained*; `ai/registry.json`'s `checkpoint`
     # is where it is *published* and what `rl_checkpoint` reads. The 20k rows
     # above stay: each 50k policy continues from its own frozen 20k, and both

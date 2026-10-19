@@ -67,7 +67,7 @@ from rl import rollout as rollout_mod
 
 PROJECT_DIR = rt.PROJECT_DIR
 DEFAULT_OUT_DIR = os.path.join(PROJECT_DIR, "data", "multi")
-DEFAULT_EVIDENCE_DIR = os.path.join(PROJECT_DIR, "eval", "rl-multiple-train")
+DEFAULT_EVIDENCE_DIR = os.path.join(PROJECT_DIR, "eval", "shared", "four-at-once")
 # The large-sample evaluations live beside the milestone snapshots and inside
 # a directory of their own, so a 400-game result can never be mistaken for -
 # or written over - a `step_<n>/` snapshot.
@@ -658,7 +658,7 @@ def _step_log(step, cfg, table_rows, fixed_eps, episodes_by_learner,
 
 
 def _snapshot_evidence(cfg, out_dir, step, log):
-    """Copy the run logs into `eval/rl-multiple-train/step_<n>/`, once.
+    """Copy the run logs into `eval/shared/four-at-once/step_<n>/`, once.
 
     A milestone is the moment a set of numbers becomes something anyone else
     can read, so the logs that produced it are frozen there rather than left in

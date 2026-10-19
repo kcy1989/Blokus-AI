@@ -1,4 +1,4 @@
-# eval/rl-multiple-train — plan10 任務二的設計與證據
+# eval/shared/four-at-once — plan10 任務二的設計與證據
 
 本目錄收 plan10 **任務二**（四學習者同場訓練）的設計記錄，以及每個里程碑的
 日誌快照。快照寫進 `step_<n>/`，**不覆寫**；重跑一律寫新目錄。
@@ -102,7 +102,7 @@ LEARNER_KEYS = ("rl_h1000_20k", "rl_o1000_20k", "rl_b1000_20k", "rl_i1000_20k")
   一致，否則拒絕起跑。
 - `data/multi/<learner>/step_%06d.pt` — **每 20 步**（plan10「存檔每 10k 局」）。
   編號是**全域步數**，所以 `step_000100.pt` 就是 50k。
-- `eval/rl-multiple-train/step_<n>/` — 里程碑當下三份日誌的快照
+- `eval/shared/four-at-once/step_<n>/` — 里程碑當下三份日誌的快照
   （`rounds.jsonl` / `eval.jsonl` / `milestones.jsonl`），不覆寫。
 - `milestones.jsonl` 每個存檔點記四個檔的 **sha256**、當時的命令列，以及評測的
   重放配方。

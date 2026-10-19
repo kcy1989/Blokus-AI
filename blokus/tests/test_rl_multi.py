@@ -498,7 +498,7 @@ def test_the_frozen_weights_are_untouched_by_a_training_step(tmp_path):
     """The trainer re-hashes all four every step and stops if one moves. This
     is the same assertion from the outside."""
     before = mt.frozen_hashes()
-    # `evidence_dir` has to be pointed away from `eval/rl-multiple-train/`
+    # `evidence_dir` has to be pointed away from `eval/shared/four-at-once/`
     # explicitly. Its default is the *real* evidence directory, so a milestone
     # written by a test would land beside the published snapshots - which is
     # exactly how `step_000041` came to be a pytest tmp path committed as

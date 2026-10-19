@@ -13,7 +13,7 @@
 | 目標局數 | 累計 **50k** 方向：新增 **30,000** 局 |
 | 訓練後名字 | `rl_o1000_50k_v3` |
 | 輸出目錄 | `data/rl_o50k_v3/`（新；`.gitignore` 的 `data/*` 已覆蓋） |
-| 證據目錄 | `eval/rl-single-train-v3o/`（本檔所在） |
+| 證據目錄 | `eval/o/v3/`（本檔所在） |
 | 判準 | argmax 單模式配對優於起點（見 §5） |
 
 ### 派生值
@@ -35,7 +35,7 @@
 
 ## 2. 五項同時改變，不可拆因
 
-本 run 相對上一次 o 的 50k 嘗試（v2o，證據在 `eval/rl-single-train-v2o/`）
+本 run 相對上一次 o 的 50k 嘗試（v2o，證據在 `eval/o/v2/`）
 **一次改變五件事**：
 
 1. **池**：11 席 → **10 席**，移除學習者自我 `rl_o1000_20k`（不再自我對戰）。
@@ -71,7 +71,7 @@ rl_h1000_20k, optimizer, builder, intruder
      （argmax：vs `hc_1000` **+0.2450（9.51 se）**、vs `hunter` **+0.2040
      （7.74 se）**）。
    - `rl_i1000_50k`、`rl_b1000_50k`：**無證據** — big_eval 四筆全未過 2 se
-     （出處 `eval/rl-multiple-train/big_eval/README.md`，表見 v2o README
+     （出處 `eval/shared/four-at-once/big_eval/README.md`，表見 v2o README
      §2-2）。先前經使用者裁示納入，本 run 沿用，再次標明。
 2. **含自我對戰**：**否**。`rl_o1000_20k` 已移出池外（v2o 的例外聲明不再
    適用；plan10 §8 風險 1 對本 run 不成立）。
@@ -127,7 +127,7 @@ paired_diff > 0   且   paired_diff ≥ 1.3 × paired_se
 ```
 
 - **單側假陽性率約 9.7%**（P(Z > 1.3)，標準常態）；與 v2i 的判準同型
-  （`eval/rl-single-train-v2i/README.md` §4）。
+  （`eval/i/v2/README.md` §4）。
 - 1000 局 SE 約 0.041–0.044（本專案多次實測）→ 門檻約 **+0.054 ~ +0.057**。
 - **softmax 1000 局只記錄**：同 specs 跑、寫入證據，**不入判準、不得作為
   入池理由**。
@@ -407,4 +407,4 @@ dry-run 的 `seeds` 行對案 B 是準的：`7620000..7649999` 正是實際取�
 | 狀態 | **待校準**（plan10 §7 第 7 項）：對外實力解讀以 §14 兩次 1000 局 argmax（+0.2286／6.17 se、+0.2187／5.61 se，皆 > 1.3×se、各一次看數）為準；尚無全池大樣本校準 |
 
 複驗證據檔 `step_000060_{argmax,softmax}_recheck.json` 在本機
-`eval/rl-single-train-v3o/`（裁示未要求入版控，保持未追蹤）。
+`eval/o/v3/`（裁示未要求入版控，保持未追蹤）。
