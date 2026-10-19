@@ -15,9 +15,9 @@
 > 三個線程變數不是可選的（見 `AGENTS.md` 第六節：少了它們 `-n 8` 會在
 > `multiprocessing` fork 上死結）。
 
-## 全量基準（截至 S1）
+## 全量基準（截至 S2）
 
-- **收集 1142** → 預期 **1139 passed / 2 skipped / 1 failed**。
+- **收集 1144** → 預期 **1141 passed / 2 skipped / 1 failed**。
 - **唯一已知失敗**：`tests/test_rl_multi.py::test_the_frozen_weights_are_untouched_by_a_training_step`。
 
 ### 已知失敗是**環境相依**的
@@ -45,7 +45,11 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   `personality_keys` 順序）、`test_setup_seats_rng`（`setup_seats` 的 rng 消耗順序）、
   `test_match_pool`／`test_match_paired_rng`／`test_seats`／`test_registry_json`
   （池順序、抽籤、席位）。
-- **預算 60 秒**；餘裕有限，新增進子集的測試須同步量耗時，超標貼數字裁決。
+- **測試分工**：`test_setup_seats_rng` 的 stub 消耗 0 次 rng，所以它只釘「席位編排的
+  消耗順序與次數」；人格腦**內部**的 7 次抽取由 `test_rng_pins`（值）與 `test_golden`
+  （對局）負責，三者互不重疊。
+- **預算 60 秒**（硬線）；餘裕有限，新增進子集的測試須同步量耗時。**超過 55s 即回報**
+  取捨（機器波動約 5 秒）。
 - `test_ui_smoke.py`（約 32s）**不**入每步子集；僅在該步改動到 `ui.py` 時額外跑。
 
 ## 黃金基準
@@ -90,7 +94,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 |---|---|---|
 | S1 | `test_seat_rename` 改讀 tmp `records.json` | 完成 |
 | S2 | `setup_seats` 的 stub brain rng 消耗釘子測試 | 完成 |
-| S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 待授權 |
+| S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 進行中 |
 | S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 待授權 |
 | S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 待授權 |
 | S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者） | 待授權 |

@@ -199,13 +199,6 @@ def load_pieces():
     return PIECES
 
 
-def piece(name):
-    for p in PIECES:
-        if p["name"] == name:
-            return p
-    raise KeyError(name)
-
-
 load_pieces()
 
 HAND_CELLS_TOTAL = sum(p["size"] for p in PIECES)
