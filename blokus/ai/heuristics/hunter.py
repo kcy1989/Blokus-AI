@@ -95,7 +95,7 @@ import random
 from .. import formulas as F
 from ..base import HUNTER_KEY
 from .optimizer import OPTIMIZER_SCAN, OptimizerBrain
-from config import B, CLOCKWISE_OWNERS, OWNER_CORNER
+from config import B, CLOCKWISE_OWNERS, OWNER_CORNER, SEATS
 
 
 def seed_from_rng(rng):
@@ -252,7 +252,7 @@ def after_moves(board):
     `board_context` also builds `cells_to_vertices(anchor)` at three and a half
     times the cost.
     """
-    return {o: playable_before(board, o) for o in range(4)}
+    return {o: playable_before(board, o) for o in range(SEATS)}
 
 
 def turn_order_after(owner, turn_order):
