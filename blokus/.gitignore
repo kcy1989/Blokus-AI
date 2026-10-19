@@ -44,6 +44,7 @@ plan*/
 # environment: about 4 GiB of CUDA wheels, regenerateable with one pip command.
 .venv/
 .venv-rl/
+.venv-test/
 venv/
 env/
 
