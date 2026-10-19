@@ -46,6 +46,7 @@ enabled` 失敗。**在有 GPU 的環境它可能轉綠——轉綠不算基準�
 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   .venv-test/bin/python -m pytest \
   tests/test_golden.py tests/test_rng_pins.py tests/test_setup_seats_rng.py \
+  tests/test_wall_budget_branch.py \
   tests/test_match_pool.py tests/test_match_paired_rng.py tests/test_seats.py \
   tests/test_registry_json.py \
   -q -n 8
@@ -89,10 +90,16 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 
 ## 盲區（已知，尚未處理）
 
-- **`USE_WALL_BUDGET` 觸發分支無覆蓋**：`ai/chooser.py` 的
-  `elapsed >= WALL_BUDGET → 跳過 lookahead` 沒有任何測試；黃金基準刻意關閉該預算。
-  排程：S6（`WALL_BUDGET=0` 逼出分支；docstring 須註明「只證明分支可達，不證明真實
-  負載行為」）。
+- **`USE_WALL_BUDGET` 觸發分支**：已由 `tests/test_wall_budget_branch.py`（S6）覆蓋。
+  以 `WALL_BUDGET = 0` 使 `elapsed < 0` 恆假而**確定性**觸發跳過分支，不依賴真實時鐘；
+  該測試 docstring 明寫「只證明分支可達，不證明真實負載行為」。
+- **`test_setup_seats_rng` 對「插入一次小額抽取」未偵測**：它用 `getstate()` 相等釘住
+  消耗，對**順序**改變敏感，但對插入一次 `randrange` 在此 seed/序列上漏檢。原因已查明
+  （實測）：`randrange(4)` 走拒絕取樣（`_randbelow`），每次消耗的 MT 字數**可變（1–2）**；
+  插入的那次讓最後一次少消耗 1 格、總字數相抵 → `getstate()` 相等。**不是 `getstate`
+  不敏感**（比較方式就是直接 `getstate()` 相等），而是「抽取次數」≠「消耗字數」。
+  次數類保護由 `test_rng_pins`（值）與 `test_golden`（對局）負責；若要補強（**另案**，
+  不在 S6），以計數代理包住 rng、直接斷言抽取次數。
 - **黃金基準無 rl／imitation 席位**：網路席位的 rng 消耗不在其內；由
   `tests/test_setup_seats_rng.py` 的 stub 補上。
 - **`Board._update_regions` 不優化**（裁決）。日後若要優化，先量「每手 `choose_move`
@@ -110,7 +117,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 | S2 | `setup_seats` 的 stub brain rng 消耗釘子測試 | 完成 |
 | S3 | 死碼移除（`config.piece`／`Hand.all`／`Board.owner`／`Board.all_owner_cells`） | 完成 |
 | S4 | `Game.setup_seats` 加 `brain_factory`（預設 `None` 哨兵） | 完成 |
-| S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 待授權 |
+| S6 | `USE_WALL_BUDGET` 觸發分支覆蓋（docstring 註明限制） | 完成 |
 | S7 | 魔術數字 `4` → 具名常數（只改確定為座位數者） | 待授權 |
 | S9 | UI 接縫 1（`Layout` 抽出） | 待授權 |
 
