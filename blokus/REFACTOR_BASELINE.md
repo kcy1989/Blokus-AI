@@ -128,3 +128,32 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 | S9 | UI 接縫 1（`Layout` 抽出） | 待授權 |
 
 S5（`resolve_seats` 拆分）與 S8（分層倒置）**不執行**（裁決；S8 只記錄）。
+
+## S7g 量測基線（S7f 之後、S7g 之前）
+
+S7g 會改 `ai/formulas.py` 的 `board_feats`（`:620/:629/:632/:640/:646/:647`）與
+`:416`。以下為**改動前**基線，S7g 後以**同條件**重跑比對。
+
+- **機器負載（`uptime`）**：`load average: 9.95, 8.59, 6.13`（up 22:09）。
+  這解釋全量 wall 312 → 333 → 365s 的逐次上升：`-n 8` 的八個 worker 在滿載
+  機器上互相競爭，wall 因此不穩；**判準仍以快速子集 CPU 時間為準**（該值不受
+  並行負載影響）。
+- **`bench_engine.py` f4b（end-to-end `choose_move`）**：
+  `--sections f4b --f4b-games 100 --f4b-samples 200`，wall 35.59s、
+  CPU 35.18+0.40s。`_measurement_decision_ms`（每決策 ms）：
+
+  | 人格 | mean | median | p95 | max |
+  | --- | --- | --- | --- | --- |
+  | chess | 9.2951 | 9.4892 | 12.2423 | 15.4079 |
+  | fox | 9.0381 | 9.4443 | 11.2852 | 23.3211 |
+  | wolf | 9.9103 | 10.1105 | 13.3725 | 18.6103 |
+
+  （`optimizer` 不做 lookahead，bench 不記其決策時間。）此數字是 wall-clock、
+  受機器負載影響，只作旁證。
+- **`board_feats` 直接微基準**（S7g 真正改到的函式）：961 個 midgame grid、
+  每輪 3000 次、取三輪最佳 → **0.8818 ms/call**。CPU-bound，較不受負載影響，
+  是 S7g 前後對比的**主要**數字。
+- **工具注意**：`bench_engine.py` 在 `--sections` 非 `all`（缺任一 section）時
+  會**提前 return**，只把 JSON 印到 stdout、**不寫** `--json` 指定的檔。要留存
+  數字請導向 stdout 再解析。
+
